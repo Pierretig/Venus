@@ -5,13 +5,13 @@
     <meta charset="UTF-8">
     <title>{% block title %}VENUS LUNA- Lithothérapie & Bien-être{% endblock %}</title>
     <meta name="description" content="Boutique mystique à Lomé spécialisée en cristaux, encens et outils de purification. Livraison rapide partout au Togo.">
-    <meta name="keywords" content="lithothérapie togo, cristaux lomé, encens, spiritualité, TMoney, Flooz">
+    <meta name="keywords" content="boutique spirituelle, boutique exoterique, lithothérapie togo, cristaux lomé, encens, spiritualité, TMoney, Flooz">
     <meta name="author" content="Venus_luna">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/main_v2.css' %}">
-    <link rel="icon" type="image/png" href="{% static 'img/watermarked-5ba7d1fd-96e6-44b0-b5ec-7f9e9d21253d.jpg' %}">
+    <link rel="icon" type="image/png" href="{% static 'img/venus-luna5.jpg' %}">
 </head>
 <body class="bg-soft"> {% include 'includes/navbar.html' %}
 
@@ -21,16 +21,17 @@
             {% block content %}{% endblock %}
         </div>
     </main>
-
+    
     {% include 'includes/footer.html' %}
+    {% include 'includes/whatsapp_button.html' %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'js/main.js' %}"></script>
     <script src="{% static 'js/animations.js' %}"></script>
 
-    <a href="https://wa.me/22893343403?text=Bonjour..." class="whatsapp-float" target="_blank">
+    <!-- <a href="https://wa.me/22893343403?text=Bonjour..." class="whatsapp-float" target="_blank">
        <i class="fab fa-whatsapp"></i>
        <span class="tooltip-text">Besoin d'aide ?</span>
-    </a>
+    </a> -->
 </body>
 </html>

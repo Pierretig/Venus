@@ -72,9 +72,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv('DB_NAME', 'site_spirituel'),
-        "USER": os.getenv('DB_USER', 'MAGNOUREWA'),
-        "PASSWORD":  os.getenv('DB_PASSWORD', 'votre_pass'),
+        "NAME": os.getenv('DB_NAME', 'venus_luna'),
+        "USER": os.getenv('DB_USER', 'postgres'),
+        "PASSWORD":  os.getenv('DB_PASSWORD', 'Peter@inos1'),
         "HOST": os.getenv('DB_HOST', '127.0.0.1'),
         "PORT": os.getenv('DB_PORT', '5432'),
     }
@@ -110,3 +110,11 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_APP_PASSWORD') # Utilisez un mot de passe d'application !
 DEFAULT_FROM_EMAIL = f'Venus Luna <{os.getenv("EMAIL_USER")}>'
+
+# liens de resaux sociaux
+WHATSAPP_NUMBER = os.getenv('WHATSAPP_NUMBER', '22893343403')
+FACEBOOK_URL = os.getenv('FACEBOOK_URL', 'https://www.facebook.com/venustogo')
+TWITTER_URL = os.getenv('TWITTER_URL', 'https://twitter.com/venustogo')
+INSTAGRAM_URL = os.getenv('INSTAGRAM_URL', 'https://www.instagram.com/venustogo/')
+LINKEDIN_URL = os.getenv('LINKEDIN_URL', 'https://www.linkedin.com/company/venustogo/')
+TIKTOK_URL = os.getenv('TIKTOK_URL', 'https://www.tiktok.com/@venustogo')
