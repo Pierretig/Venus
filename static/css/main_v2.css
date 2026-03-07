@@ -6,6 +6,19 @@
     overflow: hidden;
 }
 
+/* === AJUSTEMENTS RESPONSIVE GLOBAUX === */
+
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
 /* Animation d’apparition */
 .footer-animate {
     animation: fadeUp 1.2s ease-in-out;

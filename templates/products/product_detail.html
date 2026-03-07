@@ -110,10 +110,10 @@
         <div class="row g-5">
             <div class="col-lg-6">
                 <div class="main-image-wrapper mb-4">
-                    {% for img in product.images.all %}
+                        {% for img in product.images.all %}
                         {% if img.is_main %}
                             <img src="{{ img.image.url }}" id="main-display" alt="{{ img.alt_text }}" 
-                                 class="img-fluid w-100" style="height: 550px; object-fit: contain;">
+                                 class="img-fluid w-100" style="max-height: 550px; object-fit: contain;">
                         {% endif %}
                     {% endfor %}
                 </div>
