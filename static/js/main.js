@@ -21,8 +21,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }, observerOptions);
 
     // 2. Sélection des éléments à animer
-    // On ajoute toutes les classes que tu veux voir s'animer au fur et à mesure
-    const elementsToAnimate = document.querySelectorAll('.col-lg-4, .col-lg-2, .col-lg-3, main, .section-title, .card');
+    // On évite de cibler tout le <main> pour ne pas masquer la page complète
+    const elementsToAnimate = document.querySelectorAll('.col-lg-4, .col-lg-2, .col-lg-3, .section-title, .card');
 
     elementsToAnimate.forEach(el => {
         // État initial (caché)

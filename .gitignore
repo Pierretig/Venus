@@ -11,8 +11,6 @@ test_env/
 .venv/
 .env
 
-# Media
-media/
 
 # Static généré
 staticfiles/

@@ -41,9 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }, observerOptions);
 
-    // Éléments à surveiller pour l'animation
+    // Éléments à surveiller pour l'animation (on évite de masquer tout le <main>)
     const animatableElements = document.querySelectorAll(
-        'main, .section-title, .card, .product-item, .value-card, .testimonial-card, footer .col-lg-4, footer .col-lg-2, footer .col-lg-3'
+        '.section-title, .card, .product-item, .value-card, .testimonial-card, footer .col-lg-4, footer .col-lg-2, footer .col-lg-3'
     );
 
     animatableElements.forEach(el => {

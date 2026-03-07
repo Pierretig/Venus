@@ -1,3 +1,13 @@
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
 /* === FOOTER VENUS LUNA === */
 .venus-footer {
     background: linear-gradient(135deg, #0b7a3b, #1faa59);
