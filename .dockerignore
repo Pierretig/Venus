@@ -1,0 +1,13 @@
+.env
+env/
+test_env/
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.git
+.gitignore
+media/
+staticfiles/
+arborescence.txt
+

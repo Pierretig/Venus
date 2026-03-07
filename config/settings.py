@@ -7,15 +7,19 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
-# --- SÉCURITÉ (Utilise les variables du .env) ---
+# --- SÉCURITÉ (Utilise les variables d'environnement / .env en local) ---
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-change-it')
-DEBUG = os.getenv('DEBUG') == 'True'
-#ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '.ngrok-free.app']
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
+
+ALLOWED_HOSTS_ENV = os.getenv('ALLOWED_HOSTS') or os.getenv('DJANGO_ALLOWED_HOSTS')
+if ALLOWED_HOSTS_ENV:
+    ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(',') if h.strip()]
+else:
+    ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 # --- CONFIGURATION PAYPLUS AFRICA ---
 PAYPLUS_API_KEY = os.getenv('PAYPLUS_API_KEY')
 PAYPLUS_MERCHANT_ID = os.getenv('PAYPLUS_MERCHANT_ID')
-SITE_URL = os.getenv('SITE_URL', 'https://www.venustogo.com')
+SITE_URL = os.getenv('SITE_URL', 'https://venus-luna.com')
 PAYPLUS_WEBHOOK_URL = f"{SITE_URL}/orders/webhook/payplus/"
 
 # --- APPLICATIONS ---
@@ -38,7 +42,7 @@ INSTALLED_APPS = [
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-      #'whitenoise.middleware.WhiteNoiseMiddleware', Pour les fichiers statiques en prod
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -74,7 +78,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.getenv('DB_NAME', 'venus_luna'),
         "USER": os.getenv('DB_USER', 'postgres'),
-        "PASSWORD":  os.getenv('DB_PASSWORD', 'Peter@inos1'),
+        "PASSWORD":  os.getenv('DB_PASSWORD', 'change-me'),
         "HOST": os.getenv('DB_HOST', '127.0.0.1'),
         "PORT": os.getenv('DB_PORT', '5432'),
     }
@@ -84,6 +88,7 @@ DATABASES = {
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

@@ -6,7 +6,13 @@ __pycache__/
 
 # Environnements
 venv/
+env/
+test_env/
+.venv/
 .env
 
 # Media
 media/
+
+# Static généré
+staticfiles/
