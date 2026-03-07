@@ -2,11 +2,13 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import sys
+
 # Chargement du fichier .env
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
+
 # --- SÉCURITÉ (Utilise les variables d'environnement / .env en local) ---
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-change-it')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
@@ -16,6 +18,18 @@ if ALLOWED_HOSTS_ENV:
     ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(',') if h.strip()]
 else:
     ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+
+# --- CORRECTION CSRF PRODUCTION ---
+CSRF_TRUSTED_ORIGINS = [
+    "https://venus-luna.com",
+    "https://www.venus-luna.com"
+]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
 # --- CONFIGURATION PAYPLUS AFRICA ---
 PAYPLUS_API_KEY = os.getenv('PAYPLUS_API_KEY')
 PAYPLUS_MERCHANT_ID = os.getenv('PAYPLUS_MERCHANT_ID')
@@ -30,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
     'apps.accounts',
     'apps.products',
     'apps.orders',
@@ -37,9 +52,9 @@ INSTALLED_APPS = [
     'apps.contact',
     'apps.core',
 
-    'admin_custom', # Assure-toi qu'elle est bien là
-    # ...
+    'admin_custom',
 ]
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -78,7 +93,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.getenv('DB_NAME', 'venus-luna'),
         "USER": os.getenv('DB_USER', 'postgres'),
-        "PASSWORD":  os.getenv('DB_PASSWORD', 'Venus-luna@82'),
+        "PASSWORD": os.getenv('DB_PASSWORD', 'Venus-luna@82'),
         "HOST": os.getenv('DB_HOST', 'venusluna-venus-data-base-mylun9'),
         "PORT": os.getenv('DB_PORT', '5432'),
     }
@@ -104,19 +119,21 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # --- AUTHENTIFICATION ---
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
-# settings.py
+
+# --- BKAPAY ---
 BKAPAY_PUBLIC_KEY = os.getenv('BKAPAY_PUBLIC_KEY')
 BKAPAY_SECRET_WEBHOOK = os.getenv('BKAPAY_SECRET_WEBHOOK')
+
 # --- CONFIGURATION EMAIL (GMAIL) ---
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_APP_PASSWORD') # Utilisez un mot de passe d'application !
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_APP_PASSWORD')
 DEFAULT_FROM_EMAIL = f'Venus Luna <{os.getenv("EMAIL_USER")}>'
 
-# liens de resaux sociaux
+# --- LIENS RÉSEAUX SOCIAUX ---
 WHATSAPP_NUMBER = os.getenv('WHATSAPP_NUMBER', '22893343403')
 FACEBOOK_URL = os.getenv('FACEBOOK_URL', 'https://www.facebook.com/venustogo')
 TWITTER_URL = os.getenv('TWITTER_URL', 'https://twitter.com/venustogo')
