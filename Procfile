@@ -1,1 +1,1 @@
-web: gunicorn site_spirituel.wsgi
+web: gunicorn config.wsgi
