@@ -11,7 +11,8 @@ test_env/
 .venv/
 .env
 
-INSTRUCTIONS_MEDIA_DOKPLOY.md
 TODO.md
+INSTRUCTIONS_CLOUDINARY.md
+INSTRUCTIONS_MEDIA_DOKPLOY.md
 # Static généré
 staticfiles/

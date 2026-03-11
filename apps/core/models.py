@@ -1,11 +1,12 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from cloudinary.models import CloudinaryField
+
 
 def upload_to_site_path(instance, filename):
-    # sous-dossiers organisés par type et année/mois
-    now = timezone.now()
-    return f'core/{instance.__class__.__name__.lower()}/{now:%Y/%m}/{filename}'
+    return f'core/{instance.__class__.__name__.lower()}/'
+
 
 class SiteSettings(models.Model):
     """
@@ -18,8 +19,8 @@ class SiteSettings(models.Model):
     phone_primary = models.CharField("Téléphone principal", max_length=30, blank=True)
     phone_secondary = models.CharField("Téléphone secondaire", max_length=30, blank=True)
     email = models.EmailField("Email de contact", blank=True)
-    logo = models.ImageField("Logo", upload_to=upload_to_site_path, blank=True, null=True)
-    favicon = models.ImageField("Favicon", upload_to=upload_to_site_path, blank=True, null=True)
+    logo = CloudinaryField('logo', blank=True, null=True)
+    favicon = CloudinaryField('favicon', blank=True, null=True)
     theme_primary = models.CharField("Couleur principale (hex)", max_length=7, default="#1e0b3b", help_text="Ex: #1e0b3b")
     theme_accent = models.CharField("Couleur accent (hex)", max_length=7, default="#d4af37", help_text="Ex: #d4af37")
     footer_text = models.TextField("Texte de pied de page", blank=True)
@@ -48,7 +49,7 @@ class Banner(models.Model):
     """
     title = models.CharField("Titre", max_length=200)
     subtitle = models.CharField("Sous-titre", max_length=255, blank=True)
-    image = models.ImageField("Image", upload_to=upload_to_site_path)
+    image = CloudinaryField('banner_image')
     link_url = models.CharField("URL de redirection", max_length=500, blank=True)
     is_active = models.BooleanField("Actif", default=True)
     order = models.PositiveSmallIntegerField("Ordre d'affichage", default=0)
@@ -69,7 +70,7 @@ class SocialLink(models.Model):
     name = models.CharField("Réseau / Nom", max_length=100)
     url = models.URLField("URL")
     icon_class = models.CharField("Classe icône (optionnel)", max_length=200, blank=True,
-                                  help_text="Ex: fab fa-facebook-f ou icône CSS utilisée par le front")
+                                help_text="Ex: fab fa-facebook-f ou icône CSS utilisée par le front")
 
     class Meta:
         verbose_name = "Lien social"

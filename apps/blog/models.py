@@ -3,12 +3,13 @@ from django.conf import settings
 from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
+from cloudinary.models import CloudinaryField
 
 class Post(models.Model):
     title = models.CharField("Titre", max_length=200)
     slug = models.SlugField("Slug", max_length=200, unique=True, blank=True)
     content = models.TextField("Contenu")
-    image = models.ImageField("Image de couverture", upload_to='blog/', blank=True, null=True)
+    image = CloudinaryField('image', blank=True, null=True)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 

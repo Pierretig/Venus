@@ -6,9 +6,10 @@ from django.utils.text import slugify
 from django.utils import timezone
 from django.contrib.auth.models import User
 
+
 def upload_to_product_path(instance, filename):
-    now = timezone.now()
-    return f'products/{instance.__class__.__name__.lower()}/{now:%Y/%m}/{filename}'
+    return f'products/{instance.__class__.__name__.lower()}/'
+
 
 class Category(models.Model):
     name = models.CharField("Nom", max_length=200)
@@ -29,6 +30,7 @@ class Category(models.Model):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+
 
 class Product(models.Model):
     category = models.ForeignKey(Category, related_name='products', on_delete=models.SET_NULL, null=True, blank=True)
@@ -63,6 +65,7 @@ class Product(models.Model):
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
 
+
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField("Image", upload_to=upload_to_product_path)
@@ -79,6 +82,7 @@ class ProductImage(models.Model):
     def __str__(self):
         return f"Image de {self.product.name}"
 
+
 class Wishlist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wishlist')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -91,3 +95,4 @@ class Wishlist(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.product.name}"
+
