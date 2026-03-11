@@ -29,6 +29,5 @@ urlpatterns = [
     # 5. ROBOTS.TXT (servi automatiquement par WhiteNoise)
 ]
 
-# Gestion des fichiers média et statiques - Fonctionne aussi en production avec WhiteNoise
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+# En production avec WhiteNoise, les fichiers statiques sont servis automatiquement
+# Les fichiers media sont maintenant servis par Cloudinary, plus besoin de les configurer ici

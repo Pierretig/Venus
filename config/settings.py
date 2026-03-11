@@ -128,26 +128,20 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-MEDIA_URL = '/media/'
-# Le chemin des fichiers media - configurable via variable d'environnement
-MEDIA_ROOT = Path(os.getenv('MEDIA_ROOT', BASE_DIR / 'media'))
+# Configuration Cloudinary pour les fichiers media (images uploadées)
+# Cloudinary stocke les images dans le cloud, pas besoin de volume local
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
-# Configuration du stockage des fichiers media (images uploadées)
-# Pour les fichiers uploadés, on utilise le stockage par défaut du système de fichiers
-# En production, si vous utilisez un service cloud (S3, Cloudinary), configurez-le ici
-DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
+    'SECURE': True,
+}
 
-# Configuration WhiteNoise pour les fichiers statiques
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
-# En production, ajouter le support de la vérification des fichiers media par WhiteNoise
-# Cela permet à WhiteNoise de servir les fichiers media également
-if not DEBUG:
-    # Ajouter MEDIA_ROOT au système de fichiers statiques pour WhiteNoise
-    # Cela permet à WhiteNoise de servir les fichiers media en production
-    from whitenoise import WhiteNoise
-    import django
-    django.STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# URLs pour les fichiers media (utilisé par Django lors de l'affichage des images)
+MEDIA_URL = 'https://res.cloudinary.com/' + os.getenv('CLOUDINARY_CLOUD_NAME', 'your-cloud-name') + '/image/upload/'
+MEDIA_ROOT = ''  # Pas de stockage local avec Cloudinary
 
 # --- INTERNATIONALISATION ---
 LANGUAGE_CODE = 'fr-fr'
