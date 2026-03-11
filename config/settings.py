@@ -131,6 +131,15 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Configuration du stockage des fichiers media (images uploadées)
+# Pour les fichiers uploadés, on utilise le stockage par défaut du système de fichiers
+# En production, si vous utilisez un service cloud (S3, Cloudinary), configurez-le ici
+DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+
+# Alternative pour production avec cloud:
+# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'  # AWS S3
+# DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'  # Cloudinary
+
 # --- INTERNATIONALISATION ---
 LANGUAGE_CODE = 'fr-fr'
 TIME_ZONE = 'UTC'
