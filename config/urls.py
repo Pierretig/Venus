@@ -3,11 +3,13 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
+from django.contrib.sitemaps.views import sitemap
+from config.sitemaps import sitemaps
 
 handler404 = 'apps.core.views.custom_404'
 
 urlpatterns = [
-    # 1. L'ADMINISTRATION (Une seule fois !)
+    # 1. L'ADMINISTRATION
     path('admin/', admin.site.urls),
     
     # 2. TES APPLICATIONS
@@ -17,16 +19,16 @@ urlpatterns = [
     path('orders/', include('apps.orders.urls', namespace='orders')),
     path('blog/', include('apps.blog.urls', namespace='blog')),
     path('contact/', include('apps.contact.urls', namespace='contact')),
-    path('admin/', admin.site.urls), # L'admin Django classique
-    path('', include('apps.core.urls', namespace='core')),
     
-    # config/urls.py
+    # 3. CUSTOM ADMIN DASHBOARD
     path('dashboard-admin/', include('admin_custom.urls')),
-    # Note : Évite de mettre "/admin" dans l'URL pour ne pas créer de conflit
     
+    # 4. SITEMAP POUR LE SEO
+    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+    
+    # 5. ROBOTS.TXT (servi automatiquement par WhiteNoise)
 ]
 
-# Gestion des fichiers média et statiques
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+# Gestion des fichiers média et statiques - Fonctionne aussi en production avec WhiteNoise
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

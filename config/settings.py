@@ -9,6 +9,9 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 
+# --- SITE ID pour Django Sites (SEO) ---
+SITE_ID = 1
+
 # --- SÉCURITÉ (Utilise les variables d'environnement / .env en local) ---
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-change-it')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
@@ -27,8 +30,17 @@ CSRF_TRUSTED_ORIGINS = [
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
+# HTTPS/SSL Settings pour SEO (uniquement en production)
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True  # Redirect HTTP to HTTPS
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+else:
+    SECURE_SSL_REDIRECT = False
+    
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
 
 # --- CONFIGURATION PAYPLUS AFRICA ---
 PAYPLUS_API_KEY = os.getenv('PAYPLUS_API_KEY')
@@ -44,15 +56,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
+    'django.contrib.sitemaps',  # Pour le SEO
+    'django.contrib.sites',  # Pour le SEO (requis pour sitemaps)
     'apps.accounts',
     'apps.products',
     'apps.orders',
     'apps.blog',
     'apps.contact',
     'apps.core',
-
     'admin_custom',
+    "jazzmin",
 ]
 
 MIDDLEWARE = [
@@ -98,6 +111,16 @@ DATABASES = {
         "PORT": os.getenv('DB_PORT', '5432'),
     }
 }
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": os.getenv('DB_NAME', 'venus_luna'),
+#         "USER": os.getenv('DB_USER', 'postgres'),
+#         "PASSWORD":  os.getenv('DB_PASSWORD', 'Peter@inos1'),
+#         "HOST": os.getenv('DB_HOST', '127.0.0.1'),
+#         "PORT": os.getenv('DB_PORT', '5432'),
+#     }
+# }
 
 # --- FICHIERS STATIQUES ET MEDIA ---
 STATIC_URL = '/static/'

@@ -1,6 +1,35 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block og_title %}{{ product.name }} - Venus Luna{% endblock %}
+{% block twitter_title %}{{ product.name }} - Venus Luna{% endblock %}
+{% block canonical %}products/{{ product.slug }}/{% endblock %}
+
+{% block extra_head %}
+<!-- Schema.org Product JSON-LD -->
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": "{{ product.name|escapejs }}",
+    "description": "{{ product.short_description|escapejs|default:product.description|striptags|truncatewords:30|escapejs }}",
+    "image": [
+        {% for img in product.images.all %}{% if img.is_main %}"{{ request.scheme }}://{{ request.get_host }}{{ img.image.url }}"{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}
+    ],
+    "offers": {
+        "@type": "Offer",
+        "priceCurrency": "XOF",
+        "price": "{{ product.price }}",
+        "availability": "https://schema.org/{% if product.stock > 0 %}InStock{% else %}OutOfStock{% endif %}",
+        "seller": {
+            "@type": "Organization",
+            "name": "Venus Luna"
+        }
+    }
+}
+</script>
+{% endblock %}
+
 {% block content %}
 <style>
     :root {

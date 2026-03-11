@@ -1,6 +1,17 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block og_title %}{{ post.title }} - Blog Venus Luna{% endblock %}
+{% block twitter_title %}{{ post.title }} - Blog Venus Luna{% endblock %}
+{% block canonical %}blog/{{ post.id }}/{% endblock %}
+
+{% block extra_head %}
+{% if post.image %}
+<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}">
+<meta property="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}">
+{% endif %}
+{% endblock %}
+
 {% block content %}
 <style>
     :root {
