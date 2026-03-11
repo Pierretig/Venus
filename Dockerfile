@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     libjpeg-dev \
     zlib1g-dev \
+    nginx \
+    curl \
   && rm -rf /var/lib/apt/lists/*
 
 # Installation des dépendances Python
@@ -27,11 +29,18 @@ RUN chmod +x entrypoint.sh
 RUN python manage.py collectstatic --noinput
 
 # Créer les répertoires media AVANT de changer d'utilisateur
-RUN mkdir -p /app/media /app/media/blog /app/media/core /app/media/products /app/media/avatars && \
-    chmod -R 777 /app/media
+RUN mkdir -p /app/media /app/media/blog /app/media/core /app/media/products /app/media/avatars
 
-# Utilisateur non-root
-RUN adduser --disabled-password --gecos '' appuser && chown -R appuser /app
+# Créer un groupe www-data et utilisateur pour les permissions de volume
+RUN groupadd -g 1000 www-data || true && \
+    useradd -r -s /bin/bash -g www-data appuser || true && \
+    chown -R www-data:www-data /app/media && \
+    chmod -R 775 /app/media
+
+# permissions pour le répertoire staticfiles
+RUN chown -R appuser:appuser /app/staticfiles
+
+# Utilisateur avec accès au groupe www-data pour le montage de volume
 USER appuser
 
 ENV DJANGO_SETTINGS_MODULE=config.settings

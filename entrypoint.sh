@@ -8,8 +8,10 @@ mkdir -p /app/media/core
 mkdir -p /app/media/products
 mkdir -p /app/media/avatars
 
-# Appliquer les permissions corrects (écriture pour tous)
-chmod -R 777 /app/media
+# Appliquer les permissions corrects pour le montage de volume
+# Le groupe www-data (GID 1000) est utilisé pour la compatibilité avec Hostinger
+chown -R appuser:www-data /app/media 2>/dev/null || true
+chmod -R 775 /app/media 2>/dev/null || true
 
 python manage.py migrate --noinput
 
