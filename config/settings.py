@@ -125,9 +125,9 @@ DATABASES = {
 # --- CONFIGURATION CLOUDINARY ---
 import cloudinary
 cloudinary.config(
-    cloud_name=os.getenv('deidiffu8'),
-    api_key=os.getenv('326153799291914'),
-    api_secret=os.getenv('8bmdZi4AoL937BAx_vrR5mi27U0'),
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME', 'deidiffu8'),
+    api_key=os.getenv('CLOUDINARY_API_KEY', '326153799291914'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET', '8bmdZi4AoL937BAx_vrR5mi27U0'),
     secure=True,
 )
 
@@ -135,9 +135,9 @@ cloudinary.config(
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv('deidiffu8'),
-    'API_KEY': os.getenv('326153799291914'),
-    'API_SECRET': os.getenv('8bmdZi4AoL937BAx_vrR5mi27U0'),
+    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME', 'deidiffu8'),
+    'API_KEY': os.getenv('CLOUDINARY_API_KEY', '326153799291914'),
+    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', '8bmdZi4AoL937BAx_vrR5mi27U0'),
     'SECURE': True,
 }
 
