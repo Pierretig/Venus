@@ -26,6 +26,10 @@ RUN chmod +x entrypoint.sh
 # Collecte des fichiers statiques
 RUN python manage.py collectstatic --noinput
 
+# Créer les répertoires media AVANT de changer d'utilisateur
+RUN mkdir -p /app/media /app/media/blog /app/media/core /app/media/products /app/media/avatars && \
+    chmod -R 777 /app/media
+
 # Utilisateur non-root
 RUN adduser --disabled-password --gecos '' appuser && chown -R appuser /app
 USER appuser
