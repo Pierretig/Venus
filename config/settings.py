@@ -133,14 +133,15 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
-    'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
-    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
+    'CLOUD_NAME': os.getenv('deidiffu8'),
+    'API_KEY': os.getenv('326153799291914'),
+    'API_SECRET': os.getenv('8bmdZi4AoL937BAx_vrR5mi27U0'),
     'SECURE': True,
+    'CLOUDINARY_URL': os.getenv('CLOUDINARY_URL=cloudinary://326153799291914:8bmdZi4AoL937BAx_vrR5mi27U0@deidiffu8')
 }
 
 # URLs pour les fichiers media (utilisé par Django lors de l'affichage des images)
-MEDIA_URL = 'https://res.cloudinary.com/' + os.getenv('CLOUDINARY_CLOUD_NAME', 'your-cloud-name') + '/image/upload/'
+MEDIA_URL = 'https://res.cloudinary.com/' + os.getenv('CLOUDINARY_CLOUD_NAME', 'deidiffu8') + '/image/upload/'
 MEDIA_ROOT = ''  # Pas de stockage local avec Cloudinary
 
 # --- INTERNATIONALISATION ---
