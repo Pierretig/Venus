@@ -61,6 +61,10 @@
         ]
     }
     </script>
+    <link rel="icon" type="image/png" href="{% static 'img/venus-luna5.jpg' %}">
+    {% if not debug %}
+        <script defer src="https://analytics.venus-luna.com/script.js" data-website-id="40b1a356-6189-4b91-892e-b2e8f3b68c85"></script>
+    {% endif %}
     
     {% block extra_head %}{% endblock %}
 </head>
