@@ -58,7 +58,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.sitemaps',  # Pour le SEO
     'django.contrib.sites',  # Pour le SEO (requis pour sitemaps)
-    'cloudinary',
     'apps.accounts',
     'apps.products',
     'apps.orders',
@@ -68,18 +67,6 @@ INSTALLED_APPS = [
     'admin_custom',
     "jazzmin",
 ]
-
-# Configuration Cloudinary
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
-
-cloudinary.config(
-    cloud_name=os.getenv('deidiffu8'),
-    api_key=os.getenv('326153799291914'),
-    api_secret=os.getenv('8bmdZi4AoL937BAx_vrR5mi27U0'),
-    secure=True,
-)
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -134,13 +121,17 @@ DATABASES = {
 #         "PORT": os.getenv('DB_PORT', '5432'),
 #     }
 # }
-# --- FICHIERS STATIQUES ET MEDIA ---
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Configuration Cloudinary pour les fichiers media (images uploadées)
+# --- CONFIGURATION CLOUDINARY ---
+import cloudinary
+cloudinary.config(
+    cloud_name=os.getenv('deidiffu8'),
+    api_key=os.getenv('326153799291914'),
+    api_secret=os.getenv('8bmdZi4AoL937BAx_vrR5mi27U0'),
+    secure=True,
+)
+
+# Stockage par défaut pour les fichiers uploadés (tous les champs ImageField)
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 CLOUDINARY_STORAGE = {
@@ -150,7 +141,14 @@ CLOUDINARY_STORAGE = {
     'SECURE': True,
 }
 
-# MEDIA_URL sera automatiquement généré par Cloudinary
+# --- FICHIERS STATIQUES ET MEDIA ---
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # --- INTERNATIONALISATION ---
 LANGUAGE_CODE = 'fr-fr'
@@ -184,4 +182,3 @@ TWITTER_URL = os.getenv('TWITTER_URL', 'https://twitter.com/venustogo')
 INSTAGRAM_URL = os.getenv('INSTAGRAM_URL', 'https://www.instagram.com/venustogo/')
 LINKEDIN_URL = os.getenv('LINKEDIN_URL', 'https://www.linkedin.com/company/venustogo/')
 TIKTOK_URL = os.getenv('TIKTOK_URL', 'https://www.tiktok.com/@venustogo')
-

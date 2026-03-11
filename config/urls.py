@@ -2,7 +2,6 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import TemplateView
 from django.contrib.sitemaps.views import sitemap
 from config.sitemaps import sitemaps
 
@@ -25,9 +24,11 @@ urlpatterns = [
     
     # 4. SITEMAP POUR LE SEO
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
-    
-    # 5. ROBOTS.TXT (servi automatiquement par WhiteNoise)
 ]
 
+# En développement, servir les fichiers statiques et media localement
 # En production avec WhiteNoise, les fichiers statiques sont servis automatiquement
-# Les fichiers media sont maintenant servis par Cloudinary, plus besoin de les configurer ici
+# Les fichiers media sont servis par Cloudinary (pas besoin de les servir)
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
