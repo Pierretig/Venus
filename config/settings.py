@@ -111,19 +111,12 @@ DATABASES = {
         "PORT": os.getenv('DB_PORT', '5432'),
     }
 }
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": os.getenv('DB_NAME', 'venus_luna'),
-#         "USER": os.getenv('DB_USER', 'postgres'),
-#         "PASSWORD":  os.getenv('DB_PASSWORD', 'Peter@inos1'),
-#         "HOST": os.getenv('DB_HOST', '127.0.0.1'),
-#         "PORT": os.getenv('DB_PORT', '5432'),
-#     }
-# }
 
 # --- CONFIGURATION CLOUDINARY ---
 import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
 cloudinary.config(
     cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME', 'deidiffu8'),
     api_key=os.getenv('CLOUDINARY_API_KEY', '326153799291914'),
@@ -131,7 +124,7 @@ cloudinary.config(
     secure=True,
 )
 
-# Stockage par défaut pour les fichiers uploadés (tous les champs ImageField)
+# Tous les fichiers uploadés utilisent Cloudinary
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # --- FICHIERS STATIQUES ET MEDIA ---

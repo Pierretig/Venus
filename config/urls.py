@@ -28,8 +28,7 @@ urlpatterns = [
 
 # En développement, servir les fichiers statiques et media localement
 # En production avec WhiteNoise, les fichiers statiques sont servis automatiquement
-# Les fichiers media sont servis par Cloudinary (pas besoin de les servir)
+# Les fichiers media sont servis localement (nécessaire pour ImageField)
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-

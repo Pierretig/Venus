@@ -69,7 +69,7 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
-    image = models.ImageField("Image", upload_to=upload_to_product_path)
+    image = CloudinaryField('product_image', folder='products')
     alt_text = models.CharField("Texte alternatif", max_length=255, blank=True)
     is_main = models.BooleanField("Image principale", default=False)
     order = models.PositiveSmallIntegerField("Ordre", default=0)
@@ -96,4 +96,3 @@ class Wishlist(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.product.name}"
-
