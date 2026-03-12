@@ -134,13 +134,6 @@ cloudinary.config(
 # Stockage par défaut pour les fichiers uploadés (tous les champs ImageField)
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME', 'deidiffu8'),
-    'API_KEY': os.getenv('CLOUDINARY_API_KEY', '326153799291914'),
-    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', '8bmdZi4AoL937BAx_vrR5mi27U0'),
-    'SECURE': True,
-}
-
 # --- FICHIERS STATIQUES ET MEDIA ---
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
