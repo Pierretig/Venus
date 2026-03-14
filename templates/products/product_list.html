@@ -188,14 +188,12 @@
                 <div class="category-sidebar shadow-sm">
                     <h5 class="fw-bold mb-4" style="color: var(--venus-or);">Catégories</h5>
                     <div class="category-list">
-                        <a href="{% url 'products:list' %}" 
-                           class="category-link {% if not request.GET.category %}active{% endif %}">
+                        <a href="{% url 'products:list' %}" class="category-link {% if not request.GET.category %}active{% endif %}">
                             <i class="fas fa-th-large me-3"></i> Tous les trésors
                         </a>
                         
                         {% for cat in categories %}
-                        <a href="?category={{ cat.slug }}" 
-                           class="category-link {% if request.GET.category == cat.slug %}active{% endif %}">
+                        <a href="?category={{ cat.slug }}" class="category-link {% if request.GET.category == cat.slug %}active{% endif %}">
                             <i class="fas fa-sparkles me-3"></i> {{ cat.name }}
                         </a>
                         {% endfor %}
@@ -229,14 +227,18 @@
                                 <a href="{% url 'products:product_detail' product.slug %}">
                                     {% with product.images.all|first as first_img %}
                                         <img src="{% if first_img %}{{ first_img.image.url }}{% else %}{% static 'img/aze1.png' %}{% endif %}" 
-                                             class="w-100 h-100" style="object-fit: cover;" alt="{{ product.name }}">
+                                    class="w-100 h-100" style="object-fit: cover;" alt="{{ product.name }}">
                                     {% endwith %}
                                 </a>
                             </div>
 
-                            <div class="p-4 text-center">
-                                <h5 class="fw-bold mb-2" style="font-family: 'Playfair Display', serif;">{{ product.name }}</h5>
-                                
+                        <div class="p-4 text-center">
+                            <h5 class="fw-bold mb-2" style="font-family: 'Playfair Display', serif;">
+                                <a href="{% url 'products:product_detail' product.slug %}" class="text-dark text-decoration-none">
+                                    {{ product.name }}
+                                </a>
+                            </h5>
+
                                 <div class="mb-3">
                                     {% if product.compare_price %}
                                         <span class="text-muted text-decoration-line-through small me-2">{{ product.compare_price }} F</span>
@@ -244,8 +246,15 @@
                                     <span class="fw-bold h5 mb-0" style="color: var(--venus-or);">{{ product.price }} F CFA</span>
                                 </div>
 
+                                <form action="{% url 'orders:cart_add' product.id %}" method="post" class="mt-2 mb-3">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn w-100 py-2 fw-bold" style="background: var(--venus-profond); color: var(--venus-or); border: 1px solid var(--venus-or); border-radius: 50px; letter-spacing: 1px; transition: 0.3s;">
+                                        <i class="fas fa-shopping-bag me-2"></i>Ajouter au panier
+                                    </button>
+                                </form>
+
                                 <a href="{% url 'products:product_detail' product.slug %}" class="btn btn-discover w-100 py-2">
-                                    Explorer
+                                    Explorer les détails
                                 </a>
                             </div>
                         </div>
