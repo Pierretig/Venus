@@ -101,26 +101,26 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # --- BASE DE DONNÉES (POSTGRESQL) ---
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": os.getenv('DB_NAME', 'venus-luna'),
-#         "USER": os.getenv('DB_USER', 'postgres'),
-#         "PASSWORD": os.getenv('DB_PASSWORD', 'Venus-luna@82'),
-#         "HOST": os.getenv('DB_HOST', 'venusluna-venus-data-base-mylun9'),
-#         "PORT": os.getenv('DB_PORT', '5432'),
-#     }
-# }
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv('DB_NAME', 'venus_luna'),
+        "NAME": os.getenv('DB_NAME', 'venus-luna'),
         "USER": os.getenv('DB_USER', 'postgres'),
-        "PASSWORD":  os.getenv('DB_PASSWORD', 'Peter@inos1'),
-        "HOST": os.getenv('DB_HOST', '127.0.0.1'),
+        "PASSWORD": os.getenv('DB_PASSWORD', 'Venus-luna@82'),
+        "HOST": os.getenv('DB_HOST', 'venusluna-venus-data-base-mylun9'),
         "PORT": os.getenv('DB_PORT', '5432'),
     }
 }
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": os.getenv('DB_NAME', 'venus_luna'),
+#         "USER": os.getenv('DB_USER', 'postgres'),
+#         "PASSWORD":  os.getenv('DB_PASSWORD', 'Peter@inos1'),
+#         "HOST": os.getenv('DB_HOST', '127.0.0.1'),
+#         "PORT": os.getenv('DB_PORT', '5432'),
+#     }
+# }
 
 # --- CONFIGURATION CLOUDINARY ---
 import cloudinary
