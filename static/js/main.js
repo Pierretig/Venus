@@ -52,3 +52,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// Navbar sticky - hide on scroll down, show on scroll up
+let lastScrollTop = 0;
+const navbar = document.querySelector('.custom-navbar');
+window.addEventListener('scroll', () => {
+  let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+  if (scrollTop > lastScrollTop && scrollTop > 100) {
+    navbar.style.transform = 'translateY(-100%)';
+  } else {
+    navbar.style.transform = 'translateY(0)';
+  }
+  lastScrollTop = scrollTop;
+});

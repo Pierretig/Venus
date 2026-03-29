@@ -248,14 +248,10 @@
 
                                 <form action="{% url 'orders:cart_add' product.id %}" method="post" class="mt-2 mb-3">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn w-100 py-2 fw-bold" style="background: var(--venus-profond); color: var(--venus-or); border: 1px solid var(--venus-or); border-radius: 50px; letter-spacing: 1px; transition: 0.3s;">
+                                    <button type="submit" class="btn btn-discover w-100 py-2 fw-bold" style="background: var(--venus-profond); color: var(--venus-or); border: 1px solid var(--venus-or); border-radius: 50px; letter-spacing: 1px; transition: 0.3s;">
                                         <i class="fas fa-shopping-bag me-2"></i>Ajouter au panier
                                     </button>
                                 </form>
-
-                                <a href="{% url 'products:product_detail' product.slug %}" class="btn btn-discover w-100 py-2">
-                                    Explorer les détails
-                                </a>
                             </div>
                         </div>
                     </div>

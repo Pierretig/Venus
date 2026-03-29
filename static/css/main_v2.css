@@ -1,3 +1,9 @@
+:root {
+    --primary-green: #1ed32d;
+    --primary-green-dark: #0b7a3b;
+    --primary-green-gradient: linear-gradient(135deg, var(--primary-green-dark), #1faa59);
+}
+
 html,
 body {
     max-width: 100%;
@@ -10,7 +16,7 @@ img {
 }
 /* === FOOTER VENUS LUNA === */
 .venus-footer {
-    background: linear-gradient(135deg, #0b7a3b, #1faa59);
+    background: var(--primary-green-gradient);
     color: #ffffff;
     position: relative;
     overflow: hidden;
@@ -119,10 +125,14 @@ img {
 /* ================= NAVBAR VENUS LUNA ================= */
 
 .custom-navbar {
-    background: linear-gradient(135deg, #0b7a3b, #1faa59);
+    background: var(--primary-green-gradient);
     padding: 0.4rem 0;
     box-shadow: 0 6px 18px rgba(0,0,0,0.18);
     transition: all 0.4s ease;
+}
+
+.custom-navbar.hidden {
+    transform: translateY(-100%);
 }
 
 /* Animation apparition */
@@ -236,19 +246,20 @@ img {
     text-decoration: none;
 }
 
-.btn-register {
+.btn-register, .btn-main, .btn-submit, .btn-gold-custom, .btn-commander {
     background: #f6d84c;
-    color: #0b7a3b;
+    color: white;
     font-weight: bold;
-    padding: 8px 22px;
     border-radius: 25px;
     text-decoration: none;
     transition: all 0.3s ease;
+    border: none;
 }
 
-.btn-register:hover {
-    background: white;
-    color: #0b7a3b;
+.btn-register:hover, .btn-main:hover, .btn-submit:hover, .btn-gold-custom:hover, .btn-commander:hover {
+    background: transparent;
+    color: #f6d84c;
+    border: 2px solid #f6d84c;
     transform: translateY(-2px);
 }
 
@@ -267,7 +278,7 @@ img {
 /* ================= ABOUT PAGE VENUS LUNA ================= */
 
 .about-section {
-    background: linear-gradient(135deg, #0b7a3b, #1faa59);
+    background: var(--primary-green-gradient);
     color: white;
 }
 
@@ -373,7 +384,7 @@ img {
 /* ================= CONFIDENTIALITÉ ================= */
 
 .privacy-section {
-    background: linear-gradient(135deg, #0b7a3b, #1faa59);
+    background: var(--primary-green-gradient);
     color: white;
 }
 
@@ -436,7 +447,7 @@ img {
 /* ================= CONTACT PAGE ================= */
 
 .contact-section {
-    background: linear-gradient(135deg, #0b7a3b, #1faa59);
+    background: var(--primary-green-gradient);
     color: white;
 }
 
@@ -467,7 +478,7 @@ img {
 
 /* Titres internes */
 .section-title {
-    color: #0b7a3b;
+    color: var(--primary-green);
     font-weight: bold;
 }
 
@@ -575,11 +586,17 @@ img {
 /* ===== SECTION FAQ ===== */
 section {
     background: linear-gradient(180deg, #fcfbf7 0%, #f7f5ef 100%);
+    color: var(--primary-green);
 }
 
 /* ===== CONTENEUR PRINCIPAL ===== */
-.container {
-    position: relative;
+.container, .container-fluid {
+    --bs-gutter-x: 1.5rem;
+    max-width: 100% !important;
+    padding-left: calc(var(--bs-gutter-x) * .5);
+    padding-right: calc(var(--bs-gutter-x) * .5);
+    margin-right: auto;
+    margin-left: auto;
 }
 
 /* ===== TITRES ===== */
