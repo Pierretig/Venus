@@ -5,6 +5,7 @@ from django.db.models import Sum, Count, Q  # Ajout de Q pour la recherche
 from django.db.models.functions import TruncDay
 from django.utils import timezone
 from datetime import timedelta
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 # Import des modèles
 from .models import Product, Category, Wishlist
@@ -96,6 +97,14 @@ def product_list(request):
     category_slug = request.GET.get('category')
     if category_slug:
         products = products.filter(category__slug=category_slug)
+    
+    # --- PAGINATION ---
+    page_number = request.GET.get('page')
+    paginator = Paginator(products, 50)  # 50 produits par page
+    try:
+        products = paginator.page(page_number)
+    except (EmptyPage, PageNotAnInteger):
+        products = paginator.page(1)
     
     # --- GESTION DE LA WISHLIST (ICÔNES CŒUR) ---
     wishlist_ids = []
