@@ -678,6 +678,24 @@ p.text-muted {
     }
 }
 
+/* ===== FIX NAVBAR OVERLAP ===== */
+:root {
+    --navbar-height: 160px; /* Desktop: logo 130px + padding/border/shadow ≈160px */
+    --navbar-height-mobile: 95px; /* Mobile: logo 75px + padding ≈95px */
+}
+
+.main-content {
+    padding-top: var(--navbar-height) !important;
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        padding-top: var(--navbar-height-mobile) !important;
+    }
+}
+
+
+
 
 
  
