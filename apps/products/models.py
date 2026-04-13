@@ -41,7 +41,7 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
     def get_descendants(self, include_self=True):
-        \"\"\"Récupère toutes les sous-catégories récursivement.\"\"\"
+        """Récupère toutes les sous-catégories récursivement."""
         descendants = self.children.all()
         for child in self.children.all():
             descendants |= child.get_descendants()
@@ -51,13 +51,13 @@ class Category(models.Model):
 
     @property
     def display_name(self):
-        \"\"\"Nom avec indent pour hiérarchie.\"\"\"
+        """Nom avec indent pour hiérarchie."""
         if self.parent:
             return f"{'--' * self.get_depth()} {self.name}"
         return self.name
 
     def get_depth(self):
-        \"\"\"Profondeur hiérarchique.\"\"\"
+        """Profondeur hiérarchique."""
         depth = 0
         cat = self
         while cat.parent:
