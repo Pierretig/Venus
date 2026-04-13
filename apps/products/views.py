@@ -81,10 +81,12 @@ def wishlist_detail(request):
     return render(request, 'products/wishlist.html', {'items': items})
 
 def product_list(request):
-    categories = Category.objects.all()
+    # Catégories principales seulement (pour display)
+    categories = Category.objects.filter(parent=None)
+    
     products = Product.objects.filter(is_active=True)
     
-    # --- LOGIQUE DE RECHERCHE (Correction ici) ---
+    # --- LOGIQUE DE RECHERCHE ---
     query = request.GET.get('q')
     if query:
         products = products.filter(
@@ -93,14 +95,16 @@ def product_list(request):
             Q(category__name__icontains=query)
         )
 
-    # --- FILTRE PAR CATÉGORIE ---
+    # --- FILTRE HIÉRARCHIQUE PAR CATÉGORIE ---
     category_slug = request.GET.get('category')
     if category_slug:
-        products = products.filter(category__slug=category_slug)
+        category = get_object_or_404(Category, slug=category_slug)
+        descendant_cats = category.get_descendants(include_self=True)
+        products = products.filter(category__in=descendant_cats)
     
     # --- PAGINATION ---
     page_number = request.GET.get('page')
-    paginator = Paginator(products, 50)  # 50 produits par page
+    paginator = Paginator(products, 50)
     try:
         products = paginator.page(page_number)
     except (EmptyPage, PageNotAnInteger):

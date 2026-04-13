@@ -17,6 +17,14 @@ class Category(models.Model):
     slug = models.SlugField("Slug", max_length=200, unique=True, blank=True)
     description = models.TextField("Description", blank=True)
     order = models.PositiveIntegerField("Ordre", default=0)
+    parent = models.ForeignKey(
+        'self', 
+        null=True, 
+        blank=True, 
+        on_delete=models.CASCADE, 
+        related_name='children',
+        verbose_name="Catégorie parente"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -31,6 +39,31 @@ class Category(models.Model):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+
+    def get_descendants(self, include_self=True):
+        \"\"\"Récupère toutes les sous-catégories récursivement.\"\"\"
+        descendants = self.children.all()
+        for child in self.children.all():
+            descendants |= child.get_descendants()
+        if include_self:
+            descendants = descendants | self.__class__.objects.filter(pk=self.pk)
+        return descendants
+
+    @property
+    def display_name(self):
+        \"\"\"Nom avec indent pour hiérarchie.\"\"\"
+        if self.parent:
+            return f"{'--' * self.get_depth()} {self.name}"
+        return self.name
+
+    def get_depth(self):
+        \"\"\"Profondeur hiérarchique.\"\"\"
+        depth = 0
+        cat = self
+        while cat.parent:
+            depth += 1
+            cat = cat.parent
+        return depth
 
 
 class Product(models.Model):

@@ -678,6 +678,31 @@ p.text-muted {
     }
 }
 
+/* Grille produits responsive */
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+}
+
+@media (min-width: 1200px) {
+    .products-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 1400px) {
+    .products-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+.product-grid-card img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
 /* ===== FIX NAVBAR OVERLAP ===== */
 :root {
     --navbar-height: 160px; /* Desktop: logo 130px + padding/border/shadow ≈160px */
@@ -693,6 +718,12 @@ p.text-muted {
         padding-top: var(--navbar-height-mobile) !important;
     }
 }
+
+
+
+
+
+
 
 
 

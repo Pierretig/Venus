@@ -90,6 +90,13 @@
     }
 
     /* Cartes Produits */
+    /* Grille responsive 1-5 colonnes */
+    .products-grid {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.25rem;
+    }
+
     .product-grid-card {
         border-radius: 20px;
         overflow: hidden;
@@ -100,21 +107,25 @@
 
     .product-grid-card:hover {
         transform: translateY(-10px);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.1) !important;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
     }
 
     .img-zoom-container {
-        height: 280px;
+        height: auto;
+        max-height: 280px;
         overflow: hidden;
         position: relative;
     }
 
     .img-zoom-container img {
-        transition: 0.6s ease;
+        width: 100%;
+        height: auto;
+        object-fit: contain;
+        transition: transform 0.4s ease;
     }
 
     .product-grid-card:hover .img-zoom-container img {
-        transform: scale(1.1);
+        transform: scale(1.05);
     }
 
     .badge-promo {
@@ -284,24 +295,36 @@
             <div class="col-12">
                 <!-- Barre catégories horizontale -->
                 <div class="category-bar fade-up">
-                    <div class="category-scroll">
+                <div class="category-scroll">
                         <a href="{% url 'products:list' %}" class="category-btn {% if not request.GET.category %}active{% endif %}">
                             <i class="fas fa-th-large me-2"></i>Tous
                         </a>
                         {% for cat in categories %}
-                        <a href="?category={{ cat.slug }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="category-btn {% if request.GET.category == cat.slug %}active{% endif %}">
-                            <i class="fas fa-sparkles me-2"></i>{{ cat.name }}
-                        </a>
+                        <div class="dropdown position-relative">
+                            <a href="?category={{ cat.slug }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="category-btn {% if request.GET.category == cat.slug %}active{% endif %} dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="fas fa-layer-group me-2"></i>{{ cat.name }}
+                            </a>
+                            <ul class="dropdown-menu shadow-lg border-0 mt-1" style="border-radius: 15px; min-width: 200px;">
+                                {% for sub in cat.children.all %}
+                                <li><a class="dropdown-item px-3 py-2" href="?category={{ sub.slug }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                                    <i class="fas fa-sparkles text-venus-profond me-2"></i>{{ sub.name }}
+                                </a></li>
+                                {% empty %}
+                                <li><span class="dropdown-item-text px-3 py-2 text-muted small">Aucune sous-catégorie</span></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
                         {% endfor %}
                     </div>
                 </div>
             </div>
 
             <div class="col-12">
-                <div class="row g-4">
+<div class="products-grid g-4">
                     {% for product in products %}
-                    <div class="col-md-6 col-xl-4 fade-up">
+                    <div class="fade-up">
                         <div class="product-grid-card shadow-sm h-100">
+
                             
                             <div class="img-zoom-container">
                                 {% if product.compare_price %}

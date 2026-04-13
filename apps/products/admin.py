@@ -9,11 +9,20 @@ class ProductImageInline(admin.TabularInline):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("name", "order", "created_at")
+    list_display = ("name", "parent", "order", "created_at")
+    list_filter = ("parent", "is_active")
     prepopulated_fields = {"slug": ("name",)}
     search_fields = ("name", "description")
-    ordering = ("order", "name")
+    ordering = ("parent", "order", "name")
     list_editable = ("order",)
+    fieldsets = (
+        ("Général", {
+            "fields": ("name", "parent", "order")
+        }),
+        ("Description", {
+            "fields": ("description",),
+        }),
+    )
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
