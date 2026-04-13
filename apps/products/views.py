@@ -80,6 +80,32 @@ def wishlist_detail(request):
     items = Wishlist.objects.filter(user=request.user).select_related('product')
     return render(request, 'products/wishlist.html', {'items': items})
 
+def category_detail(request, slug):
+    category = get_object_or_404(Category, slug=slug)
+    descendant_cats = category.get_descendants(include_self=True)
+    products = Product.objects.filter(is_active=True, category__in=descendant_cats)
+    
+    # Pagination
+    page_number = request.GET.get('page')
+    paginator = Paginator(products, 50)
+    try:
+        products = paginator.page(page_number)
+    except (EmptyPage, PageNotAnInteger):
+        products = paginator.page(1)
+    
+    # Wishlist
+    wishlist_ids = []
+    if request.user.is_authenticated:
+        wishlist_ids = Wishlist.objects.filter(user=request.user).values_list('product_id', flat=True)
+    
+    context = {
+        'category': category,
+        'categories': Category.objects.filter(parent=None),
+        'products': products,
+        'wishlist_ids': wishlist_ids
+    }
+    return render(request, 'products/category_detail.html', context)
+
 def product_list(request):
     # Catégories principales seulement (pour display)
     categories = Category.objects.filter(parent=None)

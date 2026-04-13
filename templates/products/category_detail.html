@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ category.name }} - Tous les Produits{% endblock %}
+
+{% block content %}
+<!-- Header Catégorie -->
+<div class="container-fluid bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-transparent mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'products:list' %}" class="text-white">Produits</a></li>
+                <li class="breadcrumb-item active text-white-50" aria-current="page">{{ category.display_name }}</li>
+            </ol>
+        </nav>
+        <h1 class="display-4 fw-bold my-3">{{ category.name }}</h1>
+        {% if category.description %}
+        <div class="lead">{{ category.description|linebreaks }}</div>
+        {% endif %}
+        <p class="h5 opacity-75">{{ products.paginator.count }} produit{{ products.paginator.count|pluralize }}</p>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Sous-catégories -->
+    {% if category.children.exists %}
+    <section class="mb-5">
+        <h2 class="h4 mb-4 border-bottom pb-2">Sous-catégories</h2>
+        <div class="row g-3">
+            {% for subcat in category.children.all %}
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <a href="{% url 'products:category_detail' subcat.slug %}" class="card border-0 shadow-sm h-100 text-decoration-none hover-scale">
+                    <div class="card-body text-center py-5">
+                        <div class="h4 fw-bold mb-2 text-primary">{{ subcat.name }}</div>
+                        <div class="text-muted">{{ subcat.get_descendants|length }} produits</div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Liste Produits (réutilise product_list) -->
+    {% if products %}
+    {% include "products/_product_grid.html" with products=products wishlist_ids=wishlist_ids %}
+    {% else %}
+    <div class="text-center py-5 my-5">
+        <i class="fas fa-box-open fa-3x text-muted mb-4"></i>
+        <h3>Aucun produit dans cette catégorie</h3>
+        <p>Revenez <a href="{% url 'products:list' %}">découvrir tous les produits</a>.</p>
+    </div>
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if products.has_other_pages %}
+    <nav aria-label="Pagination">
+        <ul class="pagination justify-content-center">
+            {% if products.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ products.previous_page_number }}">Précédent</a></li>
+            {% endif %}
+            {% for num in products.paginator.page_range %}
+                {% if products.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num > products.number|add:'-3' and num < products.number|add:'3' %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+            {% if products.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ products.next_page_number }}">Suivant</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- Sidebar Catégories (optionnel) -->
+<aside class="container-fluid bg-light py-4 mt-5">
+    <div class="container">
+        <h3 class="h5 mb-3">Catégories populaires</h3>
+        <div class="row">
+            {% for cat in categories|slice:":5" %}
+            <div class="col-auto">
+                <a href="{% url 'products:category_detail' cat.slug %}" class="btn btn-outline-primary btn-sm me-2 mb-2">{{ cat.name }}</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</aside>
+{% endblock %}
