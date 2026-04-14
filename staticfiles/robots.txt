@@ -1,0 +1,18 @@
+# robots.txt pour Venus Luna
+# https://venus-luna.com
+
+User-agent: *
+Allow: /
+
+# Chemins désactivés (optionnel - à activer si besoin)
+# Disallow: /admin/
+# Disallow: /accounts/
+# Disallow: /cart/
+# Disallow: /checkout/
+
+# Sitemap
+Sitemap: https://venus-luna.com/sitemap.xml
+
+# Crawl-delay (optionnel, pour ne pas surcharger le serveur)
+Crawl-delay: 1
+

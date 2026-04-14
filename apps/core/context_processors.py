@@ -9,15 +9,20 @@ def global_data(request):
     - banners : queryset des bannières actives (limitées)
     - social_links : queryset des liens sociaux
     - debug : Booléen pour les templates (True en local, False en prod)
+    - root_categories : catégories racines ordonnées pour mega-menu
     """
     from django.conf import settings
+    from apps.products.models import Category
     site_settings = SiteSettings.get_solo() if SiteSettings.objects.exists() else None
     banners = Banner.objects.filter(is_active=True).order_by('order')[:5]
     social_links = SocialLink.objects.all()
+    root_categories = Category.objects.filter(parent=None).order_by('order', 'name')
     return {
         "site_settings": site_settings,
         "banners": banners,
         "social_links": social_links,
         "debug": settings.DEBUG,
+        "root_categories": root_categories,
+        "cart_items": request.cart_items if hasattr(request, 'cart_items') else [],
     }
 # ...existing code...

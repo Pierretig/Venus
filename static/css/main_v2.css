@@ -271,9 +271,329 @@ img {
     font-weight: bold;
 }
 
-/* Burger mobile */
+/* ── STYLES TOPBAR / HEADER / NAVBAR / MEGA-MENU ── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', Arial, sans-serif; font-size: 14px; color: #333; background: #fff; }
+a { text-decoration: none; color: inherit; }
+
+/* ── TOP BAR ── */
+.topbar {
+  background: var(--navbar-green);
+  padding: 5px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #fff;
+}
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.topbar-left a { color: #fff; }
+.topbar-left a:hover { text-decoration: underline; }
+.topbar-socials { display: flex; gap: 8px; }
+.topbar-socials a {
+  width: 22px; height: 22px;
+  background: #fff;
+  color: var(--navbar-green);
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: bold;
+}
+.topbar-right a { color: #fff; font-size: 12px; }
+.topbar-right a:hover { text-decoration: underline; }
+
+/* ── HEADER ── */
+.header {
+  padding: 20px 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #eee;
+}
+.logo { line-height: 1; }
+.logo-text {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 52px;
+  font-weight: bold;
+  color: #cc0000;
+  letter-spacing: -1px;
+}
+.logo-text span { color: #333; }
+.logo-sub {
+  font-style: italic;
+  font-size: 13px;
+  color: #666;
+  margin-top: 2px;
+}
+.logo img {
+  max-height: 70px;
+  border-radius: 10px;
+}
+.search-bar {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  overflow: hidden;
+  width: 420px;
+  max-width: 100%;
+}
+.search-bar input {
+  flex: 1;
+  padding: 10px 14px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: #999;
+}
+.search-bar button {
+  background: #fff;
+  border: none;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 16px;
+  color: #555;
+  border-left: 1px solid #ccc;
+}
+.search-bar button:hover { background: #f5f5f5; }
+.header-cart {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-direction: column;
+  text-align: right;
+}
+.cart-icon-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cart-bag {
+  font-size: 34px;
+  color: var(--navbar-green);
+  line-height: 1;
+}
+.cart-info { line-height: 1.3; }
+.cart-info .cart-label { font-size: 13px; color: #666; }
+.cart-info .cart-status { font-size: 15px; font-weight: bold; color: var(--navbar-green); }
+.connexion-link { 
+  font-size: 13px; 
+  color: #555; 
+  border: 1px solid #ddd; 
+  padding: 6px 12px; 
+  border-radius: 20px;
+}
+.connexion-link:hover { color: var(--navbar-green); }
+
+/* ── NAVBAR ── */
+.navbar {
+  background: var(--navbar-green);
+  position: relative;
+  z-index: 500;
+}
+.navbar-inner {
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+.nav-item {
+  position: relative;
+}
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 14px;
+  height: 48px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.nav-link:hover, .nav-item:hover > .nav-link { 
+  background: #4d8a00; 
+}
+.nav-link .arrow {
+  font-size: 9px;
+  margin-left: 2px;
+  opacity: 0.8;
+}
+.nav-link.promo { 
+  color: #ff3300; 
+  background: #fff; 
+}
+.nav-link.promo:hover { 
+  background: #fff3f0; 
+}
+.nav-link.nouveau { 
+  color: #ff6600; 
+  background: #fff; 
+  font-weight: bold; 
+}
+.nav-link.nouveau:hover { 
+  background: #fff5ee; 
+}
+
+/* Badge "à découvrir" */
+.badge-decouvrir {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ff3300;
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+.badge-decouvrir::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #ff3300;
+}
+
+/* ── MEGA MENU ── */
+.mega-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 900px;
+  background: var(--mega-bg);
+  border-top: 2px solid #4d8a00;
+  padding: 24px 28px;
+  z-index: 1000;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+/* Empêche le mega menu de sortir à droite */
+/* Classes dynamiques pour mega/simple right-aligned */
+.mega-menu.mega-7-right, .mega-menu.mega-8-right, .mega-menu.mega-9-right, .mega-menu.mega-10-right { 
+  left: auto; right: 0; 
+}
+.simple-menu.simple-7-right, .simple-menu.simple-8-right, .simple-menu.simple-9-right { 
+  left: auto; right: 0; 
+}
+
+.nav-item:hover .mega-menu { 
+  display: flex; 
+  gap: 0; 
+}
+
+.mega-col {
+  flex: 1;
+  min-width: 180px;
+  padding: 0 20px;
+  border-right: 1px solid #aac850;
+}
+.mega-col:first-child { 
+  padding-left: 0; 
+}
+.mega-col:last-child  { 
+  border-right: none; 
+  padding-right: 0; 
+}
+
+.mega-cat-title {
+  display: block;
+  font-weight: bold;
+  font-size: 14px;
+  color: var(--mega-title);
+  margin-bottom: 8px;
+  margin-top: 14px;
+  cursor: pointer;
+}
+.mega-cat-title:first-child { 
+  margin-top: 0; 
+}
+.mega-cat-title:hover { 
+  text-decoration: underline; 
+}
+
+.mega-sub-link {
+  display: block;
+  font-size: 13px;
+  color: var(--mega-link);
+  padding: 2px 0 2px 2px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+.mega-sub-link:hover { 
+  text-decoration: underline; 
+  color: var(--mega-title); 
+}
+
+/* Simple dropdown (peu de sous-cats) */
+.simple-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--mega-bg);
+  border-top: 2px solid #4d8a00;
+  min-width: 200px;
+  padding: 12px 0;
+  z-index: 1000;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+.nav-item:hover .simple-menu { 
+  display: block; 
+}
+.simple-menu a {
+  display: block;
+  padding: 7px 20px;
+  font-size: 13px;
+  color: var(--mega-title);
+  font-weight: bold;
+}
+.simple-menu a:hover { 
+  background: #b5d45a; 
+}
+
+/* RESPONSIVE */
+@media (max-width: 1200px) {
+  .mega-menu { min-width: 700px; }
+}
+@media (max-width: 992px) {
+  .mega-menu { 
+    min-width: 500px; 
+    left: 50% !important; 
+    right: 50% !important; 
+    transform: translateX(-50%); 
+  }
+}
+@media (max-width: 768px) {
+  .navbar { display: none; } /* Masquer mega sur mobile */
+  .header-cart { flex-direction: row; gap: 10px; }
+}
+
+/* Burger mobile (conservé) */
 .navbar-toggler-icon {
     filter: invert(1);
+}
+
+/* Intégration user dropdown/cart existants */
+.user-dropdown-toggle, .cart-icon-wrapper {
+  margin-left: auto;
+}
+.user-dropdown-toggle {
+  border-color: #fff;
+  padding: 8px 16px;
+  border-radius: 25px;
+}
+.user-dropdown-toggle:hover {
+  background: var(--venus-gold);
+  color: var(--navbar-green);
 }
 /* ================= ABOUT PAGE VENUS LUNA ================= */
 
@@ -704,9 +1024,15 @@ p.text-muted {
 }
 
 /* ===== FIX NAVBAR OVERLAP ===== */
+/* ── NOUVELLE HAUTEUR NAVBAR AVEC TOPBAR+HEADER ── */
 :root {
-    --navbar-height: 160px; /* Desktop: logo 130px + padding/border/shadow ≈160px */
-    --navbar-height-mobile: 95px; /* Mobile: logo 75px + padding ≈95px */
+    --navbar-height: 220px; /* Desktop: topbar20 + header70 + navbar48 + paddings/shadows */
+    --navbar-height-mobile: 160px; /* Mobile compact */
+    --navbar-green: #6aaa00;
+    --mega-bg: #c8e06e;
+    --mega-title: #1a3d00;
+    --mega-link: #2d5a00;
+    --venus-gold: #d4af37;
 }
 
 .main-content {
@@ -718,6 +1044,9 @@ p.text-muted {
         padding-top: var(--navbar-height-mobile) !important;
     }
 }
+
+/* ── SUPPRESSION STYLES ANCIENNE NAVBAR ── */
+.custom-navbar { display: none !important; }
 
 
 

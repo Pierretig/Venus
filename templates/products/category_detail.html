@@ -74,17 +74,6 @@
     {% endif %}
 </div>
 
-<!-- Sidebar Catégories (optionnel) -->
-<aside class="container-fluid bg-light py-4 mt-5">
-    <div class="container">
-        <h3 class="h5 mb-3">Catégories populaires</h3>
-        <div class="row">
-            {% for cat in categories|slice:":5" %}
-            <div class="col-auto">
-                <a href="{% url 'products:category_detail' cat.slug %}" class="btn btn-outline-primary btn-sm me-2 mb-2">{{ cat.name }}</a>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</aside>
+<!-- Sidebar catégories supprimée (mega-menu navbar) -->
+<div style="height: 100px;"></div> <!-- Placeholder -->
 {% endblock %}

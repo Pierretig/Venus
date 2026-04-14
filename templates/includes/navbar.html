@@ -1,224 +1,132 @@
 {% load static %}
 
-<style>
-    :root {
-        --venus-vert: #1ed828ff;
-        --venus-vert-dark: #5d7224;
-        --venus-vert-pale: #f4f7eb;
-        --venus-or: #d4af37;
-        --venus-jaune: #fbc02d;
-        --venus-rouge: #d11149;
-    }
-
-    /* --- NAVBAR --- */
-    .custom-navbar {
-        background: var(--venus-vert) !important;
-        border-bottom: 3px solid var(--venus-vert-dark);
-        padding: 0.5rem 1rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        transition: 0.4s;
-    }
-
-    /* Logo */
-    .navbar-logo {
-        height: 130px;
-        width: auto;
-        position: relative;
-        border-radius: 100%;
-        border: 8px solid white;
-        background: white;
-        transition: 0.3s;
-        margin-left: 0;
-    }
-
-    .navbar-logo:hover {
-        transform: scale(1.05) rotate(5deg);
-        box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
-    }
-
-    /* Supprime toute marge Bootstrap du logo */
-    .navbar-brand {
-        margin-left: 0 !important;
-        padding-left: 10px;
-    }
-
-    .nav-link {
-        color: white !important;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-size: 0.85rem;
-        padding: 15px 20px !important;
-        transition: 0.3s;
-    }
-
-    .nav-link:hover { 
-        background-color: var(--venus-vert-dark);
-        color: var(--venus-jaune) !important;
-    }
-
-    .badge-decouvrir {
-        background-color: var(--venus-rouge);
-        color: white;
-        font-size: 0.6rem;
-        padding: 2px 8px;
-        border-radius: 4px;
-        position: absolute;
-        top: -10px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-weight: bold;
-        z-index: 10;
-        white-space: nowrap;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-
-    .admin-link {
-        color: var(--venus-jaune) !important;
-        border: 1px solid var(--venus-jaune);
-        padding: 5px 15px !important;
-        border-radius: 50px;
-        font-weight: 700 !important;
-        background: rgba(251, 192, 45, 0.1);
-        font-size: 0.8rem;
-    }
-
-    .cart-icon-wrapper {
-        position: relative;
-        color: white;
-        font-size: 1.2rem;
-    }
-
-    .cart-badge {
-        position: absolute;
-        top: -8px; 
-        right: -12px;
-        background: var(--venus-rouge);
-        color: white;
-        font-size: 0.65rem;
-        padding: 2px 6px;
-        border-radius: 50%;
-        border: 2px solid var(--venus-vert);
-    }
-
-    .user-avatar {
-        width: 35px;
-        height: 35px;
-        border-radius: 50%;
-        border: 2px solid white;
-        object-fit: cover;
-    }
-
-    .dropdown-menu {
-        border: none;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
-    .dropdown-item:hover {
-        background-color: var(--venus-vert-pale);
-        color: var(--venus-vert);
-    }
-
-    /* =========================
-   AJUSTEMENT SPÉCIAL MOBILE
-   ========================= */
-@media (max-width: 768px) {
-
-    /* Logo plus petit sur mobile */
-    .navbar-logo {
-        height: 75px;
-        border-width: 5px;
-    }
-
-    /* Texte VENUS-LUNA un peu plus discret */
-    .navbar-brand span {
-        font-size: 0.9rem;
-        letter-spacing: 0.5px;
-    }
-
-    /* Navbar plus compacte */
-    .custom-navbar {
-        padding: 0.3rem 0.5rem;
-    }
-
-    /* Évite que le logo pousse le menu */
-    .navbar-brand {
-        padding-left: 8px;
-    }
-}
-
-</style>
-
-<nav class="navbar navbar-expand-lg fixed-top custom-navbar" id="main-navbar">
-    <div class="container-fluid px-0">
-        
-        <a class="navbar-brand d-flex align-items-center" href="{% url 'core:home' %}">
-            <img src="/static/img/venus-luna3.jpg" alt="Logo Venus Luna" class="navbar-logo">
-            <span class="ms-3 d-none d-sm-inline fw-bold text-white" style="font-family: 'Playfair Display'; letter-spacing: 1px;">
-                VENUS-LUNA
-            </span>
-        </a>
-
-        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <i class="fas fa-bars text-white"></i>
-        </button>
-
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav mx-auto">
-                <li class="nav-item"><a class="nav-link" href="{% url 'core:home' %}">Accueil</a></li>
-
-                <li class="nav-item" style="position: relative;">
-                    <span class="badge-decouvrir"> à découvrir !</span>
-                    <a class="nav-link" href="{% url 'products:list' %}">Boutique</a>
-                </li>
-
-                <li class="nav-item"><a class="nav-link" href="{% url 'blog:list' %}">Blog</a></li>
-                <li class="nav-item"><a class="nav-link" href="{% url 'core:contact' %}">Contact</a></li>
-            </ul>
-
-            <div class="d-flex align-items-center gap-3">
-                {% if user.is_authenticated and user.is_staff %}
-                    <a href="{% url 'admin_custom:dashboard' %}" class="admin-link d-flex align-items-center gap-2">
-                        <i class="fas fa-shield-alt"></i> <span>ADMIN</span>
-                    </a>
-                {% endif %}
-
-                <a href="{% url 'orders:cart_detail' %}" class="cart-icon-wrapper me-2">
-                    <i class="fas fa-shopping-bag"></i>
-                    <span class="cart-badge">{{ cart_items|length|default:"0" }}</span>
-                </a>
-
-                {% if user.is_authenticated %}
-                    <div class="dropdown">
-                        <a class="d-flex align-items-center" href="#" data-bs-toggle="dropdown">
-                            {% if user.profile.avatar %}
-                                <img src="{{ user.profile.avatar.url }}" class="user-avatar">
-                            {% else %}
-                                <i class="fas fa-user-circle fs-2 text-white"></i>
-                            {% endif %}
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end mt-3">
-                            <li><a class="dropdown-item py-2" href="{% url 'accounts:client_dashboard' %}"><i class="fas fa-user-circle me-2"></i> Profil</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <form action="{% url 'accounts:logout' %}" method="post" class="px-3">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-link text-danger p-0 fw-bold">
-                                        <i class="fas fa-sign-out-alt me-2"></i> Déconnexion
-                                    </button>
-                                </form>
-                            </li>
-                        </ul>
-                    </div>
-                {% else %}
-                    <a href="{% url 'accounts:login' %}" class="text-white fw-bold">Connexion</a>
-                    <a href="{% url 'accounts:register' %}" class="btn btn-sm btn-light rounded-pill px-3 fw-bold" style="color: var(--venus-vert);">
-                        S'inscrire
-                    </a>
-                {% endif %}
-            </div>
-        </div>
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-socials">
+      <a href="https://www.facebook.com/venus.luna.1297" title="Facebook">f</a>
+      <a href="#" title="Instagram">i</a>
     </div>
+    <a href="{% url 'core:contact' %}">Nous contacter</a>
+    <a href="#">Plan du site</a>
+    <a href="{% url 'blog:list' %}">Blog</a>
+  </div>
+  <div class="topbar-right">
+    <a href="#">♡ Liste d'envies (0)</a>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">
+    <a href="{% url 'core:home' %}">
+      <img src="{% static 'img/venus-luna3.jpg' %}" alt="Venus Luna" class="navbar-logo">
+    </a>
+    <div class="logo-sub">Lithothérapie – Ésotérisme – Spiritualités</div>
+  </div>
+
+  <!-- Barre de recherche globale -->
+  <div class="search-bar">
+    <form action="{% url 'products:list' %}" method="get" style="display: flex; width: 100%;">
+      <input type="text" name="q" placeholder="Rechercher dans le catalogue" value="{{ request.GET.q|default:'' }}">
+      <button type="submit">🔍</button>
+    </form>
+  </div>
+
+  <div class="header-cart">
+    {% if user.is_authenticated and user.is_staff %}
+    <a href="{% url 'admin_custom:dashboard' %}" class="admin-link" style="position: absolute; top: 10px; right: 20px; z-index: 600;">
+      <i class="fas fa-shield-alt"></i> ADMIN
+    </a>
+    {% endif %}
+    <div class="cart-icon-wrap">
+      <a href="{% url 'orders:cart_detail' %}">
+        <div class="cart-bag">🛍️</div>
+      </a>
+      <div class="cart-info">
+        <div class="cart-label">Panier</div>
+        <div class="cart-status">{{ cart_items|length|default:'Empty' }}</div>
+      </div>
+    </div>
+    
+    {% if user.is_authenticated %}
+    <div class="dropdown">
+      <a class="user-dropdown-toggle" href="#" data-bs-toggle="dropdown">
+        {% if user.profile.avatar %}
+          <img src="{{ user.profile.avatar.url }}" class="user-avatar" alt="Profil">
+        {% else %}
+          <i class="fas fa-user-circle"></i>
+        {% endif %}
+        <span>Profil</span>
+      </a>
+      <ul class="dropdown-menu dropdown-menu-end mt-2">
+        <li><a class="dropdown-item py-2" href="{% url 'accounts:client_dashboard' %}"><i class="fas fa-user me-2"></i> Dashboard</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <form action="{% url 'accounts:logout' %}" method="post" class="px-3">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-link text-danger p-0 w-100 text-start fw-bold">
+              <i class="fas fa-sign-out-alt me-2"></i> Déconnexion
+            </button>
+          </form>
+        </li>
+      </ul>
+    </div>
+    {% else %}
+    <a class="connexion-link" href="{% url 'accounts:login' %}">👤 Connexion</a>
+    {% endif %}
+  </div>
+</header>
+
+<!-- NAVBAR + MEGA MENUS -->
+<nav class="navbar">
+  <div class="navbar-inner">
+    {% for cat in root_categories %}
+    <div class="nav-item" style="{% if forloop.counter >= 7 %}position:relative;{% endif %}">
+      <div class="nav-link">
+        {{ cat.name }} <span class="arrow">▼</span>
+      </div>
+      {% if cat.children.exists %}
+      {% with subs=cat.children.all|slice:":25" cols_num=3 %}
+      {% if subs|length > 5 %}
+      <!-- MEGA MENU (3 cols) -->
+      <div class="mega-menu" style="min-width: {{ cols_num|add:1|mul:220 }}px; {% if forloop.counter >= 7 %}right:0; left:auto;{% endif %}">
+        {% for col_idx in '123'|make_list %}
+        <div class="mega-col">
+          {% for sub in subs|slice:{% widthratio cols_num 1 0 %}:{% widthratio cols_num 1 1 %}{{ forloop.parentloop.counter0|mul:{% widthratio cols_num 1 1 %}|add:col_idx|add:1 }}">
+          {% ifchanged sub.get_depth %}<span class="mega-cat-title">{{ sub.display_name }}</span>{% endifchanged %}
+          <a class="mega-sub-link" href="{% url 'products:category_detail' sub.slug %}">{{ sub.name }}</a>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <!-- SIMPLE MENU -->
+      <div class="simple-menu" style="{% if forloop.counter >= 7 %}right:0;left:auto;{% endif %}">
+        {% for sub in cat.children.all %}
+        <a href="{% url 'products:category_detail' sub.slug %}">{{ sub.name }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+      {% else %}
+      <!-- No children: simple link -->
+      <a class="nav-link" href="{% url 'products:category_detail' cat.slug %}">{{ cat.name }}</a>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div class="nav-item">
+      <div class="nav-link">Catégories</div>
+    </div>
+    {% endfor %}
+
+    <!-- PROMOS & NOUVEAU -->
+    <div class="nav-item">
+      <a class="nav-link promo" href="#">Promos</a>
+    </div>
+    <div class="nav-item">
+      <span class="badge-decouvrir" style="top: -8px;">🎁 à découvrir !</span>
+      <a class="nav-link nouveau" href="#">Nouveau</a>
+    </div>
+  </div>
 </nav>

@@ -11,10 +11,10 @@ class ProductImageInline(admin.TabularInline):
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "parent", "order", "created_at")
     list_filter = ("parent",)
-    prepopulated_fields = {"slug": ("name",)}
     search_fields = ("name", "description")
     ordering = ("parent", "order", "name")
     list_editable = ("order",)
+    
     fieldsets = (
         ("Général", {
             "fields": ("name", "parent", "order")
@@ -23,6 +23,14 @@ class CategoryAdmin(admin.ModelAdmin):
             "fields": ("description",),
         }),
     )
+    
+    def change_view(self, request, object_id=None, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        if object_id:
+            category = self.get_object(request, object_id)
+            if category:
+                extra_context['add_subcategory_url'] = f"{self.get_model_perms(request)['add'] and 'add/' or ''}?parent={category.pk}"
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):

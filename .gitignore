@@ -1,18 +1,1 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Environnements
-venv/
-env/
-test_env/
-.venv/
-.env
-
-TODO.md
-INSTRUCTIONS_CLOUDINARY.md
-INSTRUCTIONS_MEDIA_DOKPLOY.md
-# Static généré
-staticfiles/
+# Environnement test local\nlocal_test/db.sqlite3\nlocal_test/__pycache__/\nlocal_test/local_test.egg-info/\n\n# Autres\n.env\n.DS_Store\nvenv/\n__pycache__/\n*.pyc\n*.log\nmedia/

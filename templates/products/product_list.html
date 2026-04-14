@@ -293,30 +293,8 @@
 
         <div class="row g-4">
             <div class="col-12">
-                <!-- Barre catégories horizontale -->
-                <div class="category-bar fade-up">
-                <div class="category-scroll">
-                        <a href="{% url 'products:list' %}" class="category-btn {% if not request.GET.category %}active{% endif %}">
-                            <i class="fas fa-th-large me-2"></i>Tous
-                        </a>
-                        {% for cat in categories %}
-                        <div class="dropdown position-relative">
-                            <a href="?category={{ cat.slug }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="category-btn {% if request.GET.category == cat.slug %}active{% endif %} dropdown-toggle" data-bs-toggle="dropdown">
-                                <i class="fas fa-layer-group me-2"></i>{{ cat.name }}
-                            </a>
-                            <ul class="dropdown-menu shadow-lg border-0 mt-1" style="border-radius: 15px; min-width: 200px;">
-                                {% for sub in cat.children.all %}
-                                <li><a class="dropdown-item px-3 py-2" href="?category={{ sub.slug }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
-                                    <i class="fas fa-sparkles text-venus-profond me-2"></i>{{ sub.name }}
-                                </a></li>
-                                {% empty %}
-                                <li><span class="dropdown-item-text px-3 py-2 text-muted small">Aucune sous-catégorie</span></li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
+                <!-- Barre catégories supprimée (mega-menu navbar) -->
+                <div class="fade-up" style="height: 80px;"></div> <!-- Placeholder espace -->
             </div>
 
             <div class="col-12">
