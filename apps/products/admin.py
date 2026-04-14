@@ -15,7 +15,6 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields = ("name", "description")
     ordering = ("parent", "order", "name")
     list_editable = ("order",)
-    autocomplete_fields = ['parent']
     fieldsets = (
         ("Général", {
             "fields": ("name", "parent", "order")
