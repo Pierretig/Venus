@@ -87,22 +87,19 @@
         {{ cat.name }} <span class="arrow">▼</span>
       </div>
       {% if cat.children.exists %}
-      {% with subs=cat.children.all|slice:":25" cols_num=3 %}
-      {% if subs|length > 5 %}
-      <!-- MEGA MENU (3 cols) -->
-      <div class="mega-menu" style="min-width: {{ cols_num|add:1|mul:220 }}px; {% if forloop.counter >= 7 %}right:0; left:auto;{% endif %}">
-        {% for col_idx in '123'|make_list %}
+      <!-- MEGA MENU simple 3 cols -->
+      <div class="mega-menu mega-{{ forloop.counter }}{% if forloop.counter >= 7 %}-right{% endif %}">
+        {% for chunk in cat.children.all|chunk:8 %}
         <div class="mega-col">
-          {% for sub in subs|slice:{% widthratio cols_num 1 0 %}:{% widthratio cols_num 1 1 %}{{ forloop.parentloop.counter0|mul:{% widthratio cols_num 1 1 %}|add:col_idx|add:1 }}">
-          {% ifchanged sub.get_depth %}<span class="mega-cat-title">{{ sub.display_name }}</span>{% endifchanged %}
+          {% for sub in chunk %}
+          <span class="mega-cat-title">{{ sub.name }}</span>
           <a class="mega-sub-link" href="{% url 'products:category_detail' sub.slug %}">{{ sub.name }}</a>
           {% endfor %}
         </div>
         {% endfor %}
       </div>
-      {% else %}
       <!-- SIMPLE MENU -->
-      <div class="simple-menu" style="{% if forloop.counter >= 7 %}right:0;left:auto;{% endif %}">
+      <div class="simple-menu simple-{{ forloop.counter }}{% if forloop.counter >= 7 %}-right{% endif %}">
         {% for sub in cat.children.all %}
         <a href="{% url 'products:category_detail' sub.slug %}">{{ sub.name }}</a>
         {% endfor %}
