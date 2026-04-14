@@ -3,11 +3,19 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.sitemaps.views import sitemap
+from django.http import HttpResponse
 from config.sitemaps import sitemaps
 
 handler404 = 'apps.core.views.custom_404'
 
+
+def health(request):
+    """Liveness pour Docker / reverse proxy (sans redirection HTTPS)."""
+    return HttpResponse("ok", content_type="text/plain")
+
+
 urlpatterns = [
+    path("health/", health, name="health"),
     # 1. L'ADMINISTRATION
     path('admin/', admin.site.urls),
     

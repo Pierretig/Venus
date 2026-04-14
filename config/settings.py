@@ -94,6 +94,13 @@ CSRF_TRUSTED_ORIGINS = [
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# Derrière Traefik / Nginx / Dokploy : Host et schéma réels pour redirections correctes
+if not DEBUG:
+    USE_X_FORWARDED_HOST = True
+
+# Chemins exemptés de la redirection HTTP→HTTPS (sondes internes sans en-têtes proxy)
+SECURE_REDIRECT_EXEMPT = [r'^health/?$']
+
 # HTTPS/SSL Settings pour SEO (uniquement en production)
 if not DEBUG:
     SECURE_SSL_REDIRECT = True  # Redirect HTTP to HTTPS
@@ -184,6 +191,22 @@ def parse_database_url(db_url: str) -> dict:
 
 
 def get_database_config() -> dict:
+    # Préférer DB_* si complet : évite DATABASE_URL invalide (ex. @ non encodé dans le mot de passe)
+    db_name = os.getenv("DB_NAME")
+    db_user = os.getenv("DB_USER")
+    db_password = os.getenv("DB_PASSWORD", "")
+    db_host = os.getenv("DB_HOST")
+    db_port = os.getenv("DB_PORT", "5432")
+    if db_name and db_user and db_host:
+        return {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": db_name,
+            "USER": db_user,
+            "PASSWORD": db_password,
+            "HOST": db_host,
+            "PORT": db_port,
+        }
+
     database_url = os.getenv("DATABASE_URL")
     if database_url:
         try:
@@ -193,11 +216,11 @@ def get_database_config() -> dict:
 
     return {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME", "venus_luna"),
-        "USER": os.getenv("DB_USER", "postgres"),
-        "PASSWORD": os.getenv("DB_PASSWORD", ""),
-        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
-        "PORT": os.getenv("DB_PORT", "5432"),
+        "NAME": db_name or "venus_luna",
+        "USER": db_user or "postgres",
+        "PASSWORD": db_password,
+        "HOST": db_host or "127.0.0.1",
+        "PORT": db_port,
     }
 
 
