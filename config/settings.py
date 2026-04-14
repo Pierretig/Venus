@@ -116,7 +116,7 @@ else:
             "NAME": os.getenv('DB_NAME', 'venus_luna'),
             "USER": os.getenv('DB_USER', 'postgres'),
             "PASSWORD": os.getenv('DB_PASSWORD'),
-            "HOST": os.getenv('DB_HOST', 'localhost'),
+            "HOST": os.getenv('DB_HOST', 'venusluna-venus-data-base-mylun9'),
             "PORT": os.getenv('DB_PORT', '5432'),
         }
     }
