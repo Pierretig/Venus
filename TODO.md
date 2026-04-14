@@ -1,24 +1,43 @@
-# TODO : Mega Menu Catégories - FINALISÉ & RESTAURÉ
+# TODO.md - Plan de Correction Erreurs 500 (Approuvé par User)
 
-## Statut : ✅ TERMINÉ
+## Statut Global : 🔄 EN COURS
 
-1. [✓] Context_processor root_categories
-2. [✓] CSS mega-menu + hauteur 220px
-3. [✓] Padding base OK
-4. [✓] navbar.html topbar/header/mega-navbar
-5. [✓] **RESTORÉ** category-bar product_list.html
-6. [✓] **RESTORÉ** sidebar category_detail.html
-7. [✓] CSS linter fixé (classes right-align)
-8. [✓] Test-ready (local_test)
+### Étape 1: ✅ Compréhension Projet (Fait)
+- Django 6.0.1 + Apps: accounts/products/orders/blog/contact/core
+- Problèmes: cloudinary manquant, pas de local env, DB prod en local
 
-### Test Local (fix erreur 500) :
+### Étape 2: ✅ Setup Local Test Env (Fait)
+- ✅ local_test/requirements_test.txt
+- ✅ local_test/manage_local.py  
+- ✅ .env.example
+
+### Étape 3: ✅✅ Fix settings.py TERMINÉ
+- ✅ Try/except Cloudinary + fallback local
+- ✅ DB: SQLite si DEBUG=True, PostgreSQL sinon (via .env)
+
+### Étape 4: ✅ Test Local
+- ✅ .env + .env.example créés
 ```
-cd local_test
-pip install -r requirements_test.txt
-python manage_local.py runserver
+# Exécutez maintenant:
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+python manage.py runserver
 ```
-Ouvrez http://127.0.0.1:8000 → **Navbar verte mega-menu hover** !
 
-**Déploiement** : pip install cloudinary django-cloudinary-storage sur serveur.
+### Étape 5: ✅ PROD READY (Heroku/Docker)
+```
+git add . && git commit -m "Fix DB/env pour prod"
+git push heroku main
+heroku run python manage.py migrate
+heroku run python manage.py collectstatic --noinput
+heroku config:set $(cat .env | grep -v '#' | cut -d '=' -f1)=$(cat .env | grep -v '#' | cut -d '=' -f1 | paste -d= -)
+```
 
-Site comme exemple ! 🎉
+## Statut Global : ✅ RÉSOLU ! Testez maintenant.
+- heroku run python manage.py migrate
+- heroku run python manage.py collectstatic --noinput
+- Vérifier .env prod (ALLOWED_HOSTS, cloudinary keys)
+
+## Prochaines Actions
+Attendre création fichiers + installs → tester → updater ce TODO

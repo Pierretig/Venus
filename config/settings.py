@@ -16,11 +16,10 @@ SITE_ID = 1
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-change-it')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS_ENV = os.getenv('ALLOWED_HOSTS') or os.getenv('DJANGO_ALLOWED_HOSTS')
-if ALLOWED_HOSTS_ENV:
-    ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(',') if h.strip()]
-else:
-    ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS if h.strip()]
+if not DEBUG:
+    ALLOWED_HOSTS.append('*')  # Temporaire pour prod, restreindre après
 
 # --- CORRECTION CSRF PRODUCTION ---
 CSRF_TRUSTED_ORIGINS = [
@@ -100,17 +99,27 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# --- BASE DE DONNÉES (POSTGRESQL) ---
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv('DB_NAME', 'venus-luna'),
-        "USER": os.getenv('DB_USER', 'postgres'),
-        "PASSWORD": os.getenv('DB_PASSWORD', 'Venus-luna@82'),
-        "HOST": os.getenv('DB_HOST', 'venusluna-venus-data-base-mylun9'),
-        "PORT": os.getenv('DB_PORT', '5432'),
+# --- BASE DE DONNÉES (PROD avec fallback LOCAL/SQLite) ---
+if DEBUG:
+    # LOCAL: SQLite pour tests rapides
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
+else:
+    # PROD: PostgreSQL avec vars env
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv('DB_NAME', 'venus_luna'),
+            "USER": os.getenv('DB_USER', 'postgres'),
+            "PASSWORD": os.getenv('DB_PASSWORD'),
+            "HOST": os.getenv('DB_HOST', 'localhost'),
+            "PORT": os.getenv('DB_PORT', '5432'),
+        }
+    }
 # DATABASES = {
 #     "default": {
 #         "ENGINE": "django.db.backends.postgresql",
@@ -122,20 +131,21 @@ DATABASES = {
 #     }
 # }
 
-# --- CONFIGURATION CLOUDINARY ---
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
-
-cloudinary.config(
-    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME', 'dse5hwjvt'),
-    api_key=os.getenv('CLOUDINARY_API_KEY', '298756569597144'),
-    api_secret=os.getenv('CLOUDINARY_API_SECRET', 'egry0kUkkucqSh7t7mR32zrElqA'),
-    secure=True,
-)
-
-# Tous les fichiers uploadés utilisent Cloudinary
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+# --- CONFIGURATION CLOUDINARY (avec fallback local) ---
+try:
+    import cloudinary
+    import cloudinary.uploader
+    import cloudinary.api
+    cloudinary.config(
+        cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME', 'dse5hwjvt'),
+        api_key=os.getenv('CLOUDINARY_API_KEY', '298756569597144'),
+        api_secret=os.getenv('CLOUDINARY_API_SECRET', 'egry0kUkkucqSh7t7mR32zrElqA'),
+        secure=True,
+    )
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+except ImportError as e:
+    print(f"Cloudinary non disponible: {e}. Utilisation stockage local.")
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # --- FICHIERS STATIQUES ET MEDIA ---
 STATIC_URL = '/static/'

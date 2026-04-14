@@ -1,0 +1,17 @@
+# requirements_test.txt - Pour test local avec SQLite + DEBUG=True
+# Copie deps principales + simplifications pour dev rapide
+
+Django==6.0.1
+python-dotenv==1.2.1
+psycopg[binary]>=3.1  # Optionnel, pour future compat
+Pillow==12.1.0
+django-filter==25.2
+django-jazzmin==3.0.1
+cloudinary
+django-cloudinary-storage==0.3.0
+whitenoise==6.11.0
+gunicorn==23.0.0  # Pour simuler prod
+
+# Optionnels (commentez si erreurs)
+# reportlab
+# requests
