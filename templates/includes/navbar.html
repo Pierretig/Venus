@@ -1,4 +1,4 @@
-{% load static %}
+{% load static core_extras %}
 
 <!-- TOP BAR -->
 <div class="topbar">
@@ -83,10 +83,10 @@
   <div class="navbar-inner">
     {% for cat in root_categories %}
     <div class="nav-item" style="{% if forloop.counter >= 7 %}position:relative;{% endif %}">
+      {% if cat.children.exists %}
       <div class="nav-link">
         {{ cat.name }} <span class="arrow">▼</span>
       </div>
-      {% if cat.children.exists %}
       <!-- MEGA MENU simple 3 cols -->
       <div class="mega-menu mega-{{ forloop.counter }}{% if forloop.counter >= 7 %}-right{% endif %}">
         {% for chunk in cat.children.all|chunk:8 %}
@@ -104,10 +104,7 @@
         <a href="{% url 'products:category_detail' sub.slug %}">{{ sub.name }}</a>
         {% endfor %}
       </div>
-      {% endif %}
-      {% endwith %}
       {% else %}
-      <!-- No children: simple link -->
       <a class="nav-link" href="{% url 'products:category_detail' cat.slug %}">{{ cat.name }}</a>
       {% endif %}
     </div>
