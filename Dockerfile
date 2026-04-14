@@ -33,8 +33,7 @@ USER appuser
 ENV DJANGO_SETTINGS_MODULE=config.settings
 
 # Healthcheck for container orchestration
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\
-  CMD curl -f http://localhost:8000/ || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 CMD curl -f http://localhost:8000/ || exit 1
 
 # Point d'entrée : migrations puis lancement de Gunicorn
 ENTRYPOINT ["./entrypoint.sh"]
