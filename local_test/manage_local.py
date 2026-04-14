@@ -14,9 +14,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'apps'))
 from dotenv import load_dotenv
 load_dotenv(dotenv_path='../.env')  # Charge .env racine
 
-# SETTINGS LOCAL: DEBUG=True, SQLite, pas de prod DB
+# Force path + settings
+import os
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 os.environ['DEBUG'] = 'True'  # Force DEBUG local
+os.environ['DB_ENGINE'] = 'django.db.backends.sqlite3'
+os.environ['DB_NAME'] = str(BASE_DIR / 'db.sqlite3')
 # os.environ['DB_NAME'] = 'local_db'  # Optionnel: override si besoin
 # os.environ['DB_HOST'] = 'localhost'
 
