@@ -1026,8 +1026,8 @@ p.text-muted {
 /* ===== FIX NAVBAR OVERLAP ===== */
 /* ── NOUVELLE HAUTEUR NAVBAR AVEC TOPBAR+HEADER ── */
 :root {
-    --navbar-height: 220px; /* Desktop: topbar20 + header70 + navbar48 + paddings/shadows */
-    --navbar-height-mobile: 160px; /* Mobile compact */
+    --navbar-height: 128px;
+    --navbar-height-mobile: 120px;
     --navbar-green: #6aaa00;
     --mega-bg: #c8e06e;
     --mega-title: #1a3d00;

@@ -99,16 +99,17 @@ def category_detail(request, slug):
         wishlist_ids = Wishlist.objects.filter(user=request.user).values_list('product_id', flat=True)
     
     context = {
-        'category': category,
         'categories': Category.objects.filter(parent=None),
         'products': products,
-        'wishlist_ids': wishlist_ids
+        'wishlist_ids': wishlist_ids,
+        'selected_category': category,
+        'sort': 'relevance',
     }
-    return render(request, 'products/category_detail.html', context)
+    return render(request, 'products/product_list.html', context)
 
 def product_list(request):
     # Catégories principales seulement (pour display)
-    categories = Category.objects.filter(parent=None)
+    categories = Category.objects.filter(parent=None).prefetch_related('children__children')
     
     products = Product.objects.filter(is_active=True)
     
@@ -123,10 +124,19 @@ def product_list(request):
 
     # --- FILTRE HIÉRARCHIQUE PAR CATÉGORIE ---
     category_slug = request.GET.get('category')
+    selected_category = None
     if category_slug:
-        category = get_object_or_404(Category, slug=category_slug)
-        descendant_cats = category.get_descendants(include_self=True)
+        selected_category = get_object_or_404(Category, slug=category_slug)
+        descendant_cats = selected_category.get_descendants(include_self=True)
         products = products.filter(category__in=descendant_cats)
+
+    sort = request.GET.get('sort', 'relevance')
+    if sort == 'price_asc':
+        products = products.order_by('price', '-featured', '-created_at')
+    elif sort == 'price_desc':
+        products = products.order_by('-price', '-featured', '-created_at')
+    elif sort == 'newest':
+        products = products.order_by('-created_at')
     
     # --- PAGINATION ---
     page_number = request.GET.get('page')
@@ -145,7 +155,9 @@ def product_list(request):
     return render(request, 'products/product_list.html', {
         'categories': categories,
         'products': products,
-        'wishlist_ids': wishlist_ids
+        'wishlist_ids': wishlist_ids,
+        'selected_category': selected_category,
+        'sort': sort,
     })
 
 def product_detail(request, slug):

@@ -1,126 +1,264 @@
-{% load static core_extras %}
+{% load static %}
 
-<!-- TOP BAR -->
-<div class="topbar">
-  <div class="topbar-left">
-    <div class="topbar-socials">
-      <a href="https://www.facebook.com/venus.luna.1297" title="Facebook">f</a>
-      <a href="#" title="Instagram">i</a>
+<style>
+  .vl-navbar-wrap {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1100;
+    padding: 14px 18px;
+    background: #fcfbf7;
+  }
+
+  .vl-navbar {
+    background: linear-gradient(180deg, #19e62f 0%, #15db2a 100%);
+    border-radius: 22px;
+    min-height: 86px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  }
+
+  .vl-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+
+  .vl-logo {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #fff;
+    background: #fff;
+  }
+
+  .vl-menu {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .vl-menu-link {
+    position: relative;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.05rem;
+    text-decoration: none;
+    padding: 10px 16px;
+    border-radius: 14px;
+  }
+
+  .vl-menu-link.is-active,
+  .vl-menu-link:hover {
+    background: rgba(17, 146, 33, 0.28);
+    color: #fff;
+  }
+
+  .vl-badge {
+    position: absolute;
+    top: -6px;
+    right: -4px;
+    background: #d11149;
+    color: #fff;
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .vl-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .vl-admin-btn {
+    color: #e7c95f;
+    border: 1px solid #e7c95f;
+    border-radius: 999px;
+    padding: 8px 16px;
+    text-decoration: none;
+    font-weight: 700;
+    background: rgba(17, 146, 33, 0.18);
+  }
+
+  .vl-cart {
+    position: relative;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    background: rgba(17, 146, 33, 0.25);
+    color: #fff;
+  }
+
+  .vl-cart-badge {
+    position: absolute;
+    top: -4px;
+    right: -3px;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #d11149;
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .vl-auth-link {
+    color: #fff;
+    text-decoration: none;
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding: 8px 10px;
+  }
+
+  .vl-mobile-toggle {
+    display: none;
+    border: none;
+    background: rgba(17, 146, 33, 0.25);
+    color: #fff;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 1.1rem;
+  }
+
+  .vl-mobile-panel {
+    display: none;
+    margin-top: 12px;
+    background: linear-gradient(180deg, #19e62f 0%, #15db2a 100%);
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+  }
+
+  .vl-mobile-link {
+    display: block;
+    color: #fff;
+    text-decoration: none;
+    padding: 10px 0;
+    font-size: 1.55rem;
+    font-weight: 700;
+  }
+
+  .vl-mobile-auth {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .vl-mobile-auth a {
+    text-align: center;
+    text-decoration: none;
+    font-weight: 700;
+    border-radius: 14px;
+    padding: 10px 12px;
+  }
+
+  .vl-mobile-auth .login {
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+
+  .vl-mobile-auth .register {
+    background: #fff;
+    color: #14b429;
+  }
+
+  @media (max-width: 991px) {
+    .vl-menu,
+    .vl-auth-link,
+    .vl-admin-btn {
+      display: none;
+    }
+
+    .vl-mobile-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .vl-mobile-panel.show {
+      display: block;
+    }
+  }
+</style>
+
+<div class="vl-navbar-wrap">
+  <div class="vl-navbar">
+    <a class="vl-brand" href="{% url 'core:home' %}">
+      <img src="{% static 'img/venus-luna3.jpg' %}" alt="Venus Luna" class="vl-logo">
+      <span>VENUS-LUNA</span>
+    </a>
+
+    <ul class="vl-menu">
+      <li><a class="vl-menu-link is-active" href="{% url 'core:home' %}">Accueil</a></li>
+      <li>
+        <a class="vl-menu-link" href="{% url 'products:list' %}">
+          Boutique
+          <span class="vl-badge">a decouvrir</span>
+        </a>
+      </li>
+      <li><a class="vl-menu-link" href="{% url 'blog:list' %}">Blog</a></li>
+      <li><a class="vl-menu-link" href="{% url 'core:contact' %}">Contact</a></li>
+    </ul>
+
+    <div class="vl-actions">
+      {% if user.is_authenticated and user.is_staff %}
+        <a href="{% url 'admin_custom:dashboard' %}" class="vl-admin-btn">
+          <i class="fas fa-star me-1"></i> Admin
+        </a>
+      {% endif %}
+
+      <a href="{% url 'orders:cart_detail' %}" class="vl-cart" aria-label="Panier">
+        <i class="fas fa-shopping-bag"></i>
+        <span class="vl-cart-badge">{{ cart_items|length|default:"0" }}</span>
+      </a>
+
+      {% if user.is_authenticated %}
+        <a href="{% url 'accounts:client_dashboard' %}" class="vl-auth-link">Mon compte</a>
+      {% else %}
+        <a href="{% url 'accounts:login' %}" class="vl-auth-link">Connexion</a>
+      {% endif %}
+
+      <button class="vl-mobile-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#vlMobileMenu">
+        <i class="fas fa-bars"></i>
+      </button>
     </div>
-    <a href="{% url 'core:contact' %}">Nous contacter</a>
-    <a href="#">Plan du site</a>
-    <a href="{% url 'blog:list' %}">Blog</a>
   </div>
-  <div class="topbar-right">
-    <a href="#">♡ Liste d'envies (0)</a>
+
+  <div class="collapse vl-mobile-panel" id="vlMobileMenu">
+    <a class="vl-mobile-link" href="{% url 'core:home' %}">Accueil</a>
+    <a class="vl-mobile-link" href="{% url 'products:list' %}">Boutique</a>
+    <a class="vl-mobile-link" href="{% url 'blog:list' %}">Blog</a>
+    <a class="vl-mobile-link" href="{% url 'core:contact' %}">Contact</a>
+
+    {% if not user.is_authenticated %}
+      <div class="vl-mobile-auth">
+        <a href="{% url 'accounts:login' %}" class="login">Connexion</a>
+        <a href="{% url 'accounts:register' %}" class="register">S'inscrire</a>
+      </div>
+    {% endif %}
   </div>
 </div>
-
-<!-- HEADER -->
-<header class="header">
-  <div class="logo">
-    <a href="{% url 'core:home' %}">
-      <img src="{% static 'img/venus-luna3.jpg' %}" alt="Venus Luna" class="navbar-logo">
-    </a>
-    <div class="logo-sub">Lithothérapie – Ésotérisme – Spiritualités</div>
-  </div>
-
-  <!-- Barre de recherche globale -->
-  <div class="search-bar">
-    <form action="{% url 'products:list' %}" method="get" style="display: flex; width: 100%;">
-      <input type="text" name="q" placeholder="Rechercher dans le catalogue" value="{{ request.GET.q|default:'' }}">
-      <button type="submit">🔍</button>
-    </form>
-  </div>
-
-  <div class="header-cart">
-    {% if user.is_authenticated and user.is_staff %}
-    <a href="{% url 'admin_custom:dashboard' %}" class="admin-link" style="position: absolute; top: 10px; right: 20px; z-index: 600;">
-      <i class="fas fa-shield-alt"></i> ADMIN
-    </a>
-    {% endif %}
-    <div class="cart-icon-wrap">
-      <a href="{% url 'orders:cart_detail' %}">
-        <div class="cart-bag">🛍️</div>
-      </a>
-      <div class="cart-info">
-        <div class="cart-label">Panier</div>
-        <div class="cart-status">{{ cart_items|length|default:'Empty' }}</div>
-      </div>
-    </div>
-    
-    {% if user.is_authenticated %}
-    <div class="dropdown">
-      <a class="user-dropdown-toggle" href="#" data-bs-toggle="dropdown">
-        {% if user.profile.avatar %}
-          <img src="{{ user.profile.avatar.url }}" class="user-avatar" alt="Profil">
-        {% else %}
-          <i class="fas fa-user-circle"></i>
-        {% endif %}
-        <span>Profil</span>
-      </a>
-      <ul class="dropdown-menu dropdown-menu-end mt-2">
-        <li><a class="dropdown-item py-2" href="{% url 'accounts:client_dashboard' %}"><i class="fas fa-user me-2"></i> Dashboard</a></li>
-        <li><hr class="dropdown-divider"></li>
-        <li>
-          <form action="{% url 'accounts:logout' %}" method="post" class="px-3">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-link text-danger p-0 w-100 text-start fw-bold">
-              <i class="fas fa-sign-out-alt me-2"></i> Déconnexion
-            </button>
-          </form>
-        </li>
-      </ul>
-    </div>
-    {% else %}
-    <a class="connexion-link" href="{% url 'accounts:login' %}">👤 Connexion</a>
-    {% endif %}
-  </div>
-</header>
-
-<!-- NAVBAR + MEGA MENUS -->
-<nav class="navbar">
-  <div class="navbar-inner">
-    {% for cat in root_categories %}
-    <div class="nav-item" style="{% if forloop.counter >= 7 %}position:relative;{% endif %}">
-      {% if cat.children.exists %}
-      <div class="nav-link">
-        {{ cat.name }} <span class="arrow">▼</span>
-      </div>
-      <!-- MEGA MENU simple 3 cols -->
-      <div class="mega-menu mega-{{ forloop.counter }}{% if forloop.counter >= 7 %}-right{% endif %}">
-        {% for chunk in cat.children.all|chunk:8 %}
-        <div class="mega-col">
-          {% for sub in chunk %}
-          <span class="mega-cat-title">{{ sub.name }}</span>
-          <a class="mega-sub-link" href="{% url 'products:category_detail' sub.slug %}">{{ sub.name }}</a>
-          {% endfor %}
-        </div>
-        {% endfor %}
-      </div>
-      <!-- SIMPLE MENU -->
-      <div class="simple-menu simple-{{ forloop.counter }}{% if forloop.counter >= 7 %}-right{% endif %}">
-        {% for sub in cat.children.all %}
-        <a href="{% url 'products:category_detail' sub.slug %}">{{ sub.name }}</a>
-        {% endfor %}
-      </div>
-      {% else %}
-      <a class="nav-link" href="{% url 'products:category_detail' cat.slug %}">{{ cat.name }}</a>
-      {% endif %}
-    </div>
-    {% empty %}
-    <div class="nav-item">
-      <div class="nav-link">Catégories</div>
-    </div>
-    {% endfor %}
-
-    <!-- PROMOS & NOUVEAU -->
-    <div class="nav-item">
-      <a class="nav-link promo" href="#">Promos</a>
-    </div>
-    <div class="nav-item">
-      <span class="badge-decouvrir" style="top: -8px;">🎁 à découvrir !</span>
-      <a class="nav-link nouveau" href="#">Nouveau</a>
-    </div>
-  </div>
-</nav>
