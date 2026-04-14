@@ -41,7 +41,7 @@ exec gunicorn config.wsgi:application \
     --timeout 120 \
     --max-requests 1000 \
     --max-requests-jitter 100 \
-    --preload-app \
+    --preload \
     --log-level info \
     --access-logfile '-' \
     --error-logfile '-' \
