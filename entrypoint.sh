@@ -3,16 +3,31 @@ set -e
 
 echo "=== Venus Luna Startup ==="
 
-# DB test
+# DB test with retries to avoid startup race
 python <<EOF
-try:
-    from config.settings import DATABASES
-    from django.db import connection
-    cursor = connection.cursor()
-    print("✓ DB Connection OK")
-except Exception as e:
-    print(f"✗ DB Error: {e}")
-    exit(1)
+import os
+import time
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+
+import django
+django.setup()
+
+from django.db import connection
+
+max_attempts = 10
+for attempt in range(1, max_attempts + 1):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1;")
+        print("✓ DB Connection OK")
+        break
+    except Exception as e:
+        if attempt == max_attempts:
+            print(f"✗ DB Error after {max_attempts} attempts: {e}")
+            raise SystemExit(1)
+        print(f"⚠ DB not ready (attempt {attempt}/{max_attempts}): {e}")
+        time.sleep(3)
 EOF
 
 python manage.py migrate --noinput || echo "⚠ Migrate skipped, continuing..."

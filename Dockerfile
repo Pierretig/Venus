@@ -32,8 +32,8 @@ USER appuser
 
 ENV DJANGO_SETTINGS_MODULE=config.settings
 
-# Healthcheck for container orchestration
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 CMD curl -f http://localhost:8000/ || exit 1
+# Healthcheck for container orchestration (sans dépendre de curl)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/', timeout=5)" || exit 1
 
 # Point d'entrée : migrations puis lancement de Gunicorn
 ENTRYPOINT ["./entrypoint.sh"]

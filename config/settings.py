@@ -1,20 +1,45 @@
 import os
 from pathlib import Path
-from dotenv import load_dotenv
 import sys
-
-# Chargement du fichier .env
-load_dotenv()
+from urllib.parse import urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
+
+
+def load_fallback_env(env_path: Path) -> None:
+    """
+    Tente de récupérer des variables même si le .env utilise
+    accidentellement le format `KEY: value` au lieu de `KEY=value`.
+    """
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            key, value = line.split("=", 1)
+        elif ":" in line:
+            key, value = line.split(":", 1)
+        else:
+            continue
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+# Chargement du fichier .env (format standard + tolérance KEY: value)
+load_fallback_env(BASE_DIR / ".env")
 
 # --- SITE ID pour Django Sites (SEO) ---
 SITE_ID = 1
 
 # --- SÉCURITÉ (Utilise les variables d'environnement / .env en local) ---
 SECRET_KEY = os.getenv('SECRET_KEY', 'u49lvqEsH5hTNlBcq7cuAq7yoXdgRjww35qxrn-sFrcugL2K6QyuqhV6vphkKD6L-IA')
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+DEBUG = os.getenv('DEBUG', 'False').strip().lower() in {'1', 'true', 'yes', 'on'}
 
 # PROD LOGGING pour debug 502 errors
 LOGGING = {
@@ -139,30 +164,53 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# --- BASE DE DONNÉES (PROD avec fallback LOCAL/SQLite) ---
-if DEBUG:
-    # LOCAL: SQLite pour tests rapides
-    DATABASES = {
-    "default": {
+def parse_database_url(db_url: str) -> dict:
+    parsed = urlparse(db_url)
+    if parsed.scheme not in {"postgres", "postgresql"}:
+        raise ValueError("DATABASE_URL doit être en postgres/postgresql.")
+
+    db_name = parsed.path.lstrip("/")
+    if not db_name:
+        raise ValueError("DATABASE_URL ne contient pas de nom de base.")
+
+    return {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv('DB_NAME', 'venus_luna'),
-        "USER": os.getenv('DB_USER', 'postgres'),
-        "PASSWORD":  os.getenv('DB_PASSWORD', 'Peter@inos1'),
-        "HOST": os.getenv('DB_HOST', '127.0.0.1'),
-        "PORT": os.getenv('DB_PORT', '5432'),
+        "NAME": db_name,
+        "USER": parsed.username or "",
+        "PASSWORD": parsed.password or "",
+        "HOST": parsed.hostname or "",
+        "PORT": str(parsed.port or 5432),
     }
-}
-else:
-    # PROD: PostgreSQL avec vars env
+
+
+def get_database_config() -> dict:
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        try:
+            return parse_database_url(database_url)
+        except ValueError:
+            pass
+
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME", "venus_luna"),
+        "USER": os.getenv("DB_USER", "postgres"),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+        "PORT": os.getenv("DB_PORT", "5432"),
+    }
+
+
+# --- BASE DE DONNÉES (PROD et fallback robuste) ---
+if DEBUG:
+    # LOCAL: PostgreSQL (fallback sur variables par défaut)
     DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv('DB_NAME'),
-            "USER": os.getenv('DB_USER'),
-            "PASSWORD": os.getenv('DB_PASSWORD'),
-            "HOST": os.getenv('DB_HOST'),
-            "PORT": os.getenv('DB_PORT'),
-        }
+        "default": get_database_config()
+    }
+else:
+    # PROD: PostgreSQL via DATABASE_URL ou DB_*.
+    DATABASES = {
+        "default": get_database_config()
     }
 
 # --- CONFIGURATION CLOUDINARY (avec fallback local) ---

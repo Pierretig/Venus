@@ -1,1 +1,19 @@
-# Environnement test local\nlocal_test/db.sqlite3\nlocal_test/__pycache__/\nlocal_test/local_test.egg-info/\n\n# Autres\n.env\n.DS_Store\nvenv/\n__pycache__/\n*.pyc\n*.log\nmedia/
+# Environnement test local
+local_test/db.sqlite3
+local_test/__pycache__/
+local_test/local_test.egg-info/
+
+# Environnements
+.env
+env/
+venv/
+
+# Python cache/logs
+__pycache__/
+*.pyc
+*.pyo
+*.log
+
+# Système / uploads
+.DS_Store
+media/
