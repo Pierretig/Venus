@@ -103,33 +103,27 @@ WSGI_APPLICATION = 'config.wsgi.application'
 if DEBUG:
     # LOCAL: SQLite pour tests rapides
     DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv('DB_NAME', 'venus_luna'),
+        "USER": os.getenv('DB_USER', 'postgres'),
+        "PASSWORD":  os.getenv('DB_PASSWORD', 'Peter@inos1'),
+        "HOST": os.getenv('DB_HOST', '127.0.0.1'),
+        "PORT": os.getenv('DB_PORT', '5432'),
     }
+}
 else:
     # PROD: PostgreSQL avec vars env
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv('DB_NAME', 'venus_luna'),
-            "USER": os.getenv('DB_USER', 'postgres'),
+            "NAME": os.getenv('DB_NAME'),
+            "USER": os.getenv('DB_USER'),
             "PASSWORD": os.getenv('DB_PASSWORD'),
-            "HOST": os.getenv('DB_HOST', 'venusluna-venus-data-base-mylun9'),
-            "PORT": os.getenv('DB_PORT', '5432'),
+            "HOST": os.getenv('DB_HOST'),
+            "PORT": os.getenv('DB_PORT'),
         }
     }
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": os.getenv('DB_NAME', 'venus_luna'),
-#         "USER": os.getenv('DB_USER', 'postgres'),
-#         "PASSWORD":  os.getenv('DB_PASSWORD', 'Peter@inos1'),
-#         "HOST": os.getenv('DB_HOST', '127.0.0.1'),
-#         "PORT": os.getenv('DB_PORT', '5432'),
-#     }
-# }
 
 # --- CONFIGURATION CLOUDINARY (avec fallback local) ---
 try:
