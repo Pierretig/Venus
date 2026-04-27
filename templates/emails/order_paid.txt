@@ -1,0 +1,9 @@
+Bonjour{% if order.shipping_address and order.shipping_address.full_name %} {{ order.shipping_address.full_name }}{% endif %},
+
+Votre paiement pour la commande #{{ order.id }} a été confirmé.
+Montant payé: {{ order.total }} F CFA.
+
+Nous préparons votre commande.
+
+Merci pour votre confiance,
+L'équipe Venus Luna

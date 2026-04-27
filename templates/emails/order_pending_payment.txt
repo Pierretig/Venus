@@ -1,0 +1,10 @@
+Bonjour{% if order.shipping_address and order.shipping_address.full_name %} {{ order.shipping_address.full_name }}{% endif %},
+
+Votre commande #{{ order.id }} a bien été créée.
+Montant à régler: {{ order.total }} F CFA.
+
+Finalisez votre achat ici:
+{{ payment_url }}
+
+Merci pour votre confiance,
+L'équipe Venus Luna

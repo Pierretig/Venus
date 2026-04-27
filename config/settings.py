@@ -277,14 +277,24 @@ LOGIN_REDIRECT_URL = '/'
 BKAPAY_PUBLIC_KEY = os.getenv('BKAPAY_PUBLIC_KEY')
 BKAPAY_SECRET_WEBHOOK = os.getenv('BKAPAY_SECRET_WEBHOOK')
 
-# --- CONFIGURATION EMAIL (GMAIL) ---
+# --- CONFIGURATION EMAIL (BREVO SMTP + FALLBACK) ---
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('EMAIL_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_APP_PASSWORD')
-DEFAULT_FROM_EMAIL = f'Venus Luna <{os.getenv("EMAIL_USER")}>'
+EMAIL_HOST = os.getenv('BREVO_SMTP_HOST', 'smtp-relay.brevo.com')
+EMAIL_PORT = int(os.getenv('BREVO_SMTP_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('BREVO_SMTP_TLS', 'True').strip().lower() in {'1', 'true', 'yes', 'on'}
+EMAIL_USE_SSL = os.getenv('BREVO_SMTP_SSL', 'False').strip().lower() in {'1', 'true', 'yes', 'on'}
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '20'))
+
+# Compatibilité descendante avec les anciennes variables EMAIL_* déjà utilisées.
+EMAIL_HOST_USER = os.getenv('BREVO_SMTP_LOGIN') or os.getenv('EMAIL_HOST_USER') or os.getenv('EMAIL_USER')
+EMAIL_HOST_PASSWORD = os.getenv('BREVO_SMTP_KEY') or os.getenv('EMAIL_HOST_PASSWORD') or os.getenv('EMAIL_APP_PASSWORD')
+
+BREVO_FROM_EMAIL = os.getenv('BREVO_FROM_EMAIL', 'no-reply@venus-luna.com')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'Venus Luna <{BREVO_FROM_EMAIL}>')
+SERVER_EMAIL = os.getenv('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
+
+# Sécurité token reset mot de passe (24h)
+PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', '86400'))
 
 # --- LIENS RÉSEAUX SOCIAUX ---
 WHATSAPP_NUMBER = os.getenv('WHATSAPP_NUMBER', '22893343403')

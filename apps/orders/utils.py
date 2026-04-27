@@ -5,7 +5,6 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string, get_template
 from django.utils.html import strip_tags
-from xhtml2pdf import pisa 
 
 from apps.products.models import Product
 
@@ -16,6 +15,11 @@ logger = logging.getLogger(__name__)
 def generate_order_pdf(order):
     """ Génère le contenu binaire d'un PDF pour le reçu client. """
     try:
+        try:
+            from xhtml2pdf import pisa
+        except ImportError:
+            logger.warning("xhtml2pdf indisponible: génération PDF ignorée pour la commande #%s", order.id)
+            return None
         template = get_template('orders/pdf_receipt.html')
         context = {
             'order': order,
@@ -37,46 +41,84 @@ def generate_order_pdf(order):
 
 # --- EMAILS ---
 
-def send_order_confirmation(order):
-    """ Envoie l'email de confirmation avec le reçu PDF attaché. """
-    subject = f'Votre commande Venus Luna #{order.id} est confirmée'
-    recipient_email = order.email or (order.user.email if order.user else None)
-    
+def _send_email(subject, recipient_email, template_html, context, template_txt=None, attachments=None):
     if not recipient_email:
-        logger.error(f"Impossible d'envoyer l'email : aucun destinataire pour #{order.id}")
-        return
-
-    context = {'order': order}
-    html_content = render_to_string('emails/order_confirmation.html', context)
-    text_content = strip_tags(html_content)
-    
+        return False
     try:
+        html_content = render_to_string(template_html, context)
+        if template_txt:
+            text_content = render_to_string(template_txt, context)
+        else:
+            text_content = strip_tags(html_content)
         msg = EmailMultiAlternatives(
-            subject, 
-            text_content, 
-            settings.DEFAULT_FROM_EMAIL, 
-            [recipient_email]
+            subject=subject,
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient_email],
         )
         msg.attach_alternative(html_content, "text/html")
-        
-        # On attache le PDF s'il a été généré et sauvegardé dans le modèle Order
-        if order.receipt:
-            try:
-                order.receipt.open('rb') 
-                msg.attach(
-                    f"Recu_VenusLuna_{order.id}.pdf", 
-                    order.receipt.read(), 
-                    "application/pdf"
-                )
-                order.receipt.close()
-            except Exception as attachment_err:
-                logger.warning(f"Impossible d'attacher le PDF à l'email #{order.id}: {attachment_err}")
-        
-        msg.send()
-        logger.info(f"Email de confirmation envoyé au client : {recipient_email}")
-        
-    except Exception as e:
-        logger.error(f"Erreur envoi email commande {order.id}: {str(e)}")
+        for attachment in attachments or []:
+            msg.attach(*attachment)
+        msg.send(fail_silently=False)
+        return True
+    except Exception as exc:
+        logger.error("Erreur envoi email %s: %s", subject, exc)
+        return False
+
+
+def send_order_pending_payment_email(order, payment_url):
+    recipient_email = order.email or (order.user.email if order.user else None)
+    context = {
+        "order": order,
+        "payment_url": payment_url,
+        "site_url": settings.SITE_URL,
+    }
+    return _send_email(
+        subject=f"Commande #{order.id} créée - finalisez votre paiement",
+        recipient_email=recipient_email,
+        template_html="emails/order_pending_payment.html",
+        template_txt="emails/order_pending_payment.txt",
+        context=context,
+    )
+
+
+def send_order_paid_email(order):
+    recipient_email = order.email or (order.user.email if order.user else None)
+    attachments = []
+    if order.receipt:
+        try:
+            order.receipt.open("rb")
+            attachments.append(
+                (f"Recu_VenusLuna_{order.id}.pdf", order.receipt.read(), "application/pdf")
+            )
+            order.receipt.close()
+        except Exception as attachment_err:
+            logger.warning("Impossible d'attacher le PDF pour la commande #%s: %s", order.id, attachment_err)
+    context = {"order": order, "site_url": settings.SITE_URL}
+    return _send_email(
+        subject=f"Paiement confirmé - commande #{order.id}",
+        recipient_email=recipient_email,
+        template_html="emails/order_paid.html",
+        template_txt="emails/order_paid.txt",
+        context=context,
+        attachments=attachments,
+    )
+
+
+def send_order_reminder_email(order, payment_url):
+    recipient_email = order.email or (order.user.email if order.user else None)
+    context = {
+        "order": order,
+        "payment_url": payment_url,
+        "site_url": settings.SITE_URL,
+    }
+    return _send_email(
+        subject=f"Rappel: finalisez votre commande #{order.id}",
+        recipient_email=recipient_email,
+        template_html="emails/order_reminder.html",
+        template_txt="emails/order_reminder.txt",
+        context=context,
+    )
 
 # --- LOGIQUE DU PANIER (SESSION) ---
 

@@ -1,0 +1,9 @@
+<p>Bonjour{% if order.shipping_address and order.shipping_address.full_name %} {{ order.shipping_address.full_name }}{% endif %},</p>
+<p>Nous avons remarqué que votre commande <strong>#{{ order.id }}</strong> n'a pas encore été finalisée.</p>
+<p>Montant: <strong>{{ order.total }} F CFA</strong></p>
+<p>
+  Vous pouvez reprendre le paiement ici:
+  <a href="{{ payment_url }}">Finaliser ma commande</a>
+</p>
+<p>Si vous avez déjà payé, ignorez simplement ce message.</p>
+<p>L'équipe Venus Luna</p>

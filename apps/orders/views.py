@@ -20,6 +20,7 @@ from reportlab.lib import colors
 
 from .forms import CheckoutForm
 from .models import Order, OrderItem, ShippingAddress, ShippingZone
+from .utils import send_order_pending_payment_email, send_order_paid_email
 from apps.products.models import Product
 from django.db.models import Sum
 from django.utils import timezone
@@ -187,6 +188,8 @@ def checkout(request):
                     "callback": callback_url
                 }
                 bkapay_url = f"https://bkapay.com/api-pay/{BKAPAY_PUBLIC_KEY}?" + urlencode(params)
+                Order.objects.filter(id=order.id).update(payment_url=bkapay_url)
+                send_order_pending_payment_email(order, bkapay_url)
                 
                 return redirect(bkapay_url)
 
@@ -242,6 +245,7 @@ def bkapay_webhook(request):
                             order.payment_status = True
                             order.paygate_tx_id = data.get('transactionId', 'SIMULATION_ID')
                             order.save()
+                            send_order_paid_email(order)
                             print(f"✅ COMMANDE {order_id} VALIDÉE SANS PAIEMENT RÉEL")
                     except (IndexError, Order.DoesNotExist):
                         print(f"❌ Commande introuvable pour la description: {desc}")

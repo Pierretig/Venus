@@ -1,7 +1,7 @@
 :root {
-    --primary-green: #1ed32d;
-    --primary-green-dark: #0b7a3b;
-    --primary-green-gradient: linear-gradient(135deg, var(--primary-green-dark), #1faa59);
+    --primary-green: #1c683b;
+    --primary-green-dark: #155430;
+    --primary-green-gradient: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark));
 }
 
 html,
@@ -35,7 +35,7 @@ img {
     height: auto;
 }
 
-/* Animation d’apparition */
+/* Animation d'apparition */
 .footer-animate {
     animation: fadeUp 1.2s ease-in-out;
 }
@@ -271,10 +271,6 @@ img {
     font-weight: bold;
 }
 
-/* Burger mobile */
-.navbar-toggler-icon {
-    filter: invert(1);
-}
 /* ================= ABOUT PAGE VENUS LUNA ================= */
 
 .about-section {
@@ -678,10 +674,41 @@ p.text-muted {
     }
 }
 
+/* Grille produits responsive */
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+}
+
+@media (min-width: 1200px) {
+    .products-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 1400px) {
+    .products-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+.product-grid-card img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
 /* ===== FIX NAVBAR OVERLAP ===== */
+/* ── NOUVELLE HAUTEUR NAVBAR AVEC TOPBAR+HEADER ── */
 :root {
-    --navbar-height: 160px; /* Desktop: logo 130px + padding/border/shadow ≈160px */
-    --navbar-height-mobile: 95px; /* Mobile: logo 75px + padding ≈95px */
+    --navbar-height: 92px;
+    --navbar-height-mobile: 84px;
+    --navbar-green: #6aaa00;
+    --mega-bg: #c8e06e;
+    --mega-title: #1a3d00;
+    --mega-link: #2d5a00;
+    --venus-gold: #d4af37;
 }
 
 .main-content {
@@ -694,8 +721,8 @@ p.text-muted {
     }
 }
 
+/* Navbar active */
+.custom-navbar {
+    display: flex !important;
+}
 
-
-
-
- 

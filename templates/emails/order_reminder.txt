@@ -1,0 +1,11 @@
+Bonjour{% if order.shipping_address and order.shipping_address.full_name %} {{ order.shipping_address.full_name }}{% endif %},
+
+Votre commande #{{ order.id }} n'a pas encore été finalisée.
+Montant: {{ order.total }} F CFA.
+
+Reprendre le paiement:
+{{ payment_url }}
+
+Si vous avez déjà payé, ignorez ce message.
+
+L'équipe Venus Luna
