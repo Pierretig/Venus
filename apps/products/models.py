@@ -22,7 +22,7 @@ class Category(models.Model):
         null=True, 
         blank=True, 
         on_delete=models.CASCADE, 
-        related_name='children',
+        related_name='subcategories',
         verbose_name="Catégorie parente"
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -42,8 +42,8 @@ class Category(models.Model):
 
     def get_descendants(self, include_self=True):
         """Récupère toutes les sous-catégories récursivement."""
-        descendants = self.children.all()
-        for child in self.children.all():
+        descendants = self.subcategories.all()
+        for child in self.subcategories.all():
             descendants |= child.get_descendants()
         if include_self:
             descendants = descendants | self.__class__.objects.filter(pk=self.pk)

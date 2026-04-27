@@ -1,37 +1,47 @@
-# TODO.md - Fix Bad Gateway 502 PRODUCTION (Plan Approved - Implements in Progress)
+# TODO - Venus Luna - Corrections & Améliorations
 
-## Statut Global : ✅ READY FOR DEPLOY
+## Partie 1 : Boutique & Sous-catégories ✅
 
-### Étape 1: ✅ Diagnostic Local
-- Django OK (check/deploy, static, config import)
+### 1. Modèle (`apps/products/models.py`)
+- [x] Renommer `related_name='children'` → `'subcategories'`
+- [x] Mettre à jour `get_descendants()`
 
-### Étape 2: 🔑 SECRET_KEY Généré
-```
-SECRET_KEY='u49lvqEsH5hTNlBcq7cuAq7yoXdgRjww35qxrn-sFrcugL2K6QyuqhV6vphkKD6L-IA'
-```
-**Copiez dans .env prod !**
+### 2. Vues (`apps/products/views.py`)
+- [x] Remplacer `prefetch_related('children__children')` par `('subcategories__subcategories')`
 
-### Étape 3: 📝 Edits Prod Robustesse
-- settings.py: + LOGGING console/file pour 502 debug
-- entrypoint.sh: DB test, migrate continue-on-error, gunicorn --workers 2 --timeout 120
-- Dockerfile: Healthcheck ajouté
+### 3. Templates
+- [x] `templates/products/product_list.html` : Remplacer `children` → `subcategories` + corriger CSS cartes
+- [x] `templates/products/category_detail.html` : Remplacer `children` → `subcategories`
+- [x] `templates/includes/navbar.html` : Supprimer dropdown "Catégories"
 
-### Étape 4: 🚀 DEPLOY COMMANDS (Exécutez sur serveur)
-```
-1. Copier nouveau code + .env avec SECRET_KEY + DB_HOST=venusluna-venus-data-base-mylun9
-2. docker build -t venus .
-3. docker stop CONTAINER_ID; docker rm CONTAINER_ID  # docker ps -a
-4. docker run -d -p 80:8000 --name venus --env-file .env -v $(pwd)/media:/app/media venus
-5. docker logs -f venus  # ← CRUCIAL: Partagez cette sortie !
-```
+### 4. Migration
+- [x] `python manage.py makemigrations products` → Migration `0006_alter_category_parent.py` générée
+- [ ] `python manage.py migrate` → À exécuter sur le serveur PRODUCTION
 
-### Étape 5: Logs à vérifier
-```
-docker logs CONTAINER_ID | grep -i error
-journalctl -u docker -f
-```
+## Partie 2 : Navbar & Corrections CSS ✅
 
-**Statut : READY** - Deploy + paste `docker logs` ici pour final fix.
+### 1. Diagnostic
+- [x] Identifier le CSS obsolète (topbar, mega-menu) qui cachait la navbar
+- [x] Identifier `.navbar { display: none }` sur mobile
+- [x] Identifier `.navbar { position: relative }` qui écrasait `.fixed-top`
 
-## Next: User deploy → logs → 502 résolu !
+### 2. Corrections CSS (`static/css/main_v2.css` & `staticfiles/css/main_v2.css`)
+- [x] Supprimer l'ancien bloc CSS obsolète (topbar, header, mega-menu, navbar-inner)
+- [x] Supprimer `.navbar { display: none }` en mobile
+- [x] Supprimer `.navbar { position: relative; z-index: 500 }` qui écrasait `.fixed-top`
+- [x] Logo arrondi (`border-radius: 50%`) avec bordure blanche et ombre
+- [x] Navbar visible et fonctionnelle sur desktop et mobile
+
+### 3. Templates
+- [x] `templates/products/product_list.html` : Titres produits en vert `#1c683b`
+- [x] `templates/base.html` : Vérifié (pas de texte parasite)
+
+### 4. Admin
+- [x] Bouton "Ajouter une sous-catégorie" déjà présent dans `templates/admin/products/category/change_form.html`
+
+## Déploiement production - Actions requises ⚠️
+- [ ] Exécuter `python manage.py migrate` sur le serveur
+- [ ] Exécuter `python manage.py collectstatic --noinput` sur le serveur (si les CSS ne se mettent pas à jour automatiquement)
+- [ ] Redémarrer le serveur (gunicorn/uwsgi)
+
 

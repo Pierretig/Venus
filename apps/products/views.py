@@ -109,7 +109,7 @@ def category_detail(request, slug):
 
 def product_list(request):
     # Catégories principales seulement (pour display)
-    categories = Category.objects.filter(parent=None).prefetch_related('children__children')
+    categories = Category.objects.filter(parent=None).prefetch_related('subcategories__subcategories')
     
     products = Product.objects.filter(is_active=True)
     

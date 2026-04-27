@@ -23,11 +23,11 @@
 
 <div class="container">
     <!-- Sous-catégories -->
-    {% if category.children.exists %}
+    {% if category.subcategories.exists %}
     <section class="mb-5">
         <h2 class="h4 mb-4 border-bottom pb-2">Sous-catégories</h2>
         <div class="row g-3">
-            {% for subcat in category.children.all %}
+            {% for subcat in category.subcategories.all %}
             <div class="col-lg-3 col-md-4 col-sm-6">
                 <a href="{% url 'products:category_detail' subcat.slug %}" class="card border-0 shadow-sm h-100 text-decoration-none hover-scale">
                     <div class="card-body text-center py-5">

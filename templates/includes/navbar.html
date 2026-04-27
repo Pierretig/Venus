@@ -21,30 +21,7 @@
         <li class="nav-item"><a class="nav-link" href="{% url 'products:list' %}">Boutique</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'blog:list' %}">Blog</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'core:contact' %}">Contact</a></li>
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            Catégories
-          </a>
-          <ul class="dropdown-menu dropdown-menu-end">
-            {% for cat in root_categories %}
-              <li class="dropend">
-                <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'products:category_detail' cat.slug %}">
-                  <span>{{ cat.name }}</span>
-                  {% if cat.children.exists %}<i class="fas fa-angle-right small"></i>{% endif %}
-                </a>
-                {% if cat.children.exists %}
-                  <ul class="dropdown-menu">
-                    {% for sub in cat.children.all %}
-                      <li><a class="dropdown-item" href="{% url 'products:category_detail' sub.slug %}">{{ sub.name }}</a></li>
-                    {% endfor %}
-                  </ul>
-                {% endif %}
-              </li>
-            {% empty %}
-              <li><span class="dropdown-item-text text-muted">Aucune catégorie</span></li>
-            {% endfor %}
-          </ul>
-        </li>
+
       </ul>
 
       <div class="d-flex align-items-center gap-3 py-2 py-lg-0">
