@@ -41,11 +41,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const zoneSelect = document.getElementById('zone-select');
     const shippingDisplay = document.getElementById('shipping-cost');
     const totalDisplay = document.getElementById('grand-total');
+    const subtotalEl = document.getElementById('subtotal-value');
 
-    if (zoneSelect) {
+    if (zoneSelect && shippingDisplay && totalDisplay && subtotalEl) {
         zoneSelect.addEventListener('change', function() {
-            const shipPrice = parseInt(this.value);
-            const subTotal = parseInt("{{ cart.get_total_price }}");
+            const shipPrice = parseInt(this.value, 10) || 0;
+            const subTotal = parseInt(subtotalEl.dataset.subtotal || "0", 10) || 0;
             
             shippingDisplay.innerText = shipPrice + " XOF";
             totalDisplay.innerText = (subTotal + shipPrice) + " XOF";
@@ -57,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
 let lastScrollTop = 0;
 const navbar = document.querySelector('.custom-navbar');
 window.addEventListener('scroll', () => {
+  if (!navbar) return;
   let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
   if (scrollTop > lastScrollTop && scrollTop > 100) {
     navbar.style.transform = 'translateY(-100%)';
@@ -64,4 +66,30 @@ window.addEventListener('scroll', () => {
     navbar.style.transform = 'translateY(0)';
   }
   lastScrollTop = scrollTop;
+});
+
+// Panier en temps réel sur toutes les pages
+document.addEventListener('DOMContentLoaded', () => {
+  const badges = document.querySelectorAll('.js-cart-badge');
+  if (!badges.length) return;
+
+  const refreshCartCount = async () => {
+    try {
+      const response = await fetch('/orders/cart/count/', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const count = Number.isFinite(data.count) ? data.count : 0;
+      badges.forEach((badge) => {
+        badge.textContent = String(count);
+      });
+    } catch (error) {
+      // Silence volontaire : ne pas dégrader l'UX en cas de micro-coupure réseau.
+    }
+  };
+
+  refreshCartCount();
+  setInterval(refreshCartCount, 8000);
 });

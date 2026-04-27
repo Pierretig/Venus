@@ -9,6 +9,7 @@ class ProductImageInline(admin.TabularInline):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
+    change_form_template = "admin/products/category/change_form.html"
     list_display = ("name", "parent", "order", "created_at")
     list_filter = ("parent",)
     search_fields = ("name", "description")

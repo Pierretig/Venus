@@ -1,7 +1,7 @@
 :root {
-    --primary-green: #1ed32d;
-    --primary-green-dark: #0b7a3b;
-    --primary-green-gradient: linear-gradient(135deg, var(--primary-green-dark), #1faa59);
+    --primary-green: #1c683b;
+    --primary-green-dark: #155430;
+    --primary-green-gradient: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark));
 }
 
 html,
@@ -1026,8 +1026,8 @@ p.text-muted {
 /* ===== FIX NAVBAR OVERLAP ===== */
 /* ── NOUVELLE HAUTEUR NAVBAR AVEC TOPBAR+HEADER ── */
 :root {
-    --navbar-height: 128px;
-    --navbar-height-mobile: 120px;
+    --navbar-height: 92px;
+    --navbar-height-mobile: 84px;
     --navbar-green: #6aaa00;
     --mega-bg: #c8e06e;
     --mega-title: #1a3d00;
@@ -1045,8 +1045,10 @@ p.text-muted {
     }
 }
 
-/* ── SUPPRESSION STYLES ANCIENNE NAVBAR ── */
-.custom-navbar { display: none !important; }
+/* Navbar active */
+.custom-navbar {
+    display: flex !important;
+}
 
 
 

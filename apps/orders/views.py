@@ -80,12 +80,28 @@ def cart_add(request, product_id):
     cart = request.session.get('cart', {})
     product = get_object_or_404(Product, id=product_id)
     p_id = str(product_id)
+    try:
+        quantity = int(request.POST.get('quantity', 1))
+    except (TypeError, ValueError):
+        quantity = 1
+    quantity = max(1, quantity)
     if p_id not in cart:
         cart[p_id] = {'quantity': 0, 'price': str(product.price)}
-    cart[p_id]['quantity'] += 1
+    cart[p_id]['quantity'] += quantity
     request.session['cart'] = cart
-    messages.success(request, f"{product.name} ajouté.")
+    messages.success(request, f"{product.name} ajouté au panier.")
     return redirect(request.META.get('HTTP_REFERER', 'orders:cart_detail'))
+
+
+def cart_count_api(request):
+    cart = request.session.get("cart", {})
+    total_qty = 0
+    for item in cart.values():
+        try:
+            total_qty += int(item.get("quantity", 0))
+        except (TypeError, ValueError, AttributeError):
+            continue
+    return JsonResponse({"count": total_qty})
 
 def cart_update(request, product_id):
     cart = request.session.get('cart', {})

@@ -4,17 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}VENUS LUNA- Boutique exoterique{% endblock %}</title>
+    <title>{% block title %}VENUS LUNA- Boutique esoterique{% endblock %}</title>
     
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Boutique mystique à Lomé spécialisée en cristaux, encens et outils de purification. ">
+    <meta name="description" content="{% block meta_description %}Boutique mystique à Lomé spécialisée en cristaux, encens et outils de purification.{% endblock %}">
     <meta name="keywords" content="boutique spirituelle, boutique exoterique, lithothérapie togo, cristaux lomé, encens, spiritualité, ">
     <meta name="author" content="Venus_luna">
     <meta name="robots" content="index, follow">
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://venus-luna.com/">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
     <meta property="og:title" content="{% block og_title %}VENUS LUNA - Lithothérapie & Bien-être{% endblock %}">
     <meta property="og:description" content="Boutique mystique à Lomé spécialisée en cristaux, encens et outils de purification.">
     <meta property="og:image" content="https://venus-luna.com{% static 'img/venus-luna5.jpg' %}">
@@ -23,14 +23,14 @@
     
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://venus-luna.com/">
+    <meta property="twitter:url" content="{{ request.build_absolute_uri }}">
     <meta property="twitter:title" content="{% block twitter_title %}VENUS LUNA - Lithothérapie & Bien-être{% endblock %}">
     <meta property="twitter:description" content="Boutique mystique à Lomé spécialisée en cristaux, encens et outils de purification.">
     <meta property="twitter:image" content="https://venus-luna.com{% static 'img/venus-luna5.jpg' %}">
     <meta name="google-site-verification" content="D4VCig_rRiFLUY-UNGwhe6tlv7rP2LijXTH6IRjXeZM" />
     
     <!-- Canonical URL -->
-    <link rel="canonical" href="https://venus-luna.com/{% block canonical %}{% endblock %}">
+    <link rel="canonical" href="{% block canonical_url %}{{ request.build_absolute_uri }}{% endblock %}">
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{% static 'img/venus-luna5.jpg' %}">
@@ -45,11 +45,17 @@
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
-        "@type": "Store",
+        "@type": "LocalBusiness",
         "name": "Venus Luna",
         "description": "Boutique spirituelle et esotérique à Lomé",
         "url": "https://venus-luna.com",
         "telephone": "+22893343403",
+        "hasMap": "https://www.google.com/maps/place/Boutique+spirituelle+Venus+Luna/",
+        "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": 6.2093004891222385,
+            "longitude": 1.1857035795771642
+        },
         "address": {
             "@type": "PostalAddress",
             "addressLocality": "Lomé",

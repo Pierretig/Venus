@@ -1,224 +1,92 @@
 {% load static %}
 
-<style>
-    :root {
-        --venus-vert: #1ed828ff;
-        --venus-vert-dark: #5d7224;
-        --venus-vert-pale: #f4f7eb;
-        --venus-or: #d4af37;
-        --venus-jaune: #fbc02d;
-        --venus-rouge: #d11149;
-    }
+<nav class="navbar navbar-expand-lg fixed-top custom-navbar" id="main-navbar" aria-label="Navigation principale">
+  <div class="container-fluid px-3">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'core:home' %}">
+      <img src="{% static 'img/venus-luna3.jpg' %}" alt="Logo Venus Luna" class="navbar-logo">
+      <span class="d-none d-md-inline fw-bold text-white">VENUS-LUNA</span>
+    </a>
 
-    /* --- NAVBAR --- */
-    .custom-navbar {
-        background: var(--venus-vert) !important;
-        border-bottom: 3px solid var(--venus-vert-dark);
-        padding: 0.5rem 1rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        transition: 0.4s;
-    }
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavMain" aria-controls="navbarNavMain" aria-expanded="false" aria-label="Ouvrir le menu">
+      <i class="fas fa-bars text-white"></i>
+    </button>
 
-    /* Logo */
-    .navbar-logo {
-        height: 130px;
-        width: auto;
-        position: relative;
-        border-radius: 100%;
-        border: 8px solid white;
-        background: white;
-        transition: 0.3s;
-        margin-left: 0;
-    }
+    <div class="collapse navbar-collapse" id="navbarNavMain">
+      <form class="d-lg-none my-3" method="get" action="{% url 'products:list' %}">
+        <input class="form-control" type="search" name="q" placeholder="Rechercher..." value="{{ request.GET.q }}">
+      </form>
 
-    .navbar-logo:hover {
-        transform: scale(1.05) rotate(5deg);
-        box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
-    }
+      <ul class="navbar-nav mx-auto align-items-lg-center gap-lg-1">
+        <li class="nav-item"><a class="nav-link" href="{% url 'core:home' %}">Accueil</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'products:list' %}">Boutique</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'blog:list' %}">Blog</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'core:contact' %}">Contact</a></li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Catégories
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            {% for cat in root_categories %}
+              <li class="dropend">
+                <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'products:category_detail' cat.slug %}">
+                  <span>{{ cat.name }}</span>
+                  {% if cat.children.exists %}<i class="fas fa-angle-right small"></i>{% endif %}
+                </a>
+                {% if cat.children.exists %}
+                  <ul class="dropdown-menu">
+                    {% for sub in cat.children.all %}
+                      <li><a class="dropdown-item" href="{% url 'products:category_detail' sub.slug %}">{{ sub.name }}</a></li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </li>
+            {% empty %}
+              <li><span class="dropdown-item-text text-muted">Aucune catégorie</span></li>
+            {% endfor %}
+          </ul>
+        </li>
+      </ul>
 
-    /* Supprime toute marge Bootstrap du logo */
-    .navbar-brand {
-        margin-left: 0 !important;
-        padding-left: 10px;
-    }
-
-    .nav-link {
-        color: white !important;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-size: 0.85rem;
-        padding: 15px 20px !important;
-        transition: 0.3s;
-    }
-
-    .nav-link:hover { 
-        background-color: var(--venus-vert-dark);
-        color: var(--venus-jaune) !important;
-    }
-
-    .badge-decouvrir {
-        background-color: var(--venus-rouge);
-        color: white;
-        font-size: 0.6rem;
-        padding: 2px 8px;
-        border-radius: 4px;
-        position: absolute;
-        top: -10px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-weight: bold;
-        z-index: 10;
-        white-space: nowrap;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-
-    .admin-link {
-        color: var(--venus-jaune) !important;
-        border: 1px solid var(--venus-jaune);
-        padding: 5px 15px !important;
-        border-radius: 50px;
-        font-weight: 700 !important;
-        background: rgba(251, 192, 45, 0.1);
-        font-size: 0.8rem;
-    }
-
-    .cart-icon-wrapper {
-        position: relative;
-        color: white;
-        font-size: 1.2rem;
-    }
-
-    .cart-badge {
-        position: absolute;
-        top: -8px; 
-        right: -12px;
-        background: var(--venus-rouge);
-        color: white;
-        font-size: 0.65rem;
-        padding: 2px 6px;
-        border-radius: 50%;
-        border: 2px solid var(--venus-vert);
-    }
-
-    .user-avatar {
-        width: 35px;
-        height: 35px;
-        border-radius: 50%;
-        border: 2px solid white;
-        object-fit: cover;
-    }
-
-    .dropdown-menu {
-        border: none;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
-    .dropdown-item:hover {
-        background-color: var(--venus-vert-pale);
-        color: var(--venus-vert);
-    }
-
-    /* =========================
-   AJUSTEMENT SPÉCIAL MOBILE
-   ========================= */
-@media (max-width: 768px) {
-
-    /* Logo plus petit sur mobile */
-    .navbar-logo {
-        height: 75px;
-        border-width: 5px;
-    }
-
-    /* Texte VENUS-LUNA un peu plus discret */
-    .navbar-brand span {
-        font-size: 0.9rem;
-        letter-spacing: 0.5px;
-    }
-
-    /* Navbar plus compacte */
-    .custom-navbar {
-        padding: 0.3rem 0.5rem;
-    }
-
-    /* Évite que le logo pousse le menu */
-    .navbar-brand {
-        padding-left: 8px;
-    }
-}
-
-</style>
-
-<nav class="navbar navbar-expand-lg sticky-top custom-navbar">
-    <div class="container-fluid px-0">
-        
-        <a class="navbar-brand d-flex align-items-center" href="{% url 'core:home' %}">
-            <img src="/static/img/venus-luna3.jpg" alt="Logo Venus Luna" class="navbar-logo">
-            <span class="ms-3 d-none d-sm-inline fw-bold text-white" style="font-family: 'Playfair Display'; letter-spacing: 1px;">
-                VENUS-LUNA
-            </span>
+      <div class="d-flex align-items-center gap-3 py-2 py-lg-0">
+        <a href="{% url 'orders:cart_detail' %}" class="cart-icon-wrapper me-1" aria-label="Voir le panier">
+          <i class="fas fa-shopping-bag"></i>
+          <span class="cart-badge js-cart-badge">{{ cart_count }}</span>
         </a>
 
-        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <i class="fas fa-bars text-white"></i>
-        </button>
+        {% if user.is_authenticated and user.is_staff %}
+          <a href="{% url 'admin_custom:dashboard' %}" class="admin-link d-flex align-items-center gap-2">
+            <i class="fas fa-shield-alt"></i><span>Admin</span>
+          </a>
+        {% endif %}
 
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav mx-auto">
-                <li class="nav-item"><a class="nav-link" href="{% url 'core:home' %}">Accueil</a></li>
-
-                <li class="nav-item" style="position: relative;">
-                    <span class="badge-decouvrir"> à découvrir !</span>
-                    <a class="nav-link" href="{% url 'products:list' %}">Boutique</a>
-                </li>
-
-                <li class="nav-item"><a class="nav-link" href="{% url 'blog:list' %}">Blog</a></li>
-                <li class="nav-item"><a class="nav-link" href="{% url 'core:contact' %}">Contact</a></li>
+        {% if user.is_authenticated %}
+          <div class="dropdown">
+            <a class="user-dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">
+              {% if user.profile.avatar %}
+                <img src="{{ user.profile.avatar.url }}" class="user-avatar" alt="Profil">
+              {% else %}
+                <i class="fas fa-user-circle"></i>
+              {% endif %}
+              <span class="d-none d-md-inline">Profil</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end mt-2">
+              <li><a class="dropdown-item py-2" href="{% url 'accounts:client_dashboard' %}"><i class="fas fa-user me-2"></i>Dashboard</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <form action="{% url 'accounts:logout' %}" method="post" class="px-3">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-link text-danger p-0 w-100 text-start fw-bold">
+                    <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+                  </button>
+                </form>
+              </li>
             </ul>
-
-            <div class="d-flex align-items-center gap-3">
-                {% if user.is_authenticated and user.is_staff %}
-                    <a href="{% url 'admin_custom:dashboard' %}" class="admin-link d-flex align-items-center gap-2">
-                        <i class="fas fa-shield-alt"></i> <span>ADMIN</span>
-                    </a>
-                {% endif %}
-
-                <a href="{% url 'orders:cart_detail' %}" class="cart-icon-wrapper me-2">
-                    <i class="fas fa-shopping-bag"></i>
-                    <span class="cart-badge">{{ cart_items|length|default:"0" }}</span>
-                </a>
-
-                {% if user.is_authenticated %}
-                    <div class="dropdown">
-                        <a class="d-flex align-items-center" href="#" data-bs-toggle="dropdown">
-                            {% if user.profile.avatar %}
-                                <img src="{{ user.profile.avatar.url }}" class="user-avatar">
-                            {% else %}
-                                <i class="fas fa-user-circle fs-2 text-white"></i>
-                            {% endif %}
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end mt-3">
-                            <li><a class="dropdown-item py-2" href="{% url 'accounts:client_dashboard' %}"><i class="fas fa-user-circle me-2"></i> Profil</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <form action="{% url 'accounts:logout' %}" method="post" class="px-3">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-link text-danger p-0 fw-bold">
-                                        <i class="fas fa-sign-out-alt me-2"></i> Déconnexion
-                                    </button>
-                                </form>
-                            </li>
-                        </ul>
-                    </div>
-                {% else %}
-                    <a href="{% url 'accounts:login' %}" class="text-white fw-bold">Connexion</a>
-                    <a href="{% url 'accounts:register' %}" class="btn btn-sm btn-light rounded-pill px-3 fw-bold" style="color: var(--venus-vert);">
-                        S'inscrire
-                    </a>
-                {% endif %}
-            </div>
-        </div>
+          </div>
+        {% else %}
+          <a href="{% url 'accounts:login' %}" class="login-link">Connexion</a>
+          <a href="{% url 'accounts:register' %}" class="btn-register px-3 py-2">S'inscrire</a>
+        {% endif %}
+      </div>
     </div>
+  </div>
 </nav>

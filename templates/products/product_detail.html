@@ -3,7 +3,7 @@
 
 {% block og_title %}{{ product.name }} - Venus Luna{% endblock %}
 {% block twitter_title %}{{ product.name }} - Venus Luna{% endblock %}
-{% block canonical %}products/{{ product.slug }}/{% endblock %}
+{% block canonical_url %}{{ request.build_absolute_uri }}{% endblock %}
 
 {% block extra_head %}
 <!-- Schema.org Product JSON-LD -->

@@ -151,6 +151,13 @@
     border-radius: 16px;
     overflow: hidden;
     background: #fff;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+
+  .product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 28px rgba(0, 0, 0, 0.08);
+    border-color: #d8d0ba;
   }
 
   .product-image-box {
@@ -215,17 +222,28 @@
 
   .btn-explore {
     width: 100%;
-    border: 1px solid #cfc8b7;
+    border: 1px solid #1c683b;
     border-radius: 14px;
-    background: #fff;
-    font-size: 1.9rem;
-    font-family: 'Playfair Display', serif;
-    line-height: 1;
-    padding: 8px 10px;
-    color: #202020;
+    background: #1c683b;
+    font-size: 1rem;
+    font-family: 'Poppins', sans-serif;
+    line-height: 1.2;
+    padding: 10px 12px;
+    color: #fff;
     text-decoration: none;
     display: inline-flex;
     justify-content: center;
+    align-items: center;
+    font-weight: 700;
+    transition: all 0.2s ease;
+  }
+
+  .btn-explore:hover {
+    background: #155430;
+    border-color: #155430;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 14px rgba(21, 84, 48, 0.28);
+    color: #fff;
   }
 
   .pagination-wrap {
@@ -250,7 +268,7 @@
     <aside class="catalog-sidebar">
       <h2 class="catalog-sidebar-title">Nos collections</h2>
       <form class="catalog-search" method="get" action="{% url 'products:list' %}">
-        <input type="text" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Chercher...">
+        <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Chercher...">
       </form>
 
       <div class="catalog-tree">
@@ -310,9 +328,11 @@
                 <span class="offer-badge">Offre</span>
               {% endif %}
               <a href="{% url 'products:product_detail' product.slug %}">
-                {% with product.images.all|first as first_img %}
-                  <img src="{% if first_img %}{{ first_img.image.url }}{% else %}{% static 'img/aze1.png' %}{% endif %}" alt="{{ product.name }}">
-                {% endwith %}
+                {% if product.images.first %}
+                  <img src="{{ product.images.first.image.url }}" alt="{{ product.name }}">
+                {% else %}
+                  <img src="{% static 'img/aze1.png' %}" alt="{{ product.name }}">
+                {% endif %}
               </a>
             </div>
             <div class="product-body">
@@ -325,7 +345,13 @@
                 {% endif %}
                 <span class="price">{{ product.price }} F</span>
               </div>
-              <a class="btn-explore" href="{% url 'products:product_detail' product.slug %}">Explorer</a>
+              <form action="{% url 'orders:cart_add' product.id %}" method="post" class="mt-2">
+                {% csrf_token %}
+                <input type="hidden" name="quantity" value="1">
+                <button class="btn-explore" type="submit">
+                  <i class="fas fa-cart-plus me-2"></i> Ajouter au panier
+                </button>
+              </form>
             </div>
           </article>
         {% empty %}
@@ -345,7 +371,7 @@
               {% for num in products.paginator.page_range %}
                 {% if products.number == num %}
                   <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                {% elif num > products.number|add:'-3' and num < products.number|add:'3' %}
+                {% else %}
                   <li class="page-item">
                     <a class="page-link" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ num }}">{{ num }}</a>
                   </li>
