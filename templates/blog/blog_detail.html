@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block og_title %}{{ post.title }} - Blog Venus Luna{% endblock %}
-{% block twitter_title %}{{ post.title }} - Blog Venus Luna{% endblock %}
+{% block og_title %}{{ post.title }} - Blog Venus-Luna{% endblock %}
+{% block twitter_title %}{{ post.title }} - Blog Venus-Luna{% endblock %}
 {% block canonical %}blog/{{ post.id }}/{% endblock %}
 
 {% block extra_head %}
@@ -113,7 +113,7 @@
                     <div class="d-flex justify-content-center align-items-center text-white-50">
                         <div class="me-3">
                             <i class="far fa-user text-gold me-1"></i> 
-                            {{ post.author.get_full_name|default:"L'Équipe Venus Luna" }}
+                            {{ post.author.get_full_name|default:"L'Équipe Venus-Luna" }}
                         </div>
                         <div class="me-3">|</div>
                         <div>
