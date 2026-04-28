@@ -287,9 +287,9 @@
                     <span class="badge-offre">OFFRE</span>
                     {% endif %}
                     <div class="img-zoom-container">
-                    <a href="{% url 'products:product_detail' product.slug %}">
+                        <a href="{% url 'products:product_detail' product.slug %}">
                             {% with product.images.all|first as first_img %}
-                            <img src="{% if first_img %}{{ first_img.image.url }}{% else %}{% static 'img/aze1.png' %}{% endif %}" class="w-100 h-100" style="object-fit: contain; transition: 0.6s;" alt="{{ product.name }}">
+                            <img src="{% if first_img %}{{ first_img.image.url }}{% else %}{% static 'img/aze1.png' %}{% endif %}" style="max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; transition:0.6s;" alt="{{ product.name }}">
                             {% endwith %}
                         </a>
                     </div>
@@ -318,7 +318,7 @@
     .product-grid-card { border-radius: 20px; overflow: hidden; background: white; border: none; transition: 0.4s; position: relative; }
     .product-grid-card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(28, 104, 59, 0.1) !important; }
     .badge-offre { position: absolute; top: 15px; left: 15px; background: #f7f306ff; color: white; padding: 5px 12px; border-radius: 50px; font-size: 0.7rem; font-weight: 800; z-index: 2; }
-    .img-zoom-container { height: 200px; overflow: hidden; background: #f5f9ea; display: flex; align-items: center; justify-content: center; padding: 14px; }
+    .img-zoom-container { height: 180px; overflow: hidden; background: #f5f9ea; display: flex; align-items: center; justify-content: center; padding: 14px; }
     .product-grid-card:hover .img-zoom-container img { transform: scale(1.02); }
     .btn-explorer { display: block; background: #1c683b; color: #fceb09ff; border: 1px solid #f8f404ff; border-radius: 50px; padding: 10px; font-weight: 700; text-decoration: none; }
     .btn-catalogue-all { border: 2px solid #1c683b; color: #1c683b; border-radius: 50px; padding: 15px 40px; font-weight: bold; text-decoration: none; display: inline-block; }
