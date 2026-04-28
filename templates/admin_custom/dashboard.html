@@ -5,8 +5,8 @@
 
 <style>
     :root {
-        --venus-vert: #145c44;
-        --venus-vert-dark: #0a3d2d;
+        --venus-vert: #1c683b;
+        --venus-vert-dark: #155430;
         --venus-or: #d4af37;
         --venus-jaune: #fbc02d;
         --venus-soft: #f0f7f4;
@@ -184,7 +184,7 @@
 
 <script>
     // Configuration Chart.js
-    const venusGreen = '#145c44';
+    const venusGreen = '#1c683b';
     const venusGold = '#d4af37';
 
     // 1. Line Chart : Revenus
@@ -225,7 +225,7 @@
             labels: {{ pie_labels|safe }},
             datasets: [{
                 data: {{ pie_values|safe }},
-                backgroundColor: [venusGreen, venusGold, '#0a3d2d', '#fbc02d', '#c0c0c0'],
+                backgroundColor: [venusGreen, venusGold, '#155430', '#fbc02d', '#c0c0c0'],
                 borderWidth: 5,
                 borderColor: '#ffffff'
             }]

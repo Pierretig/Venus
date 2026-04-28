@@ -107,7 +107,7 @@ img {
 
 .social-icons a:hover {
     background: #f6d84c;
-    color: #0b7a3b;
+    color: #155430;
     transform: scale(1.15) rotate(8deg);
 }
 
@@ -208,7 +208,7 @@ img {
     top: -8px;
     right: -10px;
     background: #f6d84c;
-    color: #0b7a3b;
+    color: #155430;
     font-size: 0.7rem;
     font-weight: bold;
     padding: 3px 7px;
@@ -231,7 +231,7 @@ img {
 
 .user-dropdown-toggle:hover {
     background: #f6d84c;
-    color: #0b7a3b;
+    color: #155430;
 }
 
 /* Avatar */
@@ -345,7 +345,7 @@ img {
 
 .contact-link:hover {
     background: #f6d84c;
-    color: #0b7a3b;
+    color: #155430;
 }
 
 /* ================= ANIMATIONS ================= */
@@ -395,7 +395,7 @@ img {
 
 /* Titres */
 .privacy-title {
-    color: #0b7a3b;
+    color: #155430;
 }
 
 .intro-text {
@@ -423,7 +423,7 @@ img {
 /* Texte important */
 .privacy-block .strong {
     font-weight: bold;
-    color: #0b7a3b;
+    color: #155430;
 }
 
 .privacy-block .note {
@@ -533,7 +533,7 @@ img {
 /* Bouton */
 .btn-submit {
     background: #f6d84c;
-    color: #0b7a3b;
+    color: #155430;
     font-weight: bold;
     border-radius: 30px;
     border: none;

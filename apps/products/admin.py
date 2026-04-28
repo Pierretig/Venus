@@ -37,7 +37,7 @@ class CategoryAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     # Liste des produits
     list_display = (
-        "display_image", 
+        "display_image",
         "name",
         "category",
         "price",
@@ -45,6 +45,7 @@ class ProductAdmin(admin.ModelAdmin):
         "is_active",
         "featured",
     )
+    list_display_links = ("name",)
     list_editable = ("price", "stock", "is_active", "featured")
     list_filter = ("is_active", "featured", "category")
     search_fields = ("name", "short_description", "description")
@@ -71,9 +72,12 @@ class ProductAdmin(admin.ModelAdmin):
     inlines = [ProductImageInline]
 
     def display_image(self, obj):
-        main_image = obj.images.filter(is_main=True).first() or obj.images.first()
-        if main_image and main_image.image:
-            return format_html('<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />', main_image.image.url)
+        try:
+            main_image = obj.images.filter(is_main=True).first() or obj.images.first()
+            if main_image and main_image.image:
+                return format_html('<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />', main_image.image.url)
+        except Exception:
+            pass
         return "🖼️"
     display_image.short_description = "Aperçu"
 
@@ -84,8 +88,11 @@ class ProductImageAdmin(admin.ModelAdmin):
     search_fields = ("product__name", "alt_text")
 
     def image_preview(self, obj):
-        if obj.image:
-            return format_html('<img src="{}" width="50" height="50" style="object-fit: cover;" />', obj.image.url)
+        try:
+            if obj.image:
+                return format_html('<img src="{}" width="50" height="50" style="object-fit: cover;" />', obj.image.url)
+        except Exception:
+            pass
         return "Pas d'image"
     image_preview.short_description = "Aperçu"
 

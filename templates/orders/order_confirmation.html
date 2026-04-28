@@ -1,13 +1,13 @@
 <div style="background-color: #f4f4f4; padding: 20px; font-family: 'Playfair Display', serif, Arial;">
     <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
         
-        <div style="background-color: #2d8131ff; padding: 40px 20px; text-align: center;">
+        <div style="background-color: #1c683b; padding: 40px 20px; text-align: center;">
             <h1 style="color: #d4af37; margin: 0; font-size: 28px; letter-spacing: 4px; text-transform: uppercase;">Venus Luna</h1>
             <p style="color: rgba(212, 175, 55, 0.7); margin-top: 10px; font-size: 12px; letter-spacing: 2px;">L'ÉVEIL SPIRITUEL À LOMÉ</p>
         </div>
 
         <div style="padding: 40px 30px; background-color: #ffffff;">
-            <h2 style="color: #0a3d2d; font-size: 22px; margin-bottom: 20px;">Gratitude & Lumière, {{ order.shipping_address.full_name }}</h2>
+            <h2 style="color: #155430; font-size: 22px; margin-bottom: 20px;">Gratitude & Lumière, {{ order.shipping_address.full_name }}</h2>
             
             <p style="color: #555; line-height: 1.6; font-size: 15px;">
                 Votre intention a porté ses fruits. Nous avons le plaisir de vous confirmer la réception de votre paiement pour la commande <strong style="color: #d4af37;">#{{ order.id }}</strong>. 
@@ -17,8 +17,8 @@
             <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
                 <thead>
                     <tr>
-                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #d4af37; color: #0a3d2d; font-size: 13px; text-transform: uppercase;">Article</th>
-                        <th style="text-align: right; padding: 12px; border-bottom: 2px solid #d4af37; color: #0a3d2d; font-size: 13px; text-transform: uppercase;">Total</th>
+                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #d4af37; color: #155430; font-size: 13px; text-transform: uppercase;">Article</th>
+                        <th style="text-align: right; padding: 12px; border-bottom: 2px solid #d4af37; color: #155430; font-size: 13px; text-transform: uppercase;">Total</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -27,13 +27,13 @@
                         <td style="padding: 15px 12px; border-bottom: 1px solid #eee; color: #333; font-size: 14px;">
                             {{ item.name }} <span style="color: #999;">(x{{ item.quantity }})</span>
                         </td>
-                        <td style="padding: 15px 12px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; color: #0a3d2d;">
+                        <td style="padding: 15px 12px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; color: #155430;">
                             {{ item.price }} F
                         </td>
                     </tr>
                     {% endfor %}
                     <tr>
-                        <td style="padding: 20px 12px; font-weight: bold; font-size: 16px; color: #0a3d2d;">MONTANT TOTAL RÉGLÉ</td>
+                        <td style="padding: 20px 12px; font-weight: bold; font-size: 16px; color: #155430;">MONTANT TOTAL RÉGLÉ</td>
                         <td style="padding: 20px 12px; font-weight: 900; font-size: 20px; text-align: right; color: #d4af37;">{{ order.total }} FCFA</td>
                     </tr>
                 </tbody>
@@ -75,3 +75,4 @@
         </div>
     </div>
 </div>
+

@@ -1,47 +1,41 @@
-# TODO - Venus Luna - Corrections & Améliorations
+# TODO - Uniformisation verts + Correction Admin
 
-## Partie 1 : Boutique & Sous-catégories ✅
+## Couleur cible : #1c683b (vert principal), #155430 (vert foncé/dégradés)
 
-### 1. Modèle (`apps/products/models.py`)
-- [x] Renommer `related_name='children'` → `'subcategories'`
-- [x] Mettre à jour `get_descendants()`
+### Fichiers modifiés
 
-### 2. Vues (`apps/products/views.py`)
-- [x] Remplacer `prefetch_related('children__children')` par `('subcategories__subcategories')`
+- [x] `apps/products/admin.py` — Ajout `list_display_links = ("name",)` pour rendre le nom du produit cliquable en bleu dans l'admin
+- [x] `static/css/main_v2.css` — Remplacement `#0b7a3b` par `#155430`
+- [x] `staticfiles/css/main_v2.css` — Synchronisé avec static/css/main_v2.css
+- [x] `templates/pages/home.html` — Harmonisation des verts
+- [x] `templates/accounts/login.html` — `--venus-vert: #1c683b`
+- [x] `templates/accounts/register.html` — `--venus-vert: #1c683b`
+- [x] `templates/accounts/dashboard.html` — `--venus-vert: #1c683b`
+- [x] `templates/accounts/edit_profile.html` — `--venus-vert: #1c683b`
+- [x] `templates/accounts/profile.html` — `--venus-vert: #1c683b`
+- [x] `templates/blog/blog_list.html` — `--venus-vert: #1c683b`
+- [x] `templates/blog/blog_detail.html` — `--venus-vert: #1c683b`
+- [x] `templates/admin_custom/dashboard.html` — `--venus-vert: #1c683b`
+- [x] `templates/orders/cart.html` — `--venus-vert: #1c683b`
+- [x] `templates/orders/confirm.html` — `--venus-vert: #1c683b` (restauré après corruption)
+- [x] `templates/orders/order_success.html` — `--venus-vert: #1c683b`
+- [x] `templates/orders/history.html` — `--venus-vert: #1c683b`
+- [x] `templates/pages/faq.html` — `--venus-aura: #1c683b`
+- [x] `templates/pages/contact.html` — `--venus-aura: #1c683b`
+- [x] `templates/pages/404.html` — `--venus-aura: #155430`
+- [x] `templates/pages/cgv.html` — `--venus-vert-profond: #155430`
+- [x] `templates/pages/about.html` — `--venus-aura: #155430`
+- [x] `templates/orders/order_confirmation.html` — `#1c683b`, `#155430`
+- [x] `templates/orders/pdf_receipt.html` — `#1c683b`, `#155430`
+- [x] `templates/products/product_detail.html` — `--venus-aura: #155430`
 
-### 3. Templates
-- [x] `templates/products/product_list.html` : Remplacer `children` → `subcategories` + corriger CSS cartes
-- [x] `templates/products/category_detail.html` : Remplacer `children` → `subcategories`
-- [x] `templates/includes/navbar.html` : Supprimer dropdown "Catégories"
+### Résumé des corrections
 
-### 4. Migration
-- [x] `python manage.py makemigrations products` → Migration `0006_alter_category_parent.py` générée
-- [ ] `python manage.py migrate` → À exécuter sur le serveur PRODUCTION
+1. **Uniformisation des verts** : Toutes les teintes vertes dispersées (`#145c44`, `#0a3d2d`, `#217a10`, `#09b920`, `#259b35`, `#1dcc34`, `#61813b`, `#349b4b`, `#20c449`, `#15b149`, `#189128`, `#289b28`, `#229e47`, `#229b40`, `#128C7E`, `#25aa37`, `#0b7a3b`, `#2d8131`, `#408540`) ont été remplacées par :
+   - **#1c683b** comme vert principal
+   - **#155430** comme vert foncé (pour les dégradés, hover, ombres)
 
-## Partie 2 : Navbar & Corrections CSS ✅
+2. **Correction Admin Django** : Ajout de `list_display_links = ("name",)` dans `ProductAdmin` pour que le nom du produit apparaisse en bleu et soit cliquable dans la liste des produits de l'interface admin, redirigeant vers la page de modification.
 
-### 1. Diagnostic
-- [x] Identifier le CSS obsolète (topbar, mega-menu) qui cachait la navbar
-- [x] Identifier `.navbar { display: none }` sur mobile
-- [x] Identifier `.navbar { position: relative }` qui écrasait `.fixed-top`
-
-### 2. Corrections CSS (`static/css/main_v2.css` & `staticfiles/css/main_v2.css`)
-- [x] Supprimer l'ancien bloc CSS obsolète (topbar, header, mega-menu, navbar-inner)
-- [x] Supprimer `.navbar { display: none }` en mobile
-- [x] Supprimer `.navbar { position: relative; z-index: 500 }` qui écrasait `.fixed-top`
-- [x] Logo arrondi (`border-radius: 50%`) avec bordure blanche et ombre
-- [x] Navbar visible et fonctionnelle sur desktop et mobile
-
-### 3. Templates
-- [x] `templates/products/product_list.html` : Titres produits en vert `#1c683b`
-- [x] `templates/base.html` : Vérifié (pas de texte parasite)
-
-### 4. Admin
-- [x] Bouton "Ajouter une sous-catégorie" déjà présent dans `templates/admin/products/category/change_form.html`
-
-## Déploiement production - Actions requises ⚠️
-- [ ] Exécuter `python manage.py migrate` sur le serveur
-- [ ] Exécuter `python manage.py collectstatic --noinput` sur le serveur (si les CSS ne se mettent pas à jour automatiquement)
-- [ ] Redémarrer le serveur (gunicorn/uwsgi)
-
+3. **SEO conforme** : Aucune balise meta, structure HTML ou contenu SEO n'a été modifié. Les corrections sont strictement visuelles (CSS/couleurs) et fonctionnelles (admin).
 

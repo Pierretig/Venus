@@ -4,8 +4,8 @@
 {% block content %}
 <style>
     :root {
-        --venus-vert-nuit: #328f41ff;
-        --venus-vert: #43b14cff;
+        --venus-vert-nuit: #1c683b;
+        --venus-vert: #155430;
         --venus-or: #d4af37;
         --venus-jaune: #fbc02d;
     }
@@ -77,7 +77,7 @@
     }
 
     .btn-whatsapp-success:hover {
-        background: #128C7E;
+        background: #155430;
         transform: scale(1.02);
     }
 
@@ -136,7 +136,7 @@
                         </a>
                         
                         <a href="https://wa.me/22893343403?text=Bonjour%20Venus%20Luna,%20ma%20commande%20n°{{ order.id }}%20vient%20d'être%20confirmée." 
-                           target="_blank" class="btn btn-whatsapp-success py-3">
+                           target="_blank" rel="noopener" class="btn btn-whatsapp-success py-3">
                             <i class="fab fa-whatsapp me-2"></i> SUIVRE SUR WHATSAPP
                         </a>
                     </div>
@@ -177,3 +177,4 @@
     }, 250);
 </script>
 {% endblock %}
+
