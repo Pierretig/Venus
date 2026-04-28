@@ -93,3 +93,35 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshCartCount();
   setInterval(refreshCartCount, 8000);
 });
+
+// ================= PROTECTION IMAGES (WATERMARK) =================
+// Bloque le clic droit et le drag sur les images protégées
+// tout en préservant la navigation normale du site.
+
+document.addEventListener('DOMContentLoaded', () => {
+  const protectedImages = document.querySelectorAll('img.protected-image');
+
+  protectedImages.forEach((img) => {
+    // Empêche le menu contextuel (clic droit → enregistrer l'image)
+    img.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // Empêche le drag & drop de l'image
+    img.addEventListener('dragstart', (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // Empêche la copie via touche
+    img.addEventListener('copy', (e) => {
+      e.preventDefault();
+      return false;
+    });
+  });
+
+  console.log('🔒 Protection images activée');
+});
+
+// ================= FIN PROTECTION IMAGES =================

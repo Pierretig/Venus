@@ -115,8 +115,8 @@
                                 <tr>
                                     <td class="ps-4">
                                         <div class="d-flex align-items-center py-3">
-                                            {% if item.product.images.all %}
-                                                <img src="{{ item.product.images.first.image.url }}" class="product-img-cart me-3 shadow">
+{% if item.product.images.all %}
+                                                <img src="{% protected_image item.product.images.first 'image' %}" class="product-img-cart me-3 shadow protected-image">
                                             {% else %}
                                                 <div class="product-img-cart me-3 d-flex align-items-center justify-content-center bg-dark"></div>
                                             {% endif %}

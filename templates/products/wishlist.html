@@ -110,7 +110,7 @@
                     <div class="wishlist-img-container">
                         {% with item.product.images.all|first as first_img %}
                             {% if first_img %}
-                                <img src="{{ first_img.image.url }}" alt="{{ item.product.name }}">
+                                <img src="{% protected_image first_img 'image' %}" alt="{{ item.product.name }}" class="protected-image">
                             {% else %}
                                 <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-light">
                                     <i class="fas fa-image text-muted opacity-25 fa-2x"></i>

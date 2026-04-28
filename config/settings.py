@@ -119,6 +119,10 @@ PAYPLUS_MERCHANT_ID = os.getenv('PAYPLUS_MERCHANT_ID')
 SITE_URL = os.getenv('SITE_URL', 'https://venus-luna.com')
 PAYPLUS_WEBHOOK_URL = f"{SITE_URL}/orders/webhook/payplus/"
 
+# --- CONFIGURATION WATERMARK CLOUDINARY ---
+WATERMARK_TEXT = os.getenv('WATERMARK_TEXT', 'Venus-Luna')
+SITE_DOMAIN = os.getenv('SITE_DOMAIN', 'venus-luna.com')
+
 # --- APPLICATIONS ---
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -164,6 +168,9 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'apps.core.context_processors.global_data',
+            ],
+            'builtins': [
+                'apps.core.templatetags.cloudinary_extras',
             ],
         },
     },

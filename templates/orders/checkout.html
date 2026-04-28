@@ -158,7 +158,7 @@
                             {% for item in items %}
                             <div class="d-flex align-items-center mb-3">
                                 <div class="position-relative">
-                                    <img src="{% if item.product.images.first %}{{ item.product.images.first.image.url }}{% else %}{% static 'img/default.jpg' %}{% endif %}" class="order-item-img">
+<img src="{% if item.product.images.first %}{% protected_image item.product.images.first 'image' %}{% else %}{% static 'img/default.jpg' %}{% endif %}" class="order-item-img protected-image">
                                     <span class="badge rounded-pill position-absolute top-0 start-100 translate-middle bg-gold text-dark border border-dark border-2" style="font-size: 0.65rem;">
                                         {{ item.quantity }}
                                     </span>

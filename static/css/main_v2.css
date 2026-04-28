@@ -729,6 +729,26 @@ p.text-muted {
     display: flex !important;
 }
 
+/* ================= PROTECTION IMAGES (WATERMARK) ================= */
+
+/* Empêche le clic droit, la sélection et le drag sur les images protégées */
+.protected-image {
+    /* On retire pointer-events: none car il empêche les listeners JS
+       (contextmenu, dragstart) de fonctionner sur l'image elle-même.
+       La protection repose sur le JS + user-select + user-drag. */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-drag: none;
+}
+
+/* ================= FIN PROTECTION IMAGES ================= */
+
 
 
 

@@ -1,6 +1,12 @@
-from django.shortcuts import render, redirect
+import logging
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.conf import settings
+from django.apps import apps
+from django.http import Http404
+
+# Import des utilitaires watermark
+from .utils.watermark import get_clean_url, get_watermarked_url
 
 # Import des modèles de l'application Core
 from .models import Banner, SiteSettings, SocialLink
@@ -8,9 +14,65 @@ from .models import Banner, SiteSettings, SocialLink
 # Import des modèles des autres applications
 from apps.products.models import Product, Category 
 from apps.blog.models import Post
-from apps.contact.forms import ContactForm 
+from apps.contact.forms import ContactForm
+
+logger = logging.getLogger(__name__)
+
+
 def cgv_view(request):
     return render(request, 'pages/cgv.html') # Assure-toi que ce template existe
+
+
+def serve_image(request, app_label, model_name, pk, field_name):
+    """
+    Vue proxy qui sert les images Cloudinary avec ou sans watermark
+    selon la provenance de la requête.
+
+    - Affichage interne (depuis une page du site)  → image PROPRE
+    - Accès direct, hotlink, outils CLI (curl/wget) → image WATERMARKÉE
+
+    L'URL utilise le modèle Django et la PK ; le public_id Cloudinary
+    n'est JAMAIS exposé dans le HTML.
+    """
+    model = apps.get_model(app_label, model_name)
+    instance = get_object_or_404(model, pk=pk)
+
+    field = getattr(instance, field_name, None)
+    if not field:
+        raise Http404("Champ image introuvable.")
+
+    public_id = str(field)
+    if not public_id:
+        raise Http404("Aucune image associée.")
+
+    referer = request.META.get('HTTP_REFERER', '')
+    user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+    site_domain = getattr(settings, 'SITE_DOMAIN', '')
+
+    # Détection des outils CLI / scrapers
+    cli_tools = ['curl', 'wget', 'python-requests', 'scrapy', 'httpx', 'aiohttp', 'libwww']
+    is_cli = any(tool in user_agent for tool in cli_tools)
+
+    # Détection des crawlers sociaux / SEO (ils méritent des images propres)
+    social_crawlers = [
+        'facebookexternalhit', 'twitterbot', 'linkedinbot', 'whatsapp',
+        'slackbot', 'discordbot', 'googlebot', 'bingbot', 'applebot',
+    ]
+    is_crawler = any(bot in user_agent for bot in social_crawlers)
+
+    # Accès direct = pas de referer OU domaine externe
+    is_direct = not referer or (site_domain and site_domain not in referer)
+
+    if (is_direct or is_cli) and not is_crawler:
+        logger.info(
+            "Watermark servi pour %s.%s:%s — Referer: %s, UA: %s",
+            app_label, model_name, pk, referer, user_agent
+        )
+        url = get_watermarked_url(public_id)
+    else:
+        url = get_clean_url(public_id)
+
+    return redirect(url)
 def home(request):
     """
     Vue unique de la page d'accueil.

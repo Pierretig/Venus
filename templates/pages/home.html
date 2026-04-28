@@ -30,7 +30,7 @@
 <header class="hero-section">
     {% for banner in banners %}
     <div class="hero-slide {% if forloop.first %}active{% endif %}">
-        <img src="{{ banner.image.url }}" alt="{{ banner.title }}" class="hero-bg">
+        <img src="{% protected_image banner 'image' %}" alt="{{ banner.title }}" class="hero-bg protected-image">
         <div class="hero-overlay"></div>
         <div class="hero-content container-fluid px-3 text-center">
             <h1 class="display-2 fw-bold mb-3 animate-text">{{ banner.title }}</h1>
@@ -160,7 +160,7 @@
                 <article class="blog-card-home h-100 d-flex flex-column">
                     <div class="post-thumbnail-home mb-4">
                         <a href="{{ post.get_absolute_url }}">
-                            <img src="{% if post.image %}{{ post.image.url }}{% else %}{% static 'img/spirit-bg.jpeg' %}{% endif %}" class="w-100 h-100" alt="{{ post.title }}">
+<img src="{% if post.image %}{% protected_image post 'image' %}{% else %}{% static 'img/spirit-bg.jpeg' %}{% endif %}" class="w-100 h-100 protected-image" alt="{{ post.title }}">
                         </a>
                     </div>
                     <div class="flex-grow-1 px-2">
@@ -289,7 +289,7 @@
                     <div class="img-zoom-container">
                         <a href="{% url 'products:product_detail' product.slug %}">
                             {% with product.images.all|first as first_img %}
-                            <img src="{% if first_img %}{{ first_img.image.url }}{% else %}{% static 'img/aze1.png' %}{% endif %}" style="max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; transition:0.6s;" alt="{{ product.name }}">
+<img src="{% if first_img %}{% protected_image first_img 'image' %}{% else %}{% static 'img/aze1.png' %}{% endif %}" class="protected-image" style="max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; transition:0.6s;" alt="{{ product.name }}">
                             {% endwith %}
                         </a>
                     </div>

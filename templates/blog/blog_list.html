@@ -108,7 +108,7 @@
                 <article class="blog-card h-100 d-flex flex-column">
                     <div class="post-thumbnail mb-4">
                         <a href="{{ post.get_absolute_url }}">
-                            <img src="{% if post.image %}{{ post.image.url }}{% else %}{% static 'img/spirit-bg.jpeg' %}{% endif %}" class="w-100 h-100 object-fit-cover opacity-75" alt="{{ post.title }}">
+                            <img src="{% if post.image %}{% protected_image post 'image' %}{% else %}{% static 'img/spirit-bg.jpeg' %}{% endif %}" class="w-100 h-100 object-fit-cover opacity-75 protected-image" alt="{{ post.title }}">
                         </a>
                         <div class="position-absolute top-0 end-0 p-3">
                             <span class="badge rounded-pill bg-dark bg-opacity-50 border border-gold text-gold-light">

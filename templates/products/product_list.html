@@ -231,8 +231,6 @@
     text-decoration: none;
   }
 
-
-
   .old-price {
     color: #888;
     text-decoration: line-through;
@@ -351,7 +349,7 @@
               {% endif %}
               <a href="{% url 'products:product_detail' product.slug %}">
                 {% if product.images.first %}
-                  <img src="{{ product.images.first.image.url }}" alt="{{ product.name }}">
+                  <img src="{% protected_image product.images.first 'image' %}" class="protected-image" alt="{{ product.name }}">
                 {% else %}
                   <img src="{% static 'img/aze1.png' %}" alt="{{ product.name }}">
                 {% endif %}
@@ -409,6 +407,5 @@
         </div>
       {% endif %}
     </div>
-  </div>
 </section>
 {% endblock %}

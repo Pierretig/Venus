@@ -13,9 +13,6 @@
     "@type": "Product",
     "name": "{{ product.name|escapejs }}",
     "description": "{{ product.short_description|escapejs|default:product.description|striptags|truncatewords:30|escapejs }}",
-    "image": [
-        {% for img in product.images.all %}{% if img.is_main %}"{{ request.scheme }}://{{ request.get_host }}{{ img.image.url }}"{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}
-    ],
     "offers": {
         "@type": "Offer",
         "priceCurrency": "XOF",
@@ -40,11 +37,10 @@
     }
 
     .product-detail-section {
-        background-color: #fcfbf7; /* Fond crème très léger pour faire ressortir les cristaux */
+        background-color: #fcfbf7;
         min-height: 100vh;
     }
 
-    /* Galerie Image */
     .main-image-wrapper {
         position: relative;
         background: white;
@@ -70,7 +66,6 @@
         transform: translateY(-3px);
     }
 
-    /* Infos Produit */
     .product-info-box {
         border: none !important;
         background: transparent !important;
@@ -88,7 +83,6 @@
         font-weight: 700;
     }
 
-    /* Formulaire Quantité */
     .qty-input-group {
         border: 1px solid rgba(0,0,0,0.1);
         border-radius: 50px;
@@ -114,7 +108,6 @@
         box-shadow: 0 10px 20px rgba(212, 175, 55, 0.3);
     }
 
-    /* Description */
     .description-card {
         background: white;
         border-radius: 40px;
@@ -139,23 +132,22 @@
         <div class="row g-5">
             <div class="col-lg-6">
                 <div class="main-image-wrapper mb-4">
-                        {% for img in product.images.all %}
+                    {% for img in product.images.all %}
                         {% if img.is_main %}
-                            <img src="{{ img.image.url }}" id="main-display" alt="{{ img.alt_text }}" 
-                                 class="img-fluid w-100" style="max-height: 550px; object-fit: contain;">
+                            <img src="{% protected_image img 'image' %}" id="main-display" alt="{{ img.alt_text }}"
+                                 class="img-fluid w-100 protected-image" style="max-height: 550px; object-fit: contain;">
                         {% endif %}
                     {% endfor %}
                 </div>
-                
+
                 <div class="d-flex gap-3 justify-content-center overflow-auto py-2">
                     {% for img in product.images.all %}
-                    <img src="{{ img.image.url }}" 
-                         class="thumbnail-img rounded-4 cursor-pointer {% if img.is_main %}active-thumb{% endif %}" 
+                    <img src="{% protected_image img 'image' %}"
+                         class="thumbnail-img rounded-4 cursor-pointer protected-image {% if img.is_main %}active-thumb{% endif %}"
                          onclick="changeImage(this)"
                          style="width: 90px; height: 90px; object-fit: cover; background: white; padding: 5px;">
                     {% endfor %}
                 </div>
-            </div>
 
             <div class="col-lg-6">
                 <div class="product-info-box ps-lg-4">
@@ -185,13 +177,11 @@
                                     <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" 
                                            class="form-control border-0 bg-transparent text-center fw-bold" style="width: 60px;">
                                 </div>
-                            </div>
                             <div class="col-md-8">
                                 <button type="submit" class="btn-gold-action w-100 h-100">
                                     <i class="fas fa-shopping-bag me-3"></i> Ajouter au Panier
                                 </button>
                             </div>
-                        </div>
                     </form>
 
                     <div class="mt-5 p-4 rounded-4" style="background: white; border: 1px solid rgba(0,0,0,0.05);">
@@ -208,11 +198,8 @@
                                 <i class="fas fa-leaf text-gold mb-2"></i>
                                 <p class="x-small mb-0 fw-bold">Éthique</p>
                             </div>
-                        </div>
                     </div>
-                </div>
             </div>
-        </div>
 
         <div class="row mt-5 pt-5">
             <div class="col-12">
@@ -225,16 +212,13 @@
                     <div class="description-content" style="line-height: 2; color: #444; font-size: 1.1rem;">
                         {{ product.description|linebreaks }}
                     </div>
-                </div>
             </div>
-        </div>
     </div>
 </section>
 
 <script>
     function changeImage(element) {
         document.getElementById('main-display').src = element.src;
-        // Gérer la classe active
         document.querySelectorAll('.thumbnail-img').forEach(img => img.classList.remove('active-thumb'));
         element.classList.add('active-thumb');
     }
