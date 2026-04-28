@@ -12,14 +12,14 @@ class StaticViewSitemap(Sitemap):
     protocol = 'https'
     # Chaque page a sa propre config SEO
     _pages = {
-        'home':         {'changefreq': 'daily',   'priority': 1.0},
-        'products:list':{'changefreq': 'daily',   'priority': 0.9},
-        'blog:list':    {'changefreq': 'weekly',  'priority': 0.8},
-        'contact':      {'changefreq': 'monthly', 'priority': 0.6},
-        'about':        {'changefreq': 'monthly', 'priority': 0.6},
-        'faq':          {'changefreq': 'monthly', 'priority': 0.5},
-        'cgv':          {'changefreq': 'yearly',  'priority': 0.3},
-        'privacy':      {'changefreq': 'yearly',  'priority': 0.3},
+        'core:home':         {'changefreq': 'daily',   'priority': 1.0},
+        'products:list':     {'changefreq': 'daily',   'priority': 0.9},
+        'blog:list':         {'changefreq': 'weekly',  'priority': 0.8},
+        'core:contact':      {'changefreq': 'monthly', 'priority': 0.6},
+        'core:about':        {'changefreq': 'monthly', 'priority': 0.6},
+        'core:faq':          {'changefreq': 'monthly', 'priority': 0.5},
+        'core:cgv':          {'changefreq': 'yearly',  'priority': 0.3},
+        'core:privacy':      {'changefreq': 'yearly',  'priority': 0.3},
     }
     
     def items(self):
