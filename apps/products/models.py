@@ -65,6 +65,9 @@ class Category(models.Model):
             cat = cat.parent
         return depth
 
+    def get_absolute_url(self):
+        return reverse('products:category_detail', args=[self.slug])
+
 
 class Product(models.Model):
     category = models.ForeignKey(Category, related_name='products', on_delete=models.SET_NULL, null=True, blank=True)
