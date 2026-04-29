@@ -6,7 +6,7 @@
 {% block canonical %}blog/{{ post.id }}/{% endblock %}
 
 {% block extra_head %}
-{% if post.image %}
+
 <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% url 'core:serve_image' post.id %}?model=blog.post&amp;field=image">
 <meta property="twitter:image" content="{{ request.scheme }}://{{ request.get_hostl }}{% url 'core:serve_image' post.id %}?model=blog.post&amp;field=image">
 {% endif %}

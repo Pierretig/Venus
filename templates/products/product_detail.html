@@ -57,19 +57,19 @@
     .thumbnail-img {
         transition: all 0.3s ease;
         opacity: 0.6;
-        border: 2px solid transparent !important;
+        border: 2px solid transparent;
     }
 
     .thumbnail-img:hover, .active-thumb {
         opacity: 1;
-        border-color: var(--venus-or) !important;
+        border-color: var(--venus-or);
         transform: translateY(-3px);
     }
 
     .product-info-box {
-        border: none !important;
-        background: transparent !important;
-        box-shadow: none !important;
+        border: none;
+        background: transparent;
+        box-shadow: none;
     }
 
     .badge-availability {
@@ -117,11 +117,21 @@
 
     .breadcrumb-item a { color: var(--venus-or); }
     .breadcrumb-item.active { color: var(--venus-nuit); opacity: 0.6; }
+
+    @media (max-width: 768px) {
+        .thumbnail-container {
+            flex-direction: column;
+            gap: 10px;
+        }
+        .thumbnail-img {
+            width: 80px;
+            height: 80px;
+        }
+    }
 </style>
 
 <section class="product-detail-section py-5">
     <div class="container">
-        
         <nav aria-label="breadcrumb" class="mb-5">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'products:list' %}" class="fw-bold text-decoration-none">Le Sanctuaire</a></li>
@@ -134,20 +144,30 @@
                 <div class="main-image-wrapper mb-4">
                     {% for img in product.images.all %}
                         {% if img.is_main %}
-                            <img src="{% protected_image img 'image' %}" id="main-display" alt="{{ img.alt_text }}"
-                                 class="img-fluid w-100 protected-image" style="max-height: 550px; object-fit: contain;">
+                            <img src="{% protected_image img 'image' %}" id="main-display" alt="{{ img.alt_text|default:product.name }}"
+                                 class="img-fluid w-100 protected-image" title="{{ img.alt_text|default:'Image principale du produit' }}" style="max-height: 550px; object-fit: contain;">
                         {% endif %}
+                    {% empty %}
+                        <img src="{% static 'img/aze1.PNG' %}" id="main-display" alt="{{ product.name }}"
+                             class="img-fluid w-100 protected-image" title="Image du produit" style="max-height: 550px; object-fit: contain;">
                     {% endfor %}
                 </div>
 
-                <div class="d-flex gap-3 justify-content-center overflow-auto py-2">
+                <div class="d-flex gap-3 justify-content-center overflow-auto py-2 thumbnail-container">
                     {% for img in product.images.all %}
-                    <img src="{% protected_image img 'image' %}"
+                    <img src="{% protected_image img 'image' %}" data-large="{% protected_image img 'image' %}"
                          class="thumbnail-img rounded-4 cursor-pointer protected-image {% if img.is_main %}active-thumb{% endif %}"
                          onclick="changeImage(this)"
+                         alt="{{ img.alt_text|default:product.name }}" title="Cliquez pour agrandir"
                          style="width: 90px; height: 90px; object-fit: cover; background: white; padding: 5px;">
+                    {% empty %}
+                        <img src="{% static 'img/aze1.PNG' %}" data-large="{% static 'img/aze1.PNG' %}"
+                             class="thumbnail-img rounded-4 cursor-pointer protected-image active-thumb"
+                             onclick="changeImage(this)" alt="{{ product.name }}" title="Cliquez pour agrandir"
+                             style="width: 90px; height: 90px; object-fit: cover; background: white; padding: 5px;">
                     {% endfor %}
                 </div>
+            </div>
 
             <div class="col-lg-6">
                 <div class="product-info-box ps-lg-4">
@@ -172,16 +192,19 @@
                         {% csrf_token %}
                         <div class="row g-3">
                             <div class="col-md-4">
+                                <label for="qty-input" class="form-label visually-hidden">Quantité</label>
                                 <div class="qty-input-group d-flex align-items-center justify-content-between">
                                     <span class="small fw-bold text-uppercase opacity-50">Qté</span>
-                                    <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" 
-                                           class="form-control border-0 bg-transparent text-center fw-bold" style="width: 60px;">
+                                    <input type="number" id="qty-input" name="quantity" value="1" min="1" max="{{ product.stock }}" 
+                                           class="form-control border-0 bg-transparent text-center fw-bold" style="width: 60px;" placeholder="1">
                                 </div>
+                            </div>
                             <div class="col-md-8">
                                 <button type="submit" class="btn-gold-action w-100 h-100">
                                     <i class="fas fa-shopping-bag me-3"></i> Ajouter au Panier
                                 </button>
                             </div>
+                        </div>
                     </form>
 
                     <div class="mt-5 p-4 rounded-4" style="background: white; border: 1px solid rgba(0,0,0,0.05);">
@@ -198,27 +221,32 @@
                                 <i class="fas fa-leaf text-gold mb-2"></i>
                                 <p class="x-small mb-0 fw-bold">Éthique</p>
                             </div>
+                        </div>
                     </div>
+                </div>
             </div>
+        </div>
 
         <div class="row mt-5 pt-5">
             <div class="col-12">
                 <div class="description-card shadow-sm">
                     <h3 class="display-6 mb-4 text-center" style="font-family: 'Playfair Display', serif; color: var(--venus-nuit);">
-                        Description complete de {{ product.name }}
+                        Description complète de {{ product.name }}
                     </h3>
                     <div style="height: 2px; width: 60px; background: var(--venus-or); margin: 0 auto 40px;"></div>
                     
                     <div class="description-content" style="line-height: 2; color: #444; font-size: 1.1rem;">
                         {{ product.description|linebreaks }}
                     </div>
+                </div>
             </div>
+        </div>
     </div>
 </section>
 
 <script>
     function changeImage(element) {
-        document.getElementById('main-display').src = element.src;
+        document.getElementById('main-display').src = element.dataset.large;
         document.querySelectorAll('.thumbnail-img').forEach(img => img.classList.remove('active-thumb'));
         element.classList.add('active-thumb');
     }

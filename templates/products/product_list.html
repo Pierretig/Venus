@@ -361,9 +361,9 @@
               </h3>
               <div class="product-prices">
                 {% if product.old_price %}
-                  <span class="old-price">{{ product.old_price }} F</span>
+                  <span class="old-price">{{ product.old_price }} F CFA</span>
                 {% endif %}
-                <span class="price">{{ product.price }} F</span>
+                <span class="price">{{ product.price }} F CFA</span>
               </div>
               <form action="{% url 'orders:cart_add' product.id %}" method="post" class="mt-2">
                 {% csrf_token %}
