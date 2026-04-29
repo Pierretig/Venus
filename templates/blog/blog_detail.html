@@ -3,13 +3,39 @@
 
 {% block og_title %}{{ post.title }} - Blog Venus-Luna{% endblock %}
 {% block twitter_title %}{{ post.title }} - Blog Venus-Luna{% endblock %}
-{% block canonical %}blog/{{ post.id }}/{% endblock %}
+{% block canonical %}{{ request.build_absolute_uri }}{% endblock %}
 
 {% block extra_head %}
-
-<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% url 'core:serve_image' post.id %}?model=blog.post&amp;field=image">
-<meta property="twitter:image" content="{{ request.scheme }}://{{ request.get_hostl }}{% url 'core:serve_image' post.id %}?model=blog.post&amp;field=image">
-{% endif %}
+<!-- Schema.org Article JSON-LD -->
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "{{ post.title|escapejs }}",
+    "datePublished": "{{ post.created_at|date:'c' }}",
+    "dateModified": "{{ post.updated_at|date:'c' }}",
+    "author": {
+        "@type": "Person",
+        "name": "{{ post.author.get_full_name|default:'Venus Luna'|escapejs }}"
+    },
+    "publisher": {
+        "@type": "Organization",
+        "name": "Venus Luna",
+        "logo": {
+            "@type": "ImageObject",
+            "url": "https://venus-luna.com{% static 'img/venus-luna3.jpg' %}"
+        }
+    },
+    {% if post.image %}
+    "image": "{{ request.scheme }}://{{ request.get_host }}{% url 'core:serve_image' 'blog.Post' post.pk 'image' %}",
+    {% endif %}
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "{{ request.build_absolute_uri }}"
+    },
+    "articleSection": "Spiritualité"
+}
+</script>
 {% endblock %}
 
 {% block content %}
@@ -21,11 +47,21 @@
         --venus-jaune: #fbc02d;
     }
 
-    /* Style global de l'article */
     .post-detail-section {
         background: linear-gradient(to bottom, #155430, #1c683b);
         color: #f0f7f4;
         min-height: 100vh;
+    }
+
+    .glass-card-post {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 40px;
+        padding: 4rem;
+        margin-top: -50px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
     }
 
     .post-title {
@@ -37,25 +73,13 @@
 
     .ls-2 { letter-spacing: 3px; }
 
-    /* La carte de contenu */
-    .glass-card-post {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 40px;
-        padding: 4rem;
-        margin-top: -50px; /* Effet de chevauchement sur l'image si tu en ajoutes une */
-    }
-
-    /* Typographie de lecture */
     .content-text {
         font-size: 1.15rem;
         line-height: 1.8;
         color: rgba(255, 255, 255, 0.9);
-        font-family: 'Georgia', serif; /* Plus reposant pour les longs textes */
+        font-family: 'Georgia', serif;
     }
 
-    /* Lettrine Or */
     .first-letter-gold::first-letter {
         float: left;
         font-size: 5rem;
@@ -66,7 +90,6 @@
         font-weight: bold;
     }
 
-    /* Boutons et Social */
     .btn-gold-outline {
         border: 1px solid var(--venus-or);
         color: var(--venus-or);
@@ -74,12 +97,15 @@
         transition: 0.3s;
         text-decoration: none;
         display: inline-block;
+        padding: 12px 24px;
+        font-weight: 600;
     }
 
     .btn-gold-outline:hover {
         background: var(--venus-or);
         color: var(--venus-vert-dark);
         transform: translateX(-5px);
+        text-decoration: none;
     }
 
     .social-share i {
@@ -92,54 +118,86 @@
         color: white !important;
     }
 
-    /* Responsive */
     @media (max-width: 768px) {
-        .glass-card-post { padding: 2rem; }
-        .post-title { font-size: 2.5rem; }
+        .glass-card-post { 
+            padding: 2rem 1.5rem; 
+            margin-top: -30px;
+        }
+        .post-title { font-size: 2rem; }
+        .content-text { font-size: 1rem; }
+    }
+
+    @media (max-width: 576px) {
+        .social-share {
+            flex-direction: column;
+            gap: 10px;
+        }
     }
 </style>
 
-<article class="post-detail-section py-5">
+<article class="post-detail-section py-5 position-relative">
+    {% if post.image %}
+    <div class="hero-blog-image position-absolute top-0 start-0 w-100 h-50" style="z-index: -1;">
+        <img src="{% protected_image post 'image' %}" alt="{{ post.title }}" class="w-100 h-100 object-cover protected-image" style="opacity: 0.3;">
+    </div>
+    {% endif %}
+    
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-lg-10">
+            <div class="col-lg-10 col-xl-8">
                 
-                <header class="text-center mb-5 pb-4">
-                    <span class="text-gold text-uppercase fw-bold ls-2 small">
+                <header class="text-center mb-5 pb-4 pt-5">
+                    <span class="badge bg-warning text-dark px-3 py-2 mb-3 d-inline-block">
                         <i class="fas fa-feather-alt me-2"></i>Sagesse Spirituelle
                     </span>
                     <h1 class="display-3 post-title mt-3 mb-4">{{ post.title }}</h1>
                     
-                    <div class="d-flex justify-content-center align-items-center text-white-50">
-                        <div class="me-3">
+                    <div class="d-flex justify-content-center align-items-center text-white-50 flex-wrap gap-3">
+                        <div class="text-center">
                             <i class="far fa-user text-gold me-1"></i> 
                             {{ post.author.get_full_name|default:"L'Équipe Venus-Luna" }}
                         </div>
-                        <div class="me-3">|</div>
+                        <div class="vr mx-3 d-none d-md-block"></div>
                         <div>
                             <i class="far fa-calendar-alt text-gold me-1"></i> 
-                            Le {{ post.created_at|date:"d F Y" }}
+                            {{ post.created_at|date:"d F Y" }}
                         </div>
+                        {% if post.updated_at != post.created_at %}
+                        <div>
+                            <i class="fas fa-edit text-gold me-1"></i>
+                            Mis à jour {{ post.updated_at|date:"d F Y" }}
+                        </div>
+                        {% endif %}
                     </div>
                 </header>
 
                 <div class="glass-card-post shadow-lg">
                     <div class="content-text first-letter-gold">
-                        {{ post.content|linebreaks }}
+                        {{ post.content|linebreaks|urlize }}
                     </div>
                     
                     <footer class="mt-5 pt-4 border-top border-white border-opacity-10">
-                        <div class="row align-items-center">
-                            <div class="col-md-6 mb-3 mb-md-0">
-                                <a href="{% url 'blog:list' %}" class="btn-gold-outline py-2 px-4">
-                                    <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+                        <div class="row align-items-center g-4">
+                            <div class="col-md-6">
+                                <a href="{% url 'blog:list' %}" class="btn-gold-outline" rel="prev">
+                                    <i class="fas fa-arrow-left me-2"></i>Retour aux chroniques
                                 </a>
                             </div>
                             <div class="col-md-6 text-md-end">
-                                <div class="social-share">
-                                    <span class="text-white-50 small me-3 fw-bold text-uppercase">Partager l'éveil :</span>
-                                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}" target="_blank" class="text-gold me-3"><i class="fab fa-facebook-f"></i></a>
-                                    <a href="https://api.whatsapp.com/send?text={{ post.title }} - {{ request.build_absolute_uri }}" target="_blank" class="text-gold"><i class="fab fa-whatsapp"></i></a>
+                                <div class="social-share d-flex justify-content-md-end gap-3 align-items-center flex-wrap">
+                                    <span class="text-white-50 small fw-bold text-uppercase me-3">Partager l'éveil :</span>
+                                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri|urlencode }}" 
+                                       target="_blank" rel="noopener noreferrer" class="text-gold" title="Partager sur Facebook" aria-label="Partager sur Facebook">
+                                        <i class="fab fa-facebook-f"></i>
+                                    </a>
+                                    <a href="https://api.whatsapp.com/send?text={{ post.title }}%20-%20{{ request.build_absolute_uri|urlencode }}" 
+                                       target="_blank" rel="noopener noreferrer" class="text-gold" title="Partager sur WhatsApp" aria-label="Partager sur WhatsApp">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </a>
+                                    <a href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri|urlencode }}&text={{ post.title|urlencode }}" 
+                                       target="_blank" rel="noopener noreferrer" class="text-gold ms-2" title="Partager sur Twitter" aria-label="Partager sur Twitter">
+                                        <i class="fab fa-twitter"></i>
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -151,3 +209,4 @@
     </div>
 </article>
 {% endblock %}
+
