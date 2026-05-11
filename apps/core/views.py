@@ -39,11 +39,15 @@ def serve_image(request, app_label, model_name, pk, field_name):
 
     field = getattr(instance, field_name, None)
     if not field:
-        raise Http404("Champ image introuvable.")
+        # Fallback image au lieu de planter (sinon 500 sur la boutique)
+        fallback = 'img/aze1.png'
+        return redirect(fallback if fallback.startswith('/') else f'/{fallback}')
 
     public_id = str(field)
     if not public_id:
-        raise Http404("Aucune image associée.")
+        fallback = 'img/aze1.png'
+        return redirect(fallback if fallback.startswith('/') else f'/{fallback}')
+
 
     referer = request.META.get('HTTP_REFERER', '')
     user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
@@ -73,6 +77,8 @@ def serve_image(request, app_label, model_name, pk, field_name):
         url = get_clean_url(public_id)
 
     return redirect(url)
+
+
 def home(request):
     """
     Vue unique de la page d'accueil.
