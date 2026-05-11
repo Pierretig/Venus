@@ -120,6 +120,43 @@ class ProductImage(models.Model):
         return f"Image de {self.product.name}"
 
 
+class ProductAuditLog(models.Model):
+    """Audit trail pour les actions effectuées sur un produit (admin)."""
+
+    class ActionType(models.TextChoices):
+        CREATED = 'CREATED', 'Créé'
+        UPDATED = 'UPDATED', 'Mis à jour'
+        DELETED = 'DELETED', 'Supprimé'
+        STATUS_CHANGED = 'STATUS_CHANGED', 'Changement de statut'
+        OTHER = 'OTHER', 'Autre'
+
+    product = models.ForeignKey(
+        'Product',
+        on_delete=models.CASCADE,
+        related_name='audit_logs',
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='product_audit_logs',
+        null=True,
+        blank=True,
+    )
+    action_type = models.CharField(max_length=30, choices=ActionType.choices)
+    description = models.TextField(blank=True)
+    meta = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Journal d’audit produit"
+        verbose_name_plural = "Journaux d’audit produits"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        u = self.user.username if self.user else 'Système'
+        return f"{self.action_type} - {self.product_id} - {u}"
+
+
 class Wishlist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wishlist')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -132,3 +169,4 @@ class Wishlist(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.product.name}"
+

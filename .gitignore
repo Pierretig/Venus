@@ -19,5 +19,6 @@ __pycache__/
 # Système / uploads
 .DS_Store
 media/
+staticfiles/
 
 TODO.md

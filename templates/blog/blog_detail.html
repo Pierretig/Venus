@@ -16,11 +16,11 @@
     "dateModified": "{{ post.updated_at|date:'c' }}",
     "author": {
         "@type": "Person",
-        "name": "{{ post.author.get_full_name|default:'Venus Luna'|escapejs }}"
+        "name": "{{ post.author.get_full_name|default:'Venus-Luna'|escapejs }}"
     },
     "publisher": {
         "@type": "Organization",
-        "name": "Venus Luna",
+        "name": "Venus-Luna",
         "logo": {
             "@type": "ImageObject",
             "url": "https://venus-luna.com{% static 'img/venus-luna3.jpg' %}"

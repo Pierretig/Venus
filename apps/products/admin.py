@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Category, Product, ProductImage, Wishlist
+from .models import Category, Product, ProductImage, Wishlist, ProductAuditLog
+
 
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
