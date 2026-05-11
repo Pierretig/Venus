@@ -541,9 +541,6 @@
                 {% if current|add:'-2' > 2 %}
                   <li class="page-item"><a class="page-link" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page=1">1</a></li>
                   <li class="page-item disabled"><span class="page-link">...</span></li>
-                {% elif current > 2 %}
-                  {% for num in "12".make_list %}{% endfor %}
-                  {# affichage page 2 si proche #}
                 {% endif %}
 
                 {% for num in products.paginator.page_range %}
