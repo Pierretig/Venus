@@ -148,7 +148,7 @@
                                  class="img-fluid w-100 protected-image" title="{{ img.alt_text|default:'Image principale du produit' }}" style="max-height: 550px; object-fit: contain;">
                         {% endif %}
                     {% empty %}
-                        <img src="{% static 'img/aze1.PNG' %}" id="main-display" alt="{{ product.name }}"
+                        <img src="{% static 'img/aze1.png' %}" id="main-display" alt="{{ product.name }}"
                              class="img-fluid w-100 protected-image" title="Image du produit" style="max-height: 550px; object-fit: contain;">
                     {% endfor %}
                 </div>
@@ -161,7 +161,7 @@
                          alt="{{ img.alt_text|default:product.name }}" title="Cliquez pour agrandir"
                          style="width: 90px; height: 90px; object-fit: cover; background: white; padding: 5px;">
                     {% empty %}
-                        <img src="{% static 'img/aze1.PNG' %}" data-large="{% static 'img/aze1.PNG' %}"
+                        <img src="{% static 'img/aze1.png' %}" data-large="{% static 'img/aze1.png' %}"
                              class="thumbnail-img rounded-4 cursor-pointer protected-image active-thumb"
                              onclick="changeImage(this)" alt="{{ product.name }}" title="Cliquez pour agrandir"
                              style="width: 90px; height: 90px; object-fit: cover; background: white; padding: 5px;">
