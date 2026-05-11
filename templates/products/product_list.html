@@ -12,11 +12,17 @@
     align-items: start;
   }
 
+  /* =====================
+     Nos Collections - Desktop
+     ===================== */
   .catalog-sidebar {
     background: #fffdf8;
     border: 1px solid #ece7da;
     border-radius: 18px;
     overflow: hidden;
+    position: sticky;
+    top: 110px; /* tient compte de la navbar fixed-top */
+    align-self: start;
   }
 
   .catalog-sidebar-title {
@@ -63,9 +69,8 @@
     background: #f5f0de;
   }
 
-  .cat-row.sub {
-    padding-left: 34px;
-    font-weight: 500;
+  .cat-row.has-children {
+    cursor: default;
   }
 
   .cat-count {
@@ -78,6 +83,147 @@
     padding: 2px 8px;
   }
 
+  /* Enfants: cachés par défaut et animés au hover */
+  .cat-children {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: max-height 260ms ease, opacity 220ms ease, transform 220ms ease;
+    border-bottom: 0;
+  }
+
+  .cat-section:hover .cat-children,
+  .cat-section:focus-within .cat-children {
+    /* Desktop: ouverture uniquement au hover */
+    max-height: 900px;
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .cat-row.sub {
+    padding-left: 34px;
+    font-weight: 500;
+    border-bottom: 1px solid #f2eee6;
+  }
+
+  /* =====================
+     Nos Collections - Mobile
+     ===================== */
+  .collections-toggle {
+    display: none;
+    width: calc(100% - 36px);
+    margin: 0 18px 12px;
+    border: 1px solid #ece7da;
+    background: #fffdf8;
+    border-radius: 14px;
+    padding: 10px 14px;
+    font-weight: 700;
+    color: #716022;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+
+  @media (max-width: 768px) {
+    .catalog-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .catalog-sidebar {
+      position: static;
+      top: auto;
+      display: block;
+      border-radius: 18px;
+    }
+
+    /* liste masquée par défaut */
+    .catalog-sidebar .catalog-tree {
+      display: none;
+    }
+
+    /* ouverture intégrée au flux (pas d’overlay) */
+    .catalog-sidebar.is-open .catalog-tree {
+      display: block;
+    }
+
+    .collections-toggle {
+      display: flex;
+    }
+
+    /* évite l’ouverture hover sur mobile */
+    .cat-children {
+      max-height: none;
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+    .cat-section:hover .cat-children,
+    .cat-section:focus-within .cat-children {
+      max-height: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* =====================
+     Pagination
+     ===================== */
+  .pagination-wrap {
+    padding: 8px 0 22px;
+  }
+
+  /* Pagination: style cohérent + active */
+  .pagination .page-link {
+    color: #155430;
+    border-color: rgba(21, 84, 48, 0.25);
+  }
+  .pagination .page-link:hover {
+    color: #155430;
+    background: rgba(28, 104, 59, 0.08);
+  }
+  .pagination .page-item.active .page-link {
+    background: var(--primary-green, #1c683b);
+    border-color: var(--primary-green, #1c683b);
+    color: #fff;
+  }
+  .pagination .page-item.disabled .page-link {
+    color: rgba(21,84,48,0.45);
+  }
+
+  /* =====================
+     Scroll-to-top bouton
+     ===================== */
+  #scrollToTopBtn {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 9999;
+    display: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(28, 104, 59, 0.35);
+    background: rgba(28, 104, 59, 0.95);
+    color: #fff;
+    box-shadow: 0 14px 28px rgba(0,0,0,0.18);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    opacity: 0;
+  }
+  #scrollToTopBtn.is-visible {
+    display: flex;
+    opacity: 1;
+  }
+  #scrollToTopBtn:hover {
+    transform: translateY(-2px);
+  }
+
+  /* =====================
+     Desktop main card
+     ===================== */
   .catalog-main {
     background: #fffdf8;
     border: 1px solid #ece7da;
@@ -268,41 +414,43 @@
     box-shadow: 0 8px 14px rgba(21, 84, 48, 0.28);
     color: #fff;
   }
-
-  .pagination-wrap {
-    padding: 8px 0 22px;
-  }
-
-  @media (max-width: 991px) {
-    .catalog-layout {
-      grid-template-columns: 1fr;
-    }
-    .catalog-sidebar {
-      position: static;
-    }
-  }
 </style>
 
 <section class="container-fluid py-3">
   <div class="catalog-layout">
-    <aside class="catalog-sidebar">
+    <aside class="catalog-sidebar" id="collectionsSidebar">
       <h2 class="catalog-sidebar-title">Nos collections</h2>
+
+      <button type="button" class="collections-toggle" id="collectionsToggle" aria-expanded="false">
+        <span>Catégories</span>
+        <span aria-hidden="true">☰</span>
+      </button>
+
       <form class="catalog-search" method="get" action="{% url 'products:list' %}">
         <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Chercher...">
       </form>
 
-      <div class="catalog-tree">
+      <div class="catalog-tree" aria-label="Arborescence catégories">
         {% for cat in categories %}
-          <a href="{% url 'products:list' %}?category={{ cat.slug }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="cat-row {% if selected_category and selected_category.slug == cat.slug %}active{% endif %}">
-            <span>{{ cat.name }}</span>
-            <span class="cat-count">{{ cat.products.count }}</span>
-          </a>
-          {% for sub in cat.subcategories.all %}
-            <a href="{% url 'products:list' %}?category={{ sub.slug }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="cat-row sub {% if selected_category and selected_category.slug == sub.slug %}active{% endif %}">
-              <span>{{ sub.name }}</span>
-              <span class="cat-count">{{ sub.products.count }}</span>
-            </a>
-          {% endfor %}
+          <div class="cat-section">
+            {% with subs=cat.subcategories.all %}
+              <a href="{% url 'products:list' %}?category={{ cat.slug }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                 class="cat-row has-children {% if selected_category and selected_category.slug == cat.slug %}active{% endif %}">
+                <span>{{ cat.name }}</span>
+                <span class="cat-count">{{ cat.products.count }}</span>
+              </a>
+
+              <div class="cat-children">
+                {% for sub in subs %}
+                  <a href="{% url 'products:list' %}?category={{ sub.slug }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                     class="cat-row sub {% if selected_category and selected_category.slug == sub.slug %}active{% endif %}">
+                    <span>{{ sub.name }}</span>
+                    <span class="cat-count">{{ sub.products.count }}</span>
+                  </a>
+                {% endfor %}
+              </div>
+            {% endwith %}
+          </div>
         {% empty %}
           <div class="cat-row">Aucune catégorie</div>
         {% endfor %}
@@ -322,7 +470,7 @@
         <form method="get">
           {% if request.GET.q %}<input type="hidden" name="q" value="{{ request.GET.q }}">{% endif %}
           {% if request.GET.category %}<input type="hidden" name="category" value="{{ request.GET.category }}">{% endif %}
-          <select class="catalog-sort" name="sort" onchange="this.form.submit()">
+<select class="catalog-sort" name="sort" aria-label="Trier" onchange="this.form.submit()">
             <option value="relevance" {% if sort == 'relevance' %}selected{% endif %}>Pertinence</option>
             <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Nouveautés</option>
             <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>Prix croissant</option>
@@ -388,15 +536,36 @@
                   <a class="page-link" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ products.previous_page_number }}">Précédent</a>
                 </li>
               {% endif %}
-              {% for num in products.paginator.page_range %}
-                {% if products.number == num %}
-                  <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                {% else %}
+
+              {% with total_pages=products.paginator.num_pages current=products.number %}
+                {% if current|add:'-2' > 2 %}
+                  <li class="page-item"><a class="page-link" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page=1">1</a></li>
+                  <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% elif current > 2 %}
+                  {% for num in "12".make_list %}{% endfor %}
+                  {# affichage page 2 si proche #}
+                {% endif %}
+
+                {% for num in products.paginator.page_range %}
+                  {% if num >= current|add:'-2' and num <= current|add:'2' %}
+                    {% if num == current %}
+                      <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% else %}
+                      <li class="page-item">
+                        <a class="page-link" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ num }}">{{ num }}</a>
+                      </li>
+                    {% endif %}
+                  {% endif %}
+                {% endfor %}
+
+                {% if current|add:'2' < total_pages|add:'-1' %}
+                  <li class="page-item disabled"><span class="page-link">...</span></li>
                   <li class="page-item">
-                    <a class="page-link" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ num }}">{{ num }}</a>
+                    <a class="page-link" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ total_pages }}">{{ total_pages }}</a>
                   </li>
                 {% endif %}
-              {% endfor %}
+              {% endwith %}
+
               {% if products.has_next %}
                 <li class="page-item">
                   <a class="page-link" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ products.next_page_number }}">Suivant</a>
@@ -406,6 +575,49 @@
           </nav>
         </div>
       {% endif %}
+
+      <button id="scrollToTopBtn" type="button" aria-label="Retour en haut">↑</button>
     </div>
+  </div>
 </section>
+
+<script>
+  // Toggle mobile: catégories dans le flux (pas d'overlay)
+  document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.getElementById('collectionsSidebar');
+    const toggleBtn = document.getElementById('collectionsToggle');
+
+    if (sidebar && toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        const isOpen = sidebar.classList.toggle('is-open');
+        toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+
+      // fermer si on clique hors sidebar (optionnel léger)
+      document.addEventListener('click', (e) => {
+        if (window.innerWidth > 768) return;
+        if (!sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
+          sidebar.classList.remove('is-open');
+          toggleBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    // Scroll-to-top
+    const btn = document.getElementById('scrollToTopBtn');
+    if (btn) {
+      const onScroll = () => {
+        if (window.scrollY > 300) btn.classList.add('is-visible');
+        else btn.classList.remove('is-visible');
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+
+      btn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+  });
+</script>
 {% endblock %}
+
