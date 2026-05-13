@@ -1,11 +1,8 @@
-# TODO - Modifs Venus (sans casse prod)
+# TODO - Correction erreur 500 ajout produit
 
-- [x] Étape 1: Audit trail produits (modèle + migration)
-- [x] Étape 2: Audit trail (admin) - save_model / delete_model + inline d’historique
+- [ ] Analyser la cause probable de l’erreur 500 au moment d’enregistrer un Product dans le Django Admin
+- [x] Implémenter un correctif minimal sans modifier le comportement existant (surtout pour l’audit trail)
 
-- [ ] Étape 3: Front “Nos collections” - desktop: hover + sous-catégories animées + position fixe
-- [ ] Étape 4: Front “Nos collections” - mobile: toggle accordéon intégré au flux (<768px)
-- [ ] Étape 5: Pagination: fenêtre + “...” + style cohérent
-- [ ] Étape 6: Scroll-to-top bouton global (base.html + CSS + JS)
-- [ ] Étape 7: Tests + vérification build et rendu pages concernées
+- [ ] Tester localement le workflow admin "ajouter/editer produit" (ou au minimum lancer des checks Django)
+- [ ] S’assurer que le fix ne casse pas la prod
 

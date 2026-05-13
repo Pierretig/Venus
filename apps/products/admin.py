@@ -101,9 +101,17 @@ class ProductAdmin(admin.ModelAdmin):
     display_image.short_description = "Aperçu"
 
     def save_model(self, request, obj, form, change):
-        # Audit trail : auteur + horodatage + historique
+        # IMPORTANT: en production, une erreur dans l’audit ne doit pas empêcher l’enregistrement du Product.
+        def safe_create_audit(**kwargs):
+            try:
+                ProductAuditLog.objects.create(**kwargs)
+            except Exception:
+                # On ignore les erreurs d’audit (JSONField/meta, contraintes, etc.)
+                return None
+
+        # Audit CREATE
         if not change:
-            ProductAuditLog.objects.create(
+            safe_create_audit(
                 product=obj,
                 user=request.user if request.user.is_authenticated else None,
                 action_type=ProductAuditLog.ActionType.CREATED,
@@ -141,10 +149,10 @@ class ProductAdmin(admin.ModelAdmin):
             if before.get(k) != after.get(k):
                 changes[k] = {"from": before.get(k), "to": after.get(k)}
 
-        # Si seulement is_active a changé, on logge comme statut changé, sinon UPDATED
+        # Si seulement is_active a changé, on logge comme statut changé, sinon UPDATED/OTHER
         status_changed = (before.get("is_active") != after.get("is_active"))
         if status_changed:
-            ProductAuditLog.objects.create(
+            safe_create_audit(
                 product=obj,
                 user=request.user if request.user.is_authenticated else None,
                 action_type=ProductAuditLog.ActionType.STATUS_CHANGED,
@@ -153,7 +161,7 @@ class ProductAdmin(admin.ModelAdmin):
             )
         else:
             if changes:
-                ProductAuditLog.objects.create(
+                safe_create_audit(
                     product=obj,
                     user=request.user if request.user.is_authenticated else None,
                     action_type=ProductAuditLog.ActionType.UPDATED,
@@ -161,14 +169,14 @@ class ProductAdmin(admin.ModelAdmin):
                     meta={"changes": changes},
                 )
             else:
-                # Changement sans différences sur champs suivis (ex: ordre inline)
-                ProductAuditLog.objects.create(
+                safe_create_audit(
                     product=obj,
                     user=request.user if request.user.is_authenticated else None,
                     action_type=ProductAuditLog.ActionType.OTHER,
                     description="Produit mis à jour",
                     meta={},
                 )
+
 
     def delete_model(self, request, obj):
         ProductAuditLog.objects.create(
