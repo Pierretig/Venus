@@ -19,7 +19,7 @@ class CashPayService:
         self.api_base_url = getattr(
             settings,
             "CASHPAY_API_BASE_URL",
-            "https://api.semoa-payments.ovh/sandbox-v3",
+            "https://api.semoa-payments.ovh/dev-v3",
         ).rstrip("/")
         self._token = None
         self._token_expires_at = 0
