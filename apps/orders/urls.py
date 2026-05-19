@@ -17,9 +17,17 @@ urlpatterns = [
     path('history/', views.order_history, name='order_history'),
     path('success/', views.payment_success, name='payment_success'),
 
-    # Webhook BKApay
-    path('webhook/bkapay/', views.bkapay_webhook, name='bkapay_webhook'),
+    # Webhook CashPay
+    path('webhook/cashpay/', views.cashpay_webhook, name='cashpay_webhook'),
+
+    # Webhook BKApay (legacy - conservé) 
+    # NB: la vue bkapay_webhook a été remplacée par cashpay_webhook. 
+    # On évite toute erreur d'import en désactivant temporairement cette route.
+    # path('webhook/bkapay/', views.bkapay_webhook, name='bkapay_webhook'),
+
+
     path('mon-tableau-de-bord/', views.dashboard_view, name='admin_dashboard'),
+
     # Factures PDF & Alias (Pour corriger l'erreur NoReverseMatch)
     path('facture/pdf/<int:order_id>/', views.export_order_pdf, name='export_pdf'),
     path('facture/download/<int:order_id>/', views.export_order_pdf, name='order_pdf'), # Ajouté

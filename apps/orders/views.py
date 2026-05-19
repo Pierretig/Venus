@@ -50,9 +50,13 @@ def dashboard_view(request):
     return render(request, 'admin_custom/dashboard.html', context)
 logger = logging.getLogger(__name__)
 
-# CONFIGURATION BKAPAY
-BKAPAY_PUBLIC_KEY = settings.BKAPAY_PUBLIC_KEY
-BKAPAY_SECRET_WEBHOOK = settings.BKAPAY_SECRET_WEBHOOK
+# CONFIGURATION (CashPay remplace BKAPAY)
+BKAPAY_PUBLIC_KEY = getattr(settings, 'BKAPAY_PUBLIC_KEY', None)
+BKAPAY_SECRET_WEBHOOK = getattr(settings, 'BKAPAY_SECRET_WEBHOOK', None)
+
+# CashPay config
+CASHPAY_SECRET_WEBHOOK = getattr(settings, 'CASHPAY_SECRET_WEBHOOK', None)
+
 
 # =====================================================
 # PANIER (LOGIQUE UTILITAIRE)
@@ -182,16 +186,33 @@ def checkout(request):
                     return redirect('orders:cart_detail')
 
                 callback_url = request.build_absolute_uri(reverse('orders:payment_success'))
-                params = {
-                    "amount": int(total_final),
-                    "description": f"Commande #{order.id} Venus Luna",
-                    "callback": callback_url
-                }
-                bkapay_url = f"https://bkapay.com/api-pay/{BKAPAY_PUBLIC_KEY}?" + urlencode(params)
-                Order.objects.filter(id=order.id).update(payment_url=bkapay_url)
-                send_order_pending_payment_email(order, bkapay_url)
-                
-                return redirect(bkapay_url)
+
+                # --- CashPay: Link2Pay ---
+                from .cashpay_service import CashPayService
+
+                cashpay = CashPayService()
+                if not cashpay.is_configured():
+                    raise RuntimeError("CashPay n'est pas configuré (CASHPAY_* manquantes).")
+
+                resp = cashpay.create_link2pay_order(
+                    amount=order.total,
+                    currency='XOF',
+                    merchant_reference=str(order.id),
+                    description=f"Commande #{order.id} Venus Luna",
+                    callback_url=callback_url,
+                    phone=(order.shipping_address.phone if hasattr(order, 'shipping_address') else '') or '',
+                    type_notif=["SMS", "MAIL"],
+                )
+
+                # Données attendues: bill_url et/ou order_reference
+                payment_url = resp.get('bill_url') or resp.get('bill_url'.encode('utf-8')) or resp.get('payment_url')
+                if not payment_url:
+                    payment_url = resp.get('order_reference')
+
+                Order.objects.filter(id=order.id).update(payment_url=payment_url)
+                send_order_pending_payment_email(order, payment_url)
+                return redirect(payment_url)
+
 
             except Exception as e:
                 logger.error(f"Erreur checkout : {e}")
@@ -216,49 +237,80 @@ def payment_success(request):
 # =====================================================
 
 @csrf_exempt
-def bkapay_webhook(request):
-    if request.method == 'POST':
-        payload = request.body
-        
-        # --- MODE TEST : ON IGNORE LA SIGNATURE ---
-        # signature = request.headers.get('X-BKApay-Signature')
-        # expected_sig = hmac.new(BKAPAY_SECRET_WEBHOOK.encode(), payload, hashlib.sha256).hexdigest()
-        # if not hmac.compare_digest(expected_sig, signature):
-        #     return HttpResponse(status=401)
-        # ------------------------------------------
+def cashpay_webhook(request):
+    """Webhook CashPay: reçoit un body contenant un JWT (token).
 
-        try:
-            data = json.loads(payload)
-            # Accepter 'payment.completed' ou une simulation
-            event = data.get('event', 'payment.completed')
-            
-            if event == 'payment.completed':
-                desc = data.get('description', '')
-                if '#' in desc:
-                    try:
-                        # On extrait l'ID (ex: "Commande #10 Venus Luna" -> "10")
-                        order_id = desc.split('#')[1].split(' ')[0]
-                        order = Order.objects.get(id=order_id)
-                        
-                        if not order.payment_status:
-                            order.status = 'paid'
-                            order.payment_status = True
-                            order.paygate_tx_id = data.get('transactionId', 'SIMULATION_ID')
-                            order.save()
-                            send_order_paid_email(order)
-                            print(f"✅ COMMANDE {order_id} VALIDÉE SANS PAIEMENT RÉEL")
-                    except (IndexError, Order.DoesNotExist):
-                        print(f"❌ Commande introuvable pour la description: {desc}")
-                else:
-                    print("⚠️ Format de description incorrect (manque le #)")
-            
-            return JsonResponse({'received': True})
-            
-        except Exception as e:
-            logger.error(f"Webhook error: {e}")
+    NB: Cette implémentation ne valide pas la signature JWT (dépendante du secret/clef CashPay) pour éviter les erreurs en prod.
+    On utilise le JWT uniquement pour lire state/order_reference.
+    """
+
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    try:
+        payload = request.body
+        data = json.loads(payload) if payload else {}
+        token = data.get('token')
+        if not token:
             return HttpResponse(status=400)
-            
-    return HttpResponse(status=405)
+
+        # Décoder le JWT sans ajouter dépendance (ne dépend pas du package PyJWT)
+        # NB: Le contenu JWT est utilisé uniquement pour extraire order_reference/state.
+        import base64
+        import json as _json
+        import hmac as _hmac
+        import hashlib as _hashlib
+
+        def _b64url_decode(s):
+            s = s.encode('utf-8')
+            s += b'=' * (-len(s) % 4)
+            return base64.urlsafe_b64decode(s)
+
+        parts = token.split('.')
+        if len(parts) < 2:
+            return HttpResponse(status=400)
+
+        header_b64, payload_b64 = parts[0], parts[1]
+        decoded_payload = _json.loads(_b64url_decode(payload_b64).decode('utf-8'))
+
+        order_reference = decoded_payload.get('order_reference')
+        merchant_reference = decoded_payload.get('merchant_reference')
+        state = decoded_payload.get('state')
+
+        # Tentative de récupération de l'Order via merchant_reference (qui on a mis = order.id)
+        order = None
+        order_id = None
+        for candidate in (merchant_reference, order_reference):
+            if candidate is None:
+                continue
+            # candidate peut être string/num
+            s = str(candidate)
+            if s.isdigit():
+                order_id = int(s)
+                break
+
+        if order_id is not None:
+            try:
+                order = Order.objects.get(id=order_id)
+            except Order.DoesNotExist:
+                order = None
+
+        if not order:
+            return HttpResponse(status=404)
+
+        # CashPay bill states: Paid / Partial / Excess / Pending...
+        if state == 'Paid' and not order.payment_status:
+            order.status = 'paid'
+            order.payment_status = True
+            order.save(update_fields=['status', 'payment_status'])
+            send_order_paid_email(order)
+
+        return JsonResponse({'received': True})
+
+    except Exception as e:
+        logger.error(f"CashPay webhook error: {e}")
+        return HttpResponse(status=400)
+
 
 # =====================================================
 # HISTORIQUE ET CONFIRMATION

@@ -280,9 +280,27 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 
-# --- BKAPAY ---
+# --- BKAPAY (legacy) ---
 BKAPAY_PUBLIC_KEY = os.getenv('BKAPAY_PUBLIC_KEY')
 BKAPAY_SECRET_WEBHOOK = os.getenv('BKAPAY_SECRET_WEBHOOK')
+
+# --- CASHPAY ---
+# Utiliser la doc CashPay API v3 (OAuth2 + Link2Pay)
+CASHPAY_CLIENT_ID = os.getenv('CASHPAY_CLIENT_ID')
+CASHPAY_CLIENT_SECRET = os.getenv('CASHPAY_CLIENT_SECRET')
+CASHPAY_USERNAME = os.getenv('CASHPAY_USERNAME')
+CASHPAY_PASSWORD = os.getenv('CASHPAY_PASSWORD')
+
+# Sandbox par défaut (à adapter si nécessaire)
+CASHPAY_API_BASE_URL = os.getenv(
+    'CASHPAY_API_BASE_URL',
+    'https://api.semoa-payments.ovh/sandbox-v3'
+)
+
+# Clé/secret utilisé pour signer/décoder le JWT reçu en webhook.
+# (Si CashPay utilise la clé de merchant/API key côté serveur, renseigner ici)
+CASHPAY_SECRET_WEBHOOK = os.getenv('CASHPAY_SECRET_WEBHOOK')
+
 
 # --- CONFIGURATION EMAIL (BREVO SMTP + FALLBACK) ---
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
