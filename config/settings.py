@@ -294,7 +294,7 @@ CASHPAY_PASSWORD = os.getenv('CASHPAY_PASSWORD')
 # Sandbox par défaut (à adapter si nécessaire)
 CASHPAY_API_BASE_URL = os.getenv(
     'CASHPAY_API_BASE_URL',
-    'https://api.semoa-payments.ovh/dev-v3'
+    'https://api.semoa-payments.ovh/sandbox-v3'
 )
 
 # Clé/secret utilisé pour signer/décoder le JWT reçu en webhook.

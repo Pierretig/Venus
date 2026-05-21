@@ -69,7 +69,7 @@ class CheckoutForm(forms.Form):
 
         # Préfixes valides Togo (Moov & TMoney)
         # 90-93, 96-99 (TogoCellulaire) / 70, 79 (Moov)
-        valid_prefixes = ('90', '91', '92', '93', '96', '97', '98', '99', '79', '70')
+        valid_prefixes = ('90', '91', '92', '93', '96', '97', '98', '99', '79', '70', '71', '72', '78')
         if not short_phone.startswith(valid_prefixes):
             raise forms.ValidationError("Ce numéro ne semble pas appartenir à un opérateur Togolais valide.")
 
