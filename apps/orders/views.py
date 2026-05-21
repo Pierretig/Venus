@@ -249,12 +249,14 @@ def cashpay_webhook(request):
 
     try:
         payload = request.body
+        # CashPay envoie un body JSON (souvent {"token": "..."})
         data = json.loads(payload) if payload else {}
-        token = data.get('token')
+        token = data.get('token') or data.get('Token') or data.get('jwt')
         if not token:
             return HttpResponse(status=400)
 
-        # Décoder le JWT sans ajouter dépendance (ne dépend pas du package PyJWT)
+    # Décoder le JWT sans ajouter dépendance (ne dépend pas du package PyJWT)
+
         # NB: Le contenu JWT est utilisé uniquement pour extraire order_reference/state.
         import base64
         import json as _json
