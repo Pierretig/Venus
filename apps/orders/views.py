@@ -253,9 +253,11 @@ def cashpay_webhook(request):
         data = json.loads(payload) if payload else {}
         token = data.get('token') or data.get('Token') or data.get('jwt')
         if not token:
+            logger.error(f"CashPay webhook: token manquant. Payload keys={list(data.keys()) if isinstance(data, dict) else type(data)} payload={payload[:500] if payload else b''}")
             return HttpResponse(status=400)
 
-    # Décoder le JWT sans ajouter dépendance (ne dépend pas du package PyJWT)
+        # NB: Le contenu JWT est utilisé uniquement pour extraire order_reference/state.
+
 
         # NB: Le contenu JWT est utilisé uniquement pour extraire order_reference/state.
         import base64
