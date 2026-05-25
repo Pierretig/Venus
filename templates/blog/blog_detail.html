@@ -27,7 +27,7 @@ name": "{{ author_name|default:'Venus-Luna'|escapejs }}"
         }
     },
     {% if post.image %}
-    "image": "{{ request.scheme }}://{{ request.get_host }}{% url 'core:serve_image' 'blog.Post' post.pk 'image' %}",
+"image": "{{ request.scheme }}://{{ request.get_host }}{% url 'core:serve_image' 'blog' 'post' post.pk 'image' %}",
     {% endif %}
     "mainEntityOfPage": {
         "@type": "WebPage",
