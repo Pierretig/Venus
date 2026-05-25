@@ -185,7 +185,8 @@ def checkout(request):
                     order.delete()
                     return redirect('orders:cart_detail')
 
-                callback_url = request.build_absolute_uri(reverse('orders:payment_success'))
+                callback_url = request.build_absolute_uri(reverse('orders:cashpay_webhook'))
+
 
                 # --- CashPay: Link2Pay ---
                 from .cashpay_service import CashPayService

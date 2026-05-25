@@ -1,8 +1,8 @@
-# TODO - Correction erreur 500 ajout produit
+# TODO — Blog détail 500 en production
 
-- [ ] Analyser la cause probable de l’erreur 500 au moment d’enregistrer un Product dans le Django Admin
-- [x] Implémenter un correctif minimal sans modifier le comportement existant (surtout pour l’audit trail)
-
-- [ ] Tester localement le workflow admin "ajouter/editer produit" (ou au minimum lancer des checks Django)
-- [ ] S’assurer que le fix ne casse pas la prod
+- [ ] Ajouter un debug temporaire pour capturer la stacktrace du 500 sur la vue blog.detail (logs).
+- [ ] Vérifier/ajuster le template `templates/blog/blog_detail.html` : sécuriser tous les accès à `post.author` (nullable) et à `protected_image` / tags.
+- [ ] Mettre à jour `apps/blog/views.py` pour récupérer `author` et éviter toute exception côté template.
+- [ ] Exécuter `python manage.py check` puis lancer un test local sur un post avec `author=None` et `image=None`.
+- [ ] Relancer la prod et vérifier que la route `/blog/<id>/` ne renvoie plus 500.
 
