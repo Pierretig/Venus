@@ -9,7 +9,7 @@ env_path = BASE_DIR / ".env"
 
 print("=== DIAGNOSTIC CASHPAY AUTH ===")
 print(f"Base Directory: {BASE_DIR}")
-print(f"Fichier .env trouvé: {env_path.exists()}")
+print(f"Fichier .env trouve: {env_path.exists()}")
 
 # Simuler la lecture du fichier .env
 def load_env_manually(path):
@@ -27,39 +27,57 @@ def load_env_manually(path):
             continue
         k = k.strip()
         v = v.strip()
-        # On n'écrase pas si déjà dans os.environ
+        
+        # Nettoyer
+        for _ in range(5):
+            v = v.strip().rstrip(',').strip().strip('"').strip("'")
+            
+        mapping = {
+            'client_id': 'CASHPAY_CLIENT_ID',
+            'client_secret': 'CASHPAY_CLIENT_SECRET',
+            'username': 'CASHPAY_USERNAME',
+            'password': 'CASHPAY_PASSWORD'
+        }
+        if k in mapping:
+            target_key = mapping[k]
+            if target_key not in os.environ:
+                os.environ[target_key] = v
+                print(f"[.env] Charge et mappe: {k} -> {target_key} = '{v}'")
+            else:
+                print(f"[System ENV] {target_key} deja present dans l'OS: '{os.environ[target_key]}'")
+        
         if k not in os.environ:
             os.environ[k] = v
-            print(f"[.env] Chargé: {k} (brut dans fichier: '{v}')")
+            print(f"[.env] Charge: {k} = '{v}'")
         else:
-            print(f"[System ENV] Déjà défini dans l'OS: {k} = '{os.environ[k]}'")
+            print(f"[System ENV] Deja defini dans l'OS: {k} = '{os.environ[k]}'")
 
 load_env_manually(env_path)
 
-# Récupérer les variables
-client_id = os.getenv("CASHPAY_CLIENT_ID")
-client_secret = os.getenv("CASHPAY_CLIENT_SECRET")
-username = os.getenv("CASHPAY_USERNAME")
-password = os.getenv("CASHPAY_PASSWORD")
-base_url = os.getenv("CASHPAY_API_BASE_URL", "https://api.semoa-payments.ovh/sandbox-v3")
+# Nettoyer les valeurs
+def clean_val(val):
+    if not val:
+        return ""
+    for _ in range(5):
+        val = val.strip().rstrip(',').strip().strip('"').strip("'")
+    return val
+
+# Recuperer les variables (avec fallback minuscules)
+client_id = clean_val(os.getenv("CASHPAY_CLIENT_ID") or os.getenv("client_id"))
+client_secret = clean_val(os.getenv("CASHPAY_CLIENT_SECRET") or os.getenv("client_secret"))
+username = clean_val(os.getenv("CASHPAY_USERNAME") or os.getenv("username"))
+password = clean_val(os.getenv("CASHPAY_PASSWORD") or os.getenv("password"))
+base_url = clean_val(os.getenv("CASHPAY_API_BASE_URL") or "https://api.semoa-payments.ovh/sandbox-v3")
 
 def analyze_value(name, val):
     if not val:
-        print(f"❌ {name} est VIDE ou NON DÉFINI.")
+        print(f"[ERROR] {name} est VIDE ou NON DEFINI.")
         return False
     
-    has_quotes = val.startswith('"') and val.endswith('"') or val.startswith("'") and val.endswith("'")
-    double_quotes_count = val.count('"')
-    
-    print(f"🔍 {name} :")
-    print(f"   - Longueur : {len(val)} caractères")
-    print(f"   - Entouré de guillemets : {has_quotes}")
-    print(f"   - Nombre de guillemets doubles : {double_quotes_count}")
-    print(f"   - Premier caractère : {repr(val[0])}")
-    print(f"   - Dernier caractère : {repr(val[-1])}")
-    
-    if has_quotes or double_quotes_count > 0:
-        print(f"   ⚠️ WARNING: Il y a des guillemets dans la valeur de {name}. Supprimez-les de votre configuration/fichier .env.")
+    print(f"[INFO] {name} :")
+    print(f"   - Longueur : {len(val)} caracteres")
+    print(f"   - Premier caractere : {repr(val[0])}")
+    print(f"   - Dernier caractere : {repr(val[-1])}")
     return True
 
 ok = True
@@ -69,18 +87,12 @@ ok &= analyze_value("CASHPAY_USERNAME", username)
 ok &= analyze_value("CASHPAY_PASSWORD", password)
 
 if not ok:
-    print("\n❌ Arrêt du diagnostic: Certaines variables sont manquantes.")
+    print("\n[ERROR] Arret du diagnostic: Certaines variables sont manquantes.")
     sys.exit(1)
 
-# Nettoyer les guillemets pour le test d'API
-clean_client_id = client_id.strip('"').strip("'")
-clean_client_secret = client_secret.strip('"').strip("'")
-clean_username = username.strip('"').strip("'")
-clean_password = password.strip('"').strip("'")
-
-# Tester l'authentification avec les valeurs brutes (telles qu'elles sont lues actuellement)
-print("\n--- Test 1: Authentification avec les valeurs actuelles (brutes) ---")
-payload_raw = {
+# Tester l'authentification avec les valeurs nettoyees
+print("\n--- Test d'Authentification avec l'API CashPay (valeurs nettoyees) ---")
+payload_clean = {
     "client_id": client_id,
     "client_secret": client_secret,
     "username": username,
@@ -89,30 +101,14 @@ payload_raw = {
 url = f"{base_url.rstrip('/')}/auth"
 print(f"POST {url}")
 try:
-    resp = requests.post(url, json=payload_raw, timeout=15)
-    print(f"Statut HTTP : {resp.status_code}")
-    if resp.status_code == 201:
-        print("✅ AUTHENTIFICATION RÉUSSIE avec les valeurs brutes !")
-    else:
-        print(f"❌ Échec de l'authentification. Réponse du serveur : {resp.text}")
-except Exception as e:
-    print(f"❌ Erreur de connexion : {e}")
-
-# Tester l'authentification avec les valeurs nettoyées de tout guillemet
-print("\n--- Test 2: Authentification après avoir retiré les guillemets ---")
-payload_clean = {
-    "client_id": clean_client_id,
-    "client_secret": clean_client_secret,
-    "username": clean_username,
-    "password": clean_password
-}
-try:
     resp = requests.post(url, json=payload_clean, timeout=15)
     print(f"Statut HTTP : {resp.status_code}")
-    if resp.status_code == 201:
-        print("✅ AUTHENTIFICATION RÉUSSIE avec les valeurs nettoyées !")
-        print("👉 Conseil : Retirez les guillemets de vos variables d'environnement dans votre fichier .env ou sur votre interface Dokploy.")
+    if resp.status_code in (200, 201):
+        print("[SUCCESS] AUTHENTIFICATION REUSSIE avec les valeurs nettoyees !")
+        data = resp.json()
+        print(f"Token recu: {data.get('access_token')[:15]}... (Expire dans {data.get('expires_in')}s)")
     else:
-        print(f"❌ Échec même avec les valeurs nettoyées. Réponse du serveur : {resp.text}")
+        print(f"[ERROR] Echec de l'authentification. Statut {resp.status_code}")
+        print(f"Reponse du serveur : {resp.text}")
 except Exception as e:
-    print(f"❌ Erreur de connexion : {e}")
+    print(f"[ERROR] Erreur de connexion : {e}")

@@ -12,27 +12,23 @@ class CashPayService:
     """Client minimal CashPay (Link2Pay) basé sur la doc API v3."""
 
     def __init__(self):
-        self.client_id = getattr(settings, "CASHPAY_CLIENT_ID", "")
-        if isinstance(self.client_id, str):
-            self.client_id = self.client_id.strip('"').strip("'")
-            
-        self.client_secret = getattr(settings, "CASHPAY_CLIENT_SECRET", "")
-        if isinstance(self.client_secret, str):
-            self.client_secret = self.client_secret.strip('"').strip("'")
-            
-        self.username = getattr(settings, "CASHPAY_USERNAME", "")
-        if isinstance(self.username, str):
-            self.username = self.username.strip('"').strip("'")
-            
-        self.password = getattr(settings, "CASHPAY_PASSWORD", "")
-        if isinstance(self.password, str):
-            self.password = self.password.strip('"').strip("'")
-            
-        self.api_base_url = getattr(
+        def _clean(val):
+            if not isinstance(val, str):
+                return val
+            for _ in range(5):
+                val = val.strip().rstrip(',').strip().strip('"').strip("'")
+            return val
+
+        self.client_id = _clean(getattr(settings, "CASHPAY_CLIENT_ID", ""))
+        self.client_secret = _clean(getattr(settings, "CASHPAY_CLIENT_SECRET", ""))
+        self.username = _clean(getattr(settings, "CASHPAY_USERNAME", ""))
+        self.password = _clean(getattr(settings, "CASHPAY_PASSWORD", ""))
+        
+        self.api_base_url = _clean(getattr(
             settings,
             "CASHPAY_API_BASE_URL",
             "https://api.semoa-payments.ovh/dev-v3",
-        ).rstrip("/").strip('"').strip("'")
+        )).rstrip("/")
         self._token = None
         self._token_expires_at = 0
 
@@ -54,7 +50,7 @@ class CashPayService:
 
         try:
             resp = requests.post(url, json=payload, timeout=30)
-            if resp.status_code != 201:
+            if resp.status_code not in (200, 201):
                 try:
                     error_detail = resp.json()
                 except Exception:

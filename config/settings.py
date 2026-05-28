@@ -11,6 +11,7 @@ def load_fallback_env(env_path: Path) -> None:
     """
     Tente de récupérer des variables même si le .env utilise
     accidentellement le format `KEY: value` au lieu de `KEY=value`.
+    Nettoie également les guillemets et virgules de fin accidentelles.
     """
     if not env_path.exists():
         return
@@ -26,7 +27,22 @@ def load_fallback_env(env_path: Path) -> None:
         else:
             continue
         key = key.strip()
-        value = value.strip().strip('"').strip("'")
+        value = value.strip()
+        for _ in range(5):
+            value = value.strip().rstrip(',').strip().strip('"').strip("'")
+        
+        # Mapper les clés génériques vers les clés CASHPAY_ correspondantes
+        mapping = {
+            'client_id': 'CASHPAY_CLIENT_ID',
+            'client_secret': 'CASHPAY_CLIENT_SECRET',
+            'username': 'CASHPAY_USERNAME',
+            'password': 'CASHPAY_PASSWORD'
+        }
+        if key in mapping:
+            target_key = mapping[key]
+            if target_key not in os.environ:
+                os.environ[target_key] = value
+                
         if key and key not in os.environ:
             os.environ[key] = value
 
@@ -286,10 +302,18 @@ BKAPAY_SECRET_WEBHOOK = os.getenv('BKAPAY_SECRET_WEBHOOK')
 
 # --- CASHPAY ---
 # Utiliser la doc CashPay API v3 (OAuth2 + Link2Pay)
-CASHPAY_CLIENT_ID = os.getenv('CASHPAY_CLIENT_ID')
-CASHPAY_CLIENT_SECRET = os.getenv('CASHPAY_CLIENT_SECRET')
-CASHPAY_USERNAME = os.getenv('CASHPAY_USERNAME')
-CASHPAY_PASSWORD = os.getenv('CASHPAY_PASSWORD')
+def _get_clean_env(key_upper, key_lower):
+    val = os.getenv(key_upper) or os.getenv(key_lower)
+    if not val:
+        return ""
+    for _ in range(5):
+        val = val.strip().rstrip(',').strip().strip('"').strip("'")
+    return val
+
+CASHPAY_CLIENT_ID = _get_clean_env('CASHPAY_CLIENT_ID', 'client_id')
+CASHPAY_CLIENT_SECRET = _get_clean_env('CASHPAY_CLIENT_SECRET', 'client_secret')
+CASHPAY_USERNAME = _get_clean_env('CASHPAY_USERNAME', 'username')
+CASHPAY_PASSWORD = _get_clean_env('CASHPAY_PASSWORD', 'password')
 
 # Sandbox par défaut (à adapter si nécessaire)
 CASHPAY_API_BASE_URL = os.getenv(
