@@ -13,14 +13,26 @@ class CashPayService:
 
     def __init__(self):
         self.client_id = getattr(settings, "CASHPAY_CLIENT_ID", "")
+        if isinstance(self.client_id, str):
+            self.client_id = self.client_id.strip('"').strip("'")
+            
         self.client_secret = getattr(settings, "CASHPAY_CLIENT_SECRET", "")
+        if isinstance(self.client_secret, str):
+            self.client_secret = self.client_secret.strip('"').strip("'")
+            
         self.username = getattr(settings, "CASHPAY_USERNAME", "")
+        if isinstance(self.username, str):
+            self.username = self.username.strip('"').strip("'")
+            
         self.password = getattr(settings, "CASHPAY_PASSWORD", "")
+        if isinstance(self.password, str):
+            self.password = self.password.strip('"').strip("'")
+            
         self.api_base_url = getattr(
             settings,
             "CASHPAY_API_BASE_URL",
             "https://api.semoa-payments.ovh/dev-v3",
-        ).rstrip("/")
+        ).rstrip("/").strip('"').strip("'")
         self._token = None
         self._token_expires_at = 0
 
