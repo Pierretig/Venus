@@ -84,6 +84,17 @@ class CashPayService:
         access_token = self._get_access_token()
         url = f"{self.api_base_url}/orders"
 
+        # S'assurer que le numéro commence par '+'
+        if phone:
+            phone = phone.strip()
+            if not phone.startswith('+'):
+                if phone.startswith('228') and len(phone) == 11:
+                    phone = f"+{phone}"
+                elif len(phone) == 8:
+                    phone = f"+228{phone}"
+                else:
+                    phone = f"+{phone}"
+
         # Doc: callback_url dans le body, et client.phone en international format.
         body = {
             "amount": int(amount),

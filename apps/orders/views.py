@@ -177,7 +177,10 @@ def checkout(request):
                 ShippingAddress.objects.create(
                     order=order, 
                     full_name=form.cleaned_data['full_name'],
-                    address=form.cleaned_data['address']
+                    address=form.cleaned_data['address'],
+                    phone=form.cleaned_data.get('phone', ''),
+                    city=form.cleaned_data.get('city', 'Lomé'),
+                    country=form.cleaned_data.get('country', 'Togo')
                 )
                 
                 if total_final < 200:
@@ -195,13 +198,19 @@ def checkout(request):
                 if not cashpay.is_configured():
                     raise RuntimeError("CashPay n'est pas configuré (CASHPAY_* manquantes).")
 
+                # S'assurer que le numéro de téléphone commence par '+'
+                raw_phone = (order.shipping_address.phone if hasattr(order, 'shipping_address') else '') or ''
+                phone_formatted = raw_phone.strip()
+                if phone_formatted and not phone_formatted.startswith('+'):
+                    phone_formatted = f"+{phone_formatted}"
+
                 resp = cashpay.create_link2pay_order(
                     amount=order.total,
                     currency='XOF',
                     merchant_reference=str(order.id),
                     description=f"Commande #{order.id} Venus Luna",
                     callback_url=callback_url,
-                    phone=(order.shipping_address.phone if hasattr(order, 'shipping_address') else '') or '',
+                    phone=phone_formatted,
                     type_notif=["SMS", "MAIL"],
                 )
 
