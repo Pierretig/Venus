@@ -52,16 +52,27 @@ class CashPayService:
             "password": self.password,
         }
 
-        resp = requests.post(url, json=payload, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
+        try:
+            resp = requests.post(url, json=payload, timeout=30)
+            if resp.status_code != 201:
+                try:
+                    error_detail = resp.json()
+                except Exception:
+                    error_detail = resp.text
+                raise RuntimeError(
+                    f"Authentification CashPay échouée ({resp.status_code}) : {error_detail} "
+                    f"(Vérifiez vos identifiants CASHPAY_* dans .env)"
+                )
+            data = resp.json()
+        except requests.RequestException as e:
+            raise RuntimeError(f"Erreur de connexion à l'API CashPay : {e}")
 
         self._token = data.get("access_token")
         expires_in = int(data.get("expires_in", 3600))
         self._token_expires_at = now + expires_in
 
         if not self._token:
-            raise RuntimeError("CashPay OAuth: access_token manquant")
+            raise RuntimeError("CashPay OAuth: access_token manquant dans la réponse")
         return self._token
 
     def create_link2pay_order(
@@ -95,9 +106,19 @@ class CashPayService:
             "Accept": "application/json",
         }
 
-        resp = requests.post(url, json=body, headers=headers, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
+        try:
+            resp = requests.post(url, json=body, headers=headers, timeout=30)
+            if resp.status_code not in (200, 201):
+                try:
+                    error_detail = resp.json()
+                except Exception:
+                    error_detail = resp.text
+                raise RuntimeError(
+                    f"Création de commande CashPay échouée ({resp.status_code}) : {error_detail}"
+                )
+            data = resp.json()
+        except requests.RequestException as e:
+            raise RuntimeError(f"Erreur lors de la création de la commande CashPay : {e}")
 
         # Link2Pay renvoie bill_url (d'après doc)
         if data.get("status") == "success":
