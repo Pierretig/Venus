@@ -171,9 +171,19 @@
 
             <div class="col-lg-6">
                 <div class="product-info-box ps-lg-4">
-                    <span class="badge-availability mb-3 d-inline-block">
-                        <i class="fas fa-sparkles me-2"></i> Trésor Disponible
-                    </span>
+{% if product.is_out_of_stock %}
+                        <span class="badge-availability mb-3 d-inline-block" style="background: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                            <i class="fas fa-times-circle me-2"></i> En rupture de stock
+                        </span>
+                    {% elif product.is_low_stock %}
+                        <span class="badge-availability mb-3 d-inline-block" style="background: rgba(255, 193, 7, 0.15); color: #d4af37;">
+                            <i class="fas fa-exclamation-triangle me-2"></i> Stock faible
+                        </span>
+                    {% else %}
+                        <span class="badge-availability mb-3 d-inline-block">
+                            <i class="fas fa-sparkles me-2"></i> Trésor Disponible
+                        </span>
+                    {% endif %}
                     
                     <h1 class="display-4 fw-bold mb-2" style="font-family: 'Playfair Display', serif; color: var(--venus-nuit);">
                         {{ product.name }}
@@ -188,24 +198,40 @@
 
                     <p class="lead mb-5" style="color: #555; line-height: 1.6;">{{ product.short_description }}</p>
 
-                    <form action="{% url 'orders:cart_add' product.id %}" method="post">
+<form action="{% url 'orders:cart_add' product.id %}" method="post">
                         {% csrf_token %}
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label for="qty-input" class="form-label visually-hidden">Quantité</label>
                                 <div class="qty-input-group d-flex align-items-center justify-content-between">
                                     <span class="small fw-bold text-uppercase opacity-50">Qté</span>
-                                    <input type="number" id="qty-input" name="quantity" value="1" min="1" max="{{ product.stock }}" 
-                                           class="form-control border-0 bg-transparent text-center fw-bold" style="width: 60px;" placeholder="1">
+                                    <input type="number" id="qty-input" name="quantity" value="1" min="1"
+                                           max="{% if product.available_stock > 0 %}{{ product.available_stock }}{% else %}1{% endif %}"
+                                           class="form-control border-0 bg-transparent text-center fw-bold" style="width: 60px;" placeholder="1"
+                                           {% if product.is_out_of_stock %}disabled{% endif %}>
                                 </div>
                             </div>
                             <div class="col-md-8">
+                                {% if product.is_out_of_stock %}
+                                <button type="submit" class="btn-gold-action w-100 h-100" disabled style="opacity: 0.5; cursor: not-allowed;">
+                                    <i class="fas fa-times-circle me-3"></i> En rupture de stock
+                                </button>
+                                {% else %}
                                 <button type="submit" class="btn-gold-action w-100 h-100">
                                     <i class="fas fa-shopping-bag me-3"></i> Ajouter au Panier
                                 </button>
+                                {% endif %}
                             </div>
                         </div>
                     </form>
+
+                    {% if product.is_out_of_stock and product.restocking_date %}
+                    <div class="mt-4 p-3 rounded-4" style="background: rgba(21, 84, 48, 0.05); border: 1px solid rgba(21, 84, 48, 0.15);">
+                        <i class="fas fa-truck-loading text-venus me-2"></i>
+                        <span class="fw-bold text-venus">Réapprovisionnement estimé le :</span>
+                        <span class="fw-bold">{{ product.restocking_date|date:"d/m/Y" }}</span>
+                    </div>
+                    {% endif %}
 
                     <div class="mt-5 p-4 rounded-4" style="background: white; border: 1px solid rgba(0,0,0,0.05);">
                         <div class="row text-center">

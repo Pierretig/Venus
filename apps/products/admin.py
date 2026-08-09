@@ -1,7 +1,10 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Category, Product, ProductAuditLog, ProductImage, Wishlist
+from .models import (
+    Category, Product, ProductAuditLog, ProductImage, Wishlist,
+    StockMovement, StockReservation, AdminNotification,
+)
 
 
 class ProductImageInline(admin.TabularInline):
@@ -48,6 +51,15 @@ class ProductAuditLogInline(admin.TabularInline):
     show_change_link = False
 
 
+class StockMovementInline(admin.TabularInline):
+    model = StockMovement
+    fields = ("created_at", "movement_type", "quantity", "user", "order", "comment")
+    readonly_fields = ("created_at",)
+    extra = 0
+    can_delete = False
+    show_change_link = True
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     # Liste des produits
@@ -75,16 +87,21 @@ class ProductAdmin(admin.ModelAdmin):
             "fields": ("short_description", "description"),
         }),
         ("Tarification et Stock", {
-            "fields": (("price", "old_price"), "stock"),  # Met prix et prix barré sur la même ligne
+            "fields": (
+                ("price", "old_price"),
+                "stock",
+                "low_stock_threshold",
+                "restocking_date",
+            ),
         }),
-        ("Métadonnées", {
+("Métadonnées", {
             "fields": ("created_at", "updated_at"),
-            "classes": ("collapse",),  # Cache cette section par défaut
+            "classes": ("collapse",),
         }),
     )
 
     readonly_fields = ("created_at", "updated_at")
-    inlines = [ProductImageInline, ProductAuditLogInline]
+    inlines = [ProductImageInline, ProductAuditLogInline, StockMovementInline]
 
     def display_image(self, obj):
         try:
@@ -101,12 +118,12 @@ class ProductAdmin(admin.ModelAdmin):
     display_image.short_description = "Aperçu"
 
     def save_model(self, request, obj, form, change):
-        # IMPORTANT: en production, une erreur dans l’audit ne doit pas empêcher l’enregistrement du Product.
+        # IMPORTANT: en production, une erreur dans l'audit ne doit pas empêcher l'enregistrement du Product.
         def safe_create_audit(**kwargs):
             try:
                 ProductAuditLog.objects.create(**kwargs)
             except Exception:
-                # On ignore les erreurs d’audit (JSONField/meta, contraintes, etc.)
+                # On ignore les erreurs d'audit (JSONField/meta, contraintes, etc.)
                 return None
 
         # Audit CREATE
@@ -120,7 +137,7 @@ class ProductAdmin(admin.ModelAdmin):
             )
             return super().save_model(request, obj, form, change)
 
-        # Pour un UPDATE : on compare l’ancien état
+        # Pour un UPDATE : on compare l'ancien état
         old = Product.objects.filter(pk=obj.pk).first()
         before = {}
         if old:
@@ -177,7 +194,6 @@ class ProductAdmin(admin.ModelAdmin):
                     meta={},
                 )
 
-
     def delete_model(self, request, obj):
         ProductAuditLog.objects.create(
             product=obj,
@@ -211,3 +227,41 @@ class ProductImageAdmin(admin.ModelAdmin):
 
 admin.site.register(Wishlist)
 
+
+# --- ADMIN : GESTION DES STOCKS ---
+
+@admin.register(StockMovement)
+class StockMovementAdmin(admin.ModelAdmin):
+    list_display = ("product", "movement_type", "quantity", "created_at", "user", "order_id")
+    list_filter = ("movement_type", "created_at")
+    search_fields = ("product__name", "comment")
+    readonly_fields = ("product", "quantity", "movement_type", "created_at", "user", "order")
+    fieldsets = (
+        (None, {
+            "fields": ("product", "movement_type", "quantity", "created_at", "user", "order", "comment")
+        }),
+    )
+
+    def order_id(self, obj):
+        return obj.order_id if obj.order else "-"
+    order_id.short_description = "Commande #"
+
+
+@admin.register(StockReservation)
+class StockReservationAdmin(admin.ModelAdmin):
+    list_display = ("product", "session_key", "quantity", "expires_at", "is_expired_display")
+    list_filter = ("expires_at",)
+    search_fields = ("product__name", "session_key")
+    readonly_fields = ("product", "session_key", "quantity", "created_at", "expires_at")
+
+    def is_expired_display(self, obj):
+        return "Expirée" if obj.is_expired() else "Active"
+    is_expired_display.short_description = "État"
+
+
+@admin.register(AdminNotification)
+class AdminNotificationAdmin(admin.ModelAdmin):
+    list_display = ("title", "notification_type", "is_read", "created_at")
+    list_filter = ("is_read", "notification_type", "created_at")
+    search_fields = ("title", "message")
+    list_editable = ("is_read",)

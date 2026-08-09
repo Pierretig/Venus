@@ -8,6 +8,9 @@ urlpatterns = [
     # Placé en haut pour éviter qu'il ne soit confondu avec un slug de produit
     path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
 
+    # --- Tableau de bord des stocks ---
+    path('dashboard/stocks/', views.stock_dashboard, name='stock_dashboard'),
+
     # --- Catégories ---
     path('categorie/<slug:slug>/', views.category_detail, name='category_detail'),
     

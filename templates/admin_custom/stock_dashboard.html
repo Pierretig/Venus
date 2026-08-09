@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+    :root {
+        --venus-vert: #1c683b;
+        --venus-vert-dark: #155430;
+        --venus-or: #d4af37;
+        --venus-jaune: #fbc02d;
+        --venus-soft: #f0f7f4;
+    }
+
+    .bg-venus-admin { background-color: var(--venus-soft); min-height: 100vh; }
+    .text-venus { color: var(--venus-vert); }
+    .text-or { color: var(--venus-or) !important; }
+
+    .stat-card {
+        border: none;
+        border-radius: 20px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    .stat-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(20, 92, 68, 0.1) !important; }
+
+    .icon-shape {
+        width: 60px; height: 60px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 15px;
+        margin: 0 auto 15px;
+    }
+
+    .table-venus thead { background-color: var(--venus-vert); color: white; }
+    .badge-venus { background-color: var(--venus-soft); color: var(--venus-vert); border: 1px solid var(--venus-vert); }
+</style>
+
+<div class="container-fluid py-5 bg-venus-admin">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-5 flex-wrap gap-3">
+            <div>
+                <h2 class="fw-bold text-venus m-0">Tableau de Bord des Stocks</h2>
+                <p class="text-muted">Suivi des stocks, alertes et mouvements Venus Luna.</p>
+            </div>
+            <div class="badge bg-white text-venus shadow-sm p-3 rounded-pill border">
+                <i class="far fa-calendar-alt text-or me-2"></i> {{ today|date:"l d F Y" }}
+            </div>
+        </div>
+
+        <!-- KPI -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-3">
+                <div class="card shadow-sm p-4 text-center stat-card">
+                    <div class="icon-shape" style="background: rgba(20, 92, 68, 0.1); color: var(--venus-vert);">
+                        <i class="fas fa-boxes fa-2x"></i>
+                    </div>
+                    <h3 class="fw-bold m-0">{{ total_products }}</h3>
+                    <p class="text-muted small text-uppercase fw-bold mb-0">Produits actifs</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card shadow-sm p-4 text-center stat-card">
+                    <div class="icon-shape" style="background: rgba(220, 53, 69, 0.1); color: #dc3545;">
+                        <i class="fas fa-times-circle fa-2x"></i>
+                    </div>
+                    <h3 class="fw-bold m-0 text-danger">{{ out_of_stock|length }}</h3>
+                    <p class="text-muted small text-uppercase fw-bold mb-0">En rupture</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card shadow-sm p-4 text-center stat-card">
+                    <div class="icon-shape" style="background: rgba(255, 193, 7, 0.15); color: #d4af37;">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                    <h3 class="fw-bold m-0 text-warning">{{ low_stock_count }}</h3>
+                    <p class="text-muted small text-uppercase fw-bold mb-0">Stock faible</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card shadow-sm p-4 text-center stat-card">
+                    <div class="icon-shape" style="background: rgba(13, 110, 253, 0.1); color: #0d6efd;">
+                        <i class="fas fa-lock fa-2x"></i>
+                    </div>
+                    <h3 class="fw-bold m-0">{{ active_reservations }}</h3>
+                    <p class="text-muted small text-uppercase fw-bold mb-0">Réservations actives</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Alertes actives -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                    <div class="card-header bg-white p-3 d-flex justify-content-between align-items-center border-bottom">
+                        <h5 class="mb-0 fw-bold text-venus"><i class="fas fa-bell me-2 text-or"></i>Alertes actives</h5>
+                        <a href="/admin/products/adminnotification/" class="btn btn-sm btn-outline-venus">Tout voir</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-venus">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Titre</th>
+                                    <th>Type</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white">
+                                {% for alert in active_alerts %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">{{ alert.title }}</td>
+                                    <td><span class="badge badge-venus">{{ alert.get_notification_type_display|default:alert.notification_type }}</span></td>
+                                    <td class="x-small text-muted">{{ alert.created_at|date:"d M, H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-center py-4 text-muted">Aucune alerte active.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Produits en rupture -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                    <div class="card-header bg-white p-3 d-flex justify-content-between align-items-center border-bottom">
+                        <h5 class="mb-0 fw-bold text-danger"><i class="fas fa-times-circle me-2"></i>Produits en rupture</h5>
+                        <a href="/admin/products/product/" class="btn btn-sm btn-outline-venus">Gérer</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-venus">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Produit</th>
+                                    <th>Réappro. estimée</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white">
+                                {% for p in out_of_stock %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">{{ p.name }}</td>
+                                    <td>{% if p.restocking_date %}{{ p.restocking_date|date:"d/m/Y" }}{% else %}<span class="text-muted">Non définie</span>{% endif %}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="2" class="text-center py-4 text-muted">Aucun produit en rupture.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Produits en stock faible -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                    <div class="card-header bg-white p-3 d-flex justify-content-between align-items-center border-bottom">
+                        <h5 class="mb-0 fw-bold text-warning"><i class="fas fa-exclamation-triangle me-2"></i>Stock faible</h5>
+                        <a href="/admin/products/product/" class="btn btn-sm btn-outline-venus">Gérer</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-venus">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Produit</th>
+                                    <th>Stock</th>
+                                    <th>Seuil</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white">
+                                {% for p in low_stock_products %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">{{ p.name }}</td>
+                                    <td><span class="badge bg-warning text-dark">{{ p.stock }}</span></td>
+                                    <td>{{ p.low_stock_threshold }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-center py-4 text-muted">Aucun produit en stock faible.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meilleures ventes -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                    <div class="card-header bg-white p-3 d-flex justify-content-between align-items-center border-bottom">
+                        <h5 class="mb-0 fw-bold text-venus"><i class="fas fa-trophy me-2 text-or"></i>Meilleures ventes</h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-venus">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Produit</th>
+                                    <th>Quantité vendue</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white">
+                                {% for b in best_sellers %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">{{ b.product__name }}</td>
+                                    <td><span class="badge badge-venus">{{ b.total_sold }}</span></td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="2" class="text-center py-4 text-muted">Aucune vente enregistrée.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Produits jamais vendus -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                    <div class="card-header bg-white p-3 d-flex justify-content-between align-items-center border-bottom">
+                        <h5 class="mb-0 fw-bold text-venus"><i class="fas fa-box-open me-2 text-or"></i>Produits jamais vendus</h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-venus">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Produit</th>
+                                    <th>Stock</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white">
+                                {% for p in never_sold %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">{{ p.name }}</td>
+                                    <td>{{ p.stock }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="2" class="text-center py-4 text-muted">Tous les produits ont été vendus.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Derniers mouvements -->
+            <div class="col-12">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                    <div class="card-header bg-white p-3 d-flex justify-content-between align-items-center border-bottom">
+                        <h5 class="mb-0 fw-bold text-venus"><i class="fas fa-history me-2 text-or"></i>Derniers mouvements de stock</h5>
+                        <a href="/admin/products/stockmovement/" class="btn btn-sm btn-outline-venus">Tout voir</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-venus">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Produit</th>
+                                    <th>Type</th>
+                                    <th>Qté</th>
+                                    <th>Utilisateur</th>
+                                    <th>Commande</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white">
+                                {% for m in recent_movements %}
+                                <tr>
+                                    <td class="ps-4 fw-bold">{{ m.product.name }}</td>
+                                    <td><span class="badge badge-venus">{{ m.get_movement_type_display }}</span></td>
+                                    <td class="{% if m.quantity < 0 %}text-danger{% else %}text-success{% endif %} fw-bold">{{ m.quantity }}</td>
+                                    <td>{{ m.user.username|default:"Système" }}</td>
+                                    <td>{% if m.order %}#{{ m.order.id }}{% else %}-{% endif %}</td>
+                                    <td class="x-small text-muted">{{ m.created_at|date:"d M, H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="6" class="text-center py-4 text-muted">Aucun mouvement enregistré.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -21,11 +21,25 @@ from reportlab.lib import colors
 from .forms import CheckoutForm
 from .models import Order, OrderItem, ShippingAddress, ShippingZone
 from .utils import send_order_pending_payment_email, send_order_paid_email
-from apps.products.models import Product
+from apps.products.models import Product, StockReservation
+from apps.products.stock_utils import (
+    get_available_stock, reserve_stock, release_reservation_session,
+    sync_reservations_from_cart, is_cart_available,
+)
 from django.db.models import Sum
 from django.utils import timezone
 
-@login_required # Optionnel : seulement si tu veux que ce soit privé
+logger = logging.getLogger(__name__)
+
+# CONFIGURATION (CashPay remplace BKAPAY)
+BKAPAY_PUBLIC_KEY = getattr(settings, 'BKAPAY_PUBLIC_KEY', None)
+BKAPAY_SECRET_WEBHOOK = getattr(settings, 'BKAPAY_SECRET_WEBHOOK', None)
+
+# CashPay config
+CASHPAY_SECRET_WEBHOOK = getattr(settings, 'CASHPAY_SECRET_WEBHOOK', None)
+
+
+@login_required  # Optionnel : seulement si tu veux que ce soit privé
 def dashboard_view(request):
     # On récupère les vraies données de ta base
     orders = Order.objects.all()
@@ -42,20 +56,12 @@ def dashboard_view(request):
         'recent_orders': orders.order_by('-created_at')[:10],
         'today': timezone.now(),
         # Valeurs vides pour éviter les erreurs JS des graphiques
-        'chart_labels': ["Lundi", "Mardi", "Mercredi"], 
+        'chart_labels': ["Lundi", "Mardi", "Mercredi"],
         'chart_values': [0, 0, total_revenue],
         'pie_labels': ["Ventes"],
         'pie_values': [100],
     }
     return render(request, 'admin_custom/dashboard.html', context)
-logger = logging.getLogger(__name__)
-
-# CONFIGURATION (CashPay remplace BKAPAY)
-BKAPAY_PUBLIC_KEY = getattr(settings, 'BKAPAY_PUBLIC_KEY', None)
-BKAPAY_SECRET_WEBHOOK = getattr(settings, 'BKAPAY_SECRET_WEBHOOK', None)
-
-# CashPay config
-CASHPAY_SECRET_WEBHOOK = getattr(settings, 'CASHPAY_SECRET_WEBHOOK', None)
 
 
 # =====================================================
@@ -77,9 +83,11 @@ def get_cart_data(request):
             continue
     return items, total
 
+
 def cart_detail(request):
     items, total = get_cart_data(request)
     return render(request, 'orders/cart.html', {'cart_items': items, 'cart_total': total})
+
 
 def cart_add(request, product_id):
     cart = request.session.get('cart', {})
@@ -90,10 +98,32 @@ def cart_add(request, product_id):
     except (TypeError, ValueError):
         quantity = 1
     quantity = max(1, quantity)
+
+    # Empêche l'ajout d'un produit indisponible (en rupture de stock)
+    if product.stock is None or product.stock <= 0:
+        messages.error(request, f"« {product.name} » est actuellement en rupture de stock.")
+        return redirect(request.META.get('HTTP_REFERER', 'orders:cart_detail'))
+
+    current_in_cart = 0
+    if p_id in cart and isinstance(cart[p_id], dict):
+        current_in_cart = int(cart[p_id].get('quantity', 0))
+    new_qty = current_in_cart + quantity
+
+    # Vérifie la disponibilité en tenant compte des réservations des autres sessions
+    available = get_available_stock(product, exclude_session_key=request.session.session_key)
+    if available < new_qty:
+        messages.error(request, f"Stock insuffisant pour « {product.name} » (disponible : {available}).")
+        return redirect(request.META.get('HTTP_REFERER', 'orders:cart_detail'))
+
     if p_id not in cart:
         cart[p_id] = {'quantity': 0, 'price': str(product.price)}
-    cart[p_id]['quantity'] += quantity
+    cart[p_id]['quantity'] = new_qty
     request.session['cart'] = cart
+
+    # Réserve la quantité pendant 15 minutes (atomique)
+    if request.session.session_key:
+        reserve_stock(product, request.session.session_key, new_qty)
+
     messages.success(request, f"{product.name} ajouté au panier.")
     return redirect(request.META.get('HTTP_REFERER', 'orders:cart_detail'))
 
@@ -108,29 +138,53 @@ def cart_count_api(request):
             continue
     return JsonResponse({"count": total_qty})
 
+
 def cart_update(request, product_id):
     cart = request.session.get('cart', {})
     p_id = str(product_id)
     if p_id in cart:
         try:
             qty = int(request.POST.get('quantity', 1))
-            if qty > 0: 
+            if qty > 0:
+                product = Product.objects.filter(id=product_id).first()
+                if product and request.session.session_key:
+                    # Vérifie la disponibilité avant de mettre à jour
+                    available = get_available_stock(product, exclude_session_key=request.session.session_key)
+                    if available < qty:
+                        messages.error(request, f"Stock insuffisant pour « {product.name} » (disponible : {available}).")
+                        return redirect('orders:cart_detail')
                 cart[p_id]['quantity'] = qty
-            else: 
+                # Met à jour la réservation
+                if request.session.session_key:
+                    reserve_stock(product, request.session.session_key, qty)
+            else:
                 del cart[p_id]
-        except (ValueError, TypeError): pass
+                # Libère la réservation de ce produit pour cette session
+                if request.session.session_key:
+                    StockReservation.objects.filter(
+                        product_id=product_id, session_key=request.session.session_key
+                    ).delete()
+        except (ValueError, TypeError):
+            pass
     request.session['cart'] = cart
     return redirect('orders:cart_detail')
+
 
 def cart_remove(request, product_id):
     cart = request.session.get('cart', {})
     if str(product_id) in cart:
         del cart[str(product_id)]
         request.session['cart'] = cart
+        # Libère la réservation de ce produit pour cette session
+        if request.session.session_key:
+            StockReservation.objects.filter(
+                product_id=product_id, session_key=request.session.session_key
+            ).delete()
     return redirect('orders:cart_detail')
 
+
 # =====================================================
-# PROCESSUS DE COMMANDE (CHECKOUT & BKAPAY)
+# PROCESSUS DE COMMANDE (CHECKOUT & CASHPAY)
 # =====================================================
 
 def checkout(request):
@@ -139,6 +193,15 @@ def checkout(request):
 
     if not items:
         messages.warning(request, "Panier vide.")
+        return redirect('orders:cart_detail')
+
+    # Vérifie la disponibilité de tous les articles avant le paiement.
+    # Empêche le paiement si un produit est devenu indisponible.
+    if not is_cart_available(items, session_key=request.session.session_key):
+        messages.error(
+            request,
+            "Certains produits de votre panier ne sont plus disponibles en quantité suffisante. Veuillez ajuster votre panier.",
+        )
         return redirect('orders:cart_detail')
 
     if request.method == 'POST':
@@ -153,7 +216,7 @@ def checkout(request):
                         shipping_price = zone.price
                     except (ShippingZone.DoesNotExist, ValueError):
                         shipping_price = Decimal("0")
-                
+
                 order = Order.objects.create(
                     user=request.user if request.user.is_authenticated else None,
                     email=form.cleaned_data['email'],
@@ -164,32 +227,31 @@ def checkout(request):
 
                 for item in items:
                     OrderItem.objects.create(
-                        order=order, 
-                        product=item['product'], 
+                        order=order,
+                        product=item['product'],
                         name=item['product'].name,
-                        price=item['product'].price, 
+                        price=item['product'].price,
                         quantity=item['quantity']
                     )
 
-                order.recalc_total() 
+                order.recalc_total()
                 total_final = order.total
 
                 ShippingAddress.objects.create(
-                    order=order, 
+                    order=order,
                     full_name=form.cleaned_data['full_name'],
                     address=form.cleaned_data['address'],
                     phone=form.cleaned_data.get('phone', ''),
                     city=form.cleaned_data.get('city', 'Lomé'),
                     country=form.cleaned_data.get('country', 'Togo')
                 )
-                
+
                 if total_final < 200:
                     messages.error(request, f"Le montant ({total_final} F) est trop bas.")
                     order.delete()
                     return redirect('orders:cart_detail')
 
                 callback_url = request.build_absolute_uri(reverse('orders:cashpay_webhook'))
-
 
                 # --- CashPay: Link2Pay ---
                 from .cashpay_service import CashPayService
@@ -223,7 +285,6 @@ def checkout(request):
                 send_order_pending_payment_email(order, payment_url)
                 return redirect(payment_url)
 
-
             except Exception as e:
                 logger.error(f"Erreur checkout : {e}")
                 messages.error(request, f"Un problème est survenu : {e}")
@@ -234,16 +295,21 @@ def checkout(request):
         'form': form, 'cart_items': items, 'total': total, 'zones': zones
     })
 
+
 def payment_success(request):
     status = request.GET.get('status')
     if status == 'success':
+        # Libère les réservations de la session après paiement réussi
+        if request.session.session_key:
+            StockReservation.objects.filter(session_key=request.session.session_key).delete()
         if 'cart' in request.session:
             del request.session['cart']
         return render(request, 'orders/thanks.html')
     return render(request, 'orders/payment_failed.html')
 
+
 # =====================================================
-# WEBHOOK & SECURITÉ (VERSION TEST SANS PAYER)
+# WEBHOOK & SÉCURITÉ
 # =====================================================
 
 @csrf_exempt
@@ -263,17 +329,14 @@ def cashpay_webhook(request):
         data = json.loads(payload) if payload else {}
         token = data.get('token') or data.get('Token') or data.get('jwt')
         if not token:
-            logger.error(f"CashPay webhook: token manquant. Payload keys={list(data.keys()) if isinstance(data, dict) else type(data)} payload={payload[:500] if payload else b''}")
+            logger.error(
+                f"CashPay webhook: token manquant. Payload keys={list(data.keys()) if isinstance(data, dict) else type(data)} "
+                f"payload={payload[:500] if payload else b''}"
+            )
             return HttpResponse(status=400)
 
-        # NB: Le contenu JWT est utilisé uniquement pour extraire order_reference/state.
-
-
-        # NB: Le contenu JWT est utilisé uniquement pour extraire order_reference/state.
         import base64
         import json as _json
-        import hmac as _hmac
-        import hashlib as _hashlib
 
         def _b64url_decode(s):
             s = s.encode('utf-8')
@@ -334,10 +397,12 @@ def order_confirm(request, order_id):
     order = get_object_or_404(Order, pk=order_id)
     return render(request, 'orders/confirm.html', {'order': order})
 
+
 @login_required
 def order_history(request):
     orders = Order.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'orders/history.html', {'orders': orders})
+
 
 # =====================================================
 # EXPORT PDF (FACTURE)
@@ -354,20 +419,20 @@ def export_order_pdf(request, order_id):
     p.setFont("Helvetica-Bold", 20)
     p.setFillColor(colors.HexColor("#1e3a8a"))
     p.drawString(50, height - 50, "VENUS LUNA")
-    
+
     p.setFont("Helvetica", 10)
     p.setFillColor(colors.black)
     p.drawString(50, height - 70, "Boutique Spirituelle - Lomé, Togo")
-    
+
     p.setFont("Helvetica-Bold", 14)
     p.drawString(400, height - 50, f"FACTURE N° {order.id}")
-    
+
     p.line(50, height - 110, 550, height - 110)
-    
+
     client_name = "Client"
     if hasattr(order, 'shipping_address'):
         client_name = order.shipping_address.full_name
-    
+
     p.drawString(50, height - 130, f"Client : {client_name}")
 
     y = height - 200
@@ -375,7 +440,7 @@ def export_order_pdf(request, order_id):
     p.drawString(60, y, "Article")
     p.drawString(450, y, "Prix")
     p.line(50, y-5, 550, y-5)
-    
+
     p.setFont("Helvetica", 11)
     for item in order.items.all():
         y -= 25

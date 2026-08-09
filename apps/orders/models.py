@@ -9,6 +9,7 @@ ORDER_STATUS = (
     ('shipped', 'Expédié'),
     ('delivered', 'Livré'),
     ('cancelled', 'Annulé'),
+    ('refunded', 'Remboursé'),
 )
 
 class Order(models.Model):

@@ -18,10 +18,10 @@ class Category(models.Model):
     description = models.TextField("Description", blank=True)
     order = models.PositiveIntegerField("Ordre", default=0)
     parent = models.ForeignKey(
-        'self', 
-        null=True, 
-        blank=True, 
-        on_delete=models.CASCADE, 
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
         related_name='subcategories',
         verbose_name="Catégorie parente"
     )
@@ -75,14 +75,17 @@ class Product(models.Model):
     slug = models.SlugField("Slug", max_length=255, unique=True, blank=True)
     short_description = models.TextField("Courte description", max_length=500, blank=True)
     description = models.TextField("Description complète", blank=True)
-    
+
     # Prix adaptés au FCFA
     price = models.DecimalField("Prix actuel (FCFA)", max_digits=10, decimal_places=0, default=0)
     old_price = models.DecimalField("Prix barré (FCFA)", max_digits=10, decimal_places=0, null=True, blank=True)
-    
+
     is_active = models.BooleanField("Publié / Disponible", default=True)
     stock = models.IntegerField("Stock", default=0)
     featured = models.BooleanField("Mis en avant", default=False)
+    restocking_date = models.DateField("Date de réapprovisionnement estimée", null=True, blank=True)
+    low_stock_threshold = models.PositiveIntegerField("Seuil d'alerte stock faible", default=5)
+    low_stock_alert_sent = models.BooleanField("Alerte stock faible envoyée", default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -90,6 +93,13 @@ class Product(models.Model):
         verbose_name = "Produit"
         verbose_name_plural = "Produits"
         ordering = ['-featured', '-created_at']
+        constraints = [
+            models.CheckConstraint(condition=models.Q(stock__gte=0), name='product_stock_non_negative')
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._original_stock = self.stock
 
     def __str__(self):
         return self.name
@@ -97,10 +107,74 @@ class Product(models.Model):
     def get_absolute_url(self):
         return reverse('products:product_detail', args=[self.slug])
 
+    def get_available_stock(self, exclude_session_key=None):
+        """
+        Calcule le stock disponible en excluant les réservations actives d'autres sessions.
+        """
+        now = timezone.now()
+        active_reservations = self.reservations.filter(expires_at__gt=now)
+        if exclude_session_key:
+            active_reservations = active_reservations.exclude(session_key=exclude_session_key)
+
+        reserved_qty = active_reservations.aggregate(models.Sum('quantity'))['quantity__sum'] or 0
+        return max(0, self.stock - reserved_qty)
+
+    @property
+    def is_out_of_stock(self):
+        """True si le produit n'a plus de stock réel disponible à la vente."""
+        return self.stock <= 0 or self.get_available_stock() <= 0
+
+    @property
+    def is_low_stock(self):
+        """True si le stock est sous le seuil configuré (et non nul)."""
+        return self.stock > 0 and self.stock <= self.low_stock_threshold
+
+    @property
+    def available_stock(self):
+        """Stock réellement vendable (stock réel moins réservations actives)."""
+        return self.get_available_stock()
+
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old_stock = self._original_stock if not is_new else 0
+
         if not self.slug:
             self.slug = slugify(self.name)
+
+        if self.stock < 0:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("Le stock ne peut pas être négatif.")
+
+        trigger_alerts = False
+        if self.stock <= self.low_stock_threshold and not self.low_stock_alert_sent and self.is_active:
+            self.low_stock_alert_sent = True
+            trigger_alerts = True
+        elif self.stock > self.low_stock_threshold and self.low_stock_alert_sent:
+            self.low_stock_alert_sent = False
+
         super().save(*args, **kwargs)
+
+        # Enregistrement automatique des mouvements de stock si modifié et non loggé ailleurs
+        if self.stock != old_stock and not getattr(self, '_stock_movement_logged', False):
+            diff = self.stock - old_stock
+            mtype = StockMovement.MovementType.SUPPLY if diff > 0 else StockMovement.MovementType.MANUAL
+            user = getattr(self, '_current_user', None)
+            comment = getattr(self, '_movement_comment', "Modification manuelle du stock")
+
+            StockMovement.objects.create(
+                product=self,
+                quantity=diff,
+                movement_type=mtype,
+                user=user,
+                comment=comment
+            )
+
+        # Déclenchement de l'alerte
+        if trigger_alerts:
+            from .notifications import trigger_low_stock_alerts
+            trigger_low_stock_alerts(self)
+
+        self._original_stock = self.stock
 
 
 class ProductImage(models.Model):
@@ -170,3 +244,62 @@ class Wishlist(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.product.name}"
 
+
+class StockMovement(models.Model):
+    class MovementType(models.TextChoices):
+        SUPPLY = 'SUPPLY', 'Approvisionnement'
+        SALE = 'SALE', 'Vente'
+        CANCEL = 'CANCEL', 'Annulation'
+        REFUND = 'REFUND', 'Remboursement'
+        MANUAL = 'MANUAL', 'Correction manuelle'
+        INVENTORY = 'INVENTORY', 'Inventaire'
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stock_movements')
+    quantity = models.IntegerField("Quantité")
+    movement_type = models.CharField("Type de mouvement", max_length=20, choices=MovementType.choices)
+    created_at = models.DateTimeField("Date", auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Utilisateur")
+    order = models.ForeignKey('orders.Order', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Commande")
+    comment = models.TextField("Commentaire", blank=True)
+
+    class Meta:
+        verbose_name = "Mouvement de stock"
+        verbose_name_plural = "Mouvements de stock"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.get_movement_type_display()} - {self.product.name} ({self.quantity})"
+
+
+class StockReservation(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reservations')
+    session_key = models.CharField(max_length=255, db_index=True)
+    quantity = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        verbose_name = "Réservation de stock"
+        verbose_name_plural = "Réservations de stock"
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"Réservation: {self.product.name} x{self.quantity} (Session {self.session_key[:8]})"
+
+
+class AdminNotification(models.Model):
+    title = models.CharField("Titre", max_length=255)
+    message = models.TextField("Message")
+    is_read = models.BooleanField("Lu", default=False)
+    created_at = models.DateTimeField("Créé le", auto_now_add=True)
+    notification_type = models.CharField("Type", max_length=50, default='low_stock')
+
+    class Meta:
+        verbose_name = "Notification Admin"
+        verbose_name_plural = "Notifications Admin"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} - {'Lu' if self.is_read else 'Non lu'}"
