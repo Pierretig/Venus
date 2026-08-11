@@ -30,8 +30,9 @@ for attempt in range(1, max_attempts + 1):
         time.sleep(3)
 EOF
 
-python manage.py migrate --noinput || echo "⚠ Migrate skipped, continuing..."
-
+echo "=== Applying database migrations ==="
+python manage.py migrate --noinput
+echo "=== Collecting static files ==="
 python manage.py collectstatic --noinput
 
 exec gunicorn config.wsgi:application \
