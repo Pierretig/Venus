@@ -3,6 +3,11 @@
 from django.db import migrations, models
 
 
+def fix_negative_stocks(apps, schema_editor):
+    Product = apps.get_model('products', 'Product')
+    Product.objects.filter(stock__lt=0).update(stock=0)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,8 +15,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(fix_negative_stocks, reverse_code=migrations.RunPython.noop),
         migrations.AddConstraint(
             model_name='product',
             constraint=models.CheckConstraint(condition=models.Q(('stock__gte', 0)), name='product_stock_non_negative'),
         ),
     ]
+
