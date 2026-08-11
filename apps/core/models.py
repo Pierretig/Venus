@@ -24,6 +24,23 @@ class SiteSettings(models.Model):
     theme_primary = models.CharField("Couleur principale (hex)", max_length=7, default="#1e0b3b", help_text="Ex: #1e0b3b")
     theme_accent = models.CharField("Couleur accent (hex)", max_length=7, default="#d4af37", help_text="Ex: #d4af37")
     footer_text = models.TextField("Texte de pied de page", blank=True)
+    
+    # Paramètres des avis clients
+    reviews_homepage_enabled = models.BooleanField("Activer les avis sur l'accueil", default=True)
+    reviews_homepage_limit = models.PositiveIntegerField("Nombre d'avis max sur l'accueil", default=6)
+    reviews_homepage_mode = models.CharField(
+        "Mode d'affichage accueil", 
+        max_length=20, 
+        choices=[
+            ('recent', 'Les plus récents'),
+            ('best', 'Les mieux notés (4+ étoiles)'),
+            ('pinned', 'Uniquement les avis épinglés'),
+            ('mix', 'Mélange (Épinglés puis Récents/Mieux notés)')
+        ], 
+        default='mix'
+    )
+    reviews_only_buyers = models.BooleanField("Dépôt réservé aux acheteurs vérifiés", default=False)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

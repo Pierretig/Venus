@@ -8,9 +8,13 @@ from datetime import timedelta
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 # Import des modèles
-from .models import Product, Category, Wishlist, StockMovement, StockReservation, AdminNotification
+from .models import Product, Category, Wishlist, StockMovement, StockReservation, AdminNotification, Review
 from apps.orders.models import Order, OrderItem
 from .stock_utils import release_expired_reservations
+from .forms import ReviewForm
+from apps.core.models import SiteSettings
+from django.contrib import messages
+from django.utils.html import strip_tags
 
 
 # --- VUE : TABLEAU DE BORD ADMIN ---
@@ -167,14 +171,144 @@ def product_list(request):
     })
 
 
+def check_verified_purchase(user, product):
+    """Vérifie si l'utilisateur a acheté et payé le produit."""
+    if not user.is_authenticated:
+        return False
+    from apps.orders.models import OrderItem
+    return OrderItem.objects.filter(
+        order__user=user,
+        product=product,
+        order__payment_status=True
+    ).exists()
+
+
 def product_detail(request, slug):
     product = get_object_or_404(Product, slug=slug, is_active=True)
     related_products = Product.objects.filter(category=product.category).exclude(slug=slug)[:4]
 
-    return render(request, 'products/product_detail.html', {
+    # Récupération des avis approuvés avec jointure profil pour les avatars
+    reviews_list = product.reviews.filter(is_approved=True).select_related('user__profile').order_by('-is_pinned', '-created_at')
+    
+    # Répartition des notes (1 à 5 étoiles)
+    total_approved = reviews_list.count()
+    distribution = {i: 0 for i in range(1, 6)}
+    distribution_percentages = {i: 0 for i in range(1, 6)}
+    if total_approved > 0:
+        counts = reviews_list.values('rating').annotate(c=Count('id'))
+        for item in counts:
+            rating_val = item['rating']
+            if 1 <= rating_val <= 5:
+                distribution[rating_val] = item['c']
+                distribution_percentages[rating_val] = int((item['c'] / total_approved) * 100)
+
+    # Pagination des avis (10 par page)
+    review_paginator = Paginator(reviews_list, 10)
+    page_number = request.GET.get('review_page')
+    try:
+        reviews_paginated = review_paginator.page(page_number)
+    except (EmptyPage, PageNotAnInteger):
+        reviews_paginated = review_paginator.page(1)
+
+    # Déterminer si l'utilisateur connecté peut laisser un avis
+    user_has_reviewed = False
+    is_buyer = False
+    if request.user.is_authenticated:
+        user_has_reviewed = product.reviews.filter(user=request.user).exists()
+        is_buyer = check_verified_purchase(request.user, product)
+
+    site_settings = SiteSettings.get_solo()
+    reviews_only_buyers = site_settings.reviews_only_buyers if site_settings else False
+
+    # Formulaire vide (initialisé avec le prénom du client si disponible)
+    initial_data = {}
+    if request.user.is_authenticated:
+        initial_data['client_name'] = request.user.first_name or request.user.username
+    form = ReviewForm(initial=initial_data)
+
+    context = {
         'product': product,
-        'related_products': related_products
-    })
+        'related_products': related_products,
+        'reviews': reviews_paginated,
+        'total_approved_reviews': total_approved,
+        'distribution': distribution,
+        'distribution_percentages': distribution_percentages,
+        'user_has_reviewed': user_has_reviewed,
+        'is_buyer': is_buyer,
+        'reviews_only_buyers': reviews_only_buyers,
+        'review_form': form,
+    }
+    return render(request, 'products/product_detail.html', context)
+
+
+@login_required
+def submit_review(request, product_id):
+    """
+    Traite la soumission d'un avis client.
+    """
+    if request.method != 'POST':
+        return redirect('products:list')
+
+    product = get_object_or_404(Product, id=product_id, is_active=True)
+
+    # Double sécurité : Vérification d'avis unique par utilisateur
+    if Review.objects.filter(product=product, user=request.user).exists():
+        messages.error(request, "Vous avez déjà rédigé un avis pour ce produit.")
+        return redirect(product.get_absolute_url())
+
+    site_settings = SiteSettings.get_solo()
+    reviews_only_buyers = site_settings.reviews_only_buyers if site_settings else False
+    is_buyer = check_verified_purchase(request.user, product)
+
+    # Si dépôt réservé aux acheteurs vérifiés
+    if reviews_only_buyers and not is_buyer:
+        messages.error(request, "Désolé, le dépôt d'avis pour ce produit est réservé aux personnes l'ayant acheté.")
+        return redirect(product.get_absolute_url())
+
+    form = ReviewForm(request.POST)
+    if form.is_valid():
+        review = form.save(commit=False)
+        review.product = product
+        review.user = request.user
+        
+        # Protection XSS
+        review.client_name = strip_tags(review.client_name.strip())
+        review.title = strip_tags(review.title.strip())
+        review.comment = strip_tags(review.comment.strip())
+        
+        # Achat vérifié
+        review.verified_purchase = is_buyer
+        review.is_approved = False  # Nécessite validation de l'admin
+        review.save()
+
+        # Enregistrement de la notification d'administration
+        try:
+            title = f"Nouvel avis à modérer : {product.name}"
+            message = (
+                f"Produit : {product.name}\n"
+                f"Client : {review.client_name} (User: {request.user.username})\n"
+                f"Note : {review.rating}/5\n"
+                f"Commentaire : {review.comment}"
+            )
+            AdminNotification.objects.create(
+                title=title,
+                message=message,
+                notification_type='new_review'
+            )
+            
+            # Envoi d'alertes par email/ WhatsApp
+            from .notifications import trigger_new_review_alerts
+            trigger_new_review_alerts(review)
+        except Exception as e:
+            logger.error(f"Erreur lors de la notification de nouvel avis : {e}")
+
+        messages.success(request, "Votre avis a été enregistré avec succès ! Il sera publié dès qu'il aura été validé par un administrateur.")
+    else:
+        for error_list in form.errors.values():
+            for error in error_list:
+                messages.error(request, error)
+
+    return redirect(product.get_absolute_url())
 
 
 # --- VUE : TABLEAU DE BORD DES STOCKS ---

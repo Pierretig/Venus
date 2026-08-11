@@ -3,7 +3,7 @@ from django.utils.html import format_html
 
 from .models import (
     Category, Product, ProductAuditLog, ProductImage, Wishlist,
-    StockMovement, StockReservation, AdminNotification,
+    StockMovement, StockReservation, AdminNotification, Review,
 )
 
 
@@ -265,3 +265,98 @@ class AdminNotificationAdmin(admin.ModelAdmin):
     list_filter = ("is_read", "notification_type", "created_at")
     search_fields = ("title", "message")
     list_editable = ("is_read",)
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = (
+        "display_stars",
+        "client_name",
+        "product",
+        "rating",
+        "verified_purchase",
+        "is_approved",
+        "is_pinned",
+        "is_featured",
+        "created_at",
+    )
+    list_display_links = ("client_name", "product")
+    list_filter = (
+        "is_approved",
+        "is_pinned",
+        "is_featured",
+        "verified_purchase",
+        "rating",
+        "created_at",
+        "product",
+    )
+    search_fields = ("client_name", "title", "comment", "product__name", "user__username", "user__email")
+    list_editable = ("is_approved", "is_pinned", "is_featured")
+    readonly_fields = ("created_at", "updated_at", "verified_purchase", "user", "product")
+    ordering = ("-created_at",)
+    date_hierarchy = "created_at"
+
+    fieldsets = (
+        ("Avis client", {
+            "fields": ("product", "user", "client_name", "rating", "title", "comment", "verified_purchase", "created_at", "updated_at")
+        }),
+        ("Modération", {
+            "fields": ("is_approved", "is_pinned", "is_featured")
+        }),
+        ("Réponse officielle", {
+            "fields": ("admin_reply", "admin_reply_at"),
+            "description": "La réponse sera affichée publiquement sous l'avis du client."
+        }),
+    )
+
+    actions = ["approve_reviews", "reject_reviews", "pin_reviews", "unpin_reviews"]
+
+    def approve_reviews(self, request, queryset):
+        updated = queryset.update(is_approved=True)
+        # Notifier les clients dont les avis viennent d'être approuvés
+        for review in queryset:
+            try:
+                from .notifications import trigger_review_approved_alerts
+                trigger_review_approved_alerts(review)
+            except Exception:
+                pass
+        self.message_user(request, f"{updated} avis approuvé(s) et rendu(s) public(s).")
+    approve_reviews.short_description = "✅ Approuver les avis sélectionnés"
+
+    def reject_reviews(self, request, queryset):
+        updated = queryset.update(is_approved=False)
+        self.message_user(request, f"{updated} avis masqué(s).")
+    reject_reviews.short_description = "🚫 Masquer les avis sélectionnés"
+
+    def pin_reviews(self, request, queryset):
+        updated = queryset.update(is_pinned=True)
+        self.message_user(request, f"{updated} avis épinglé(s).")
+    pin_reviews.short_description = "📌 Épingler les avis sélectionnés"
+
+    def unpin_reviews(self, request, queryset):
+        updated = queryset.update(is_pinned=False)
+        self.message_user(request, f"{updated} avis désépinglé(s).")
+    unpin_reviews.short_description = "📍 Désépingler les avis sélectionnés"
+
+    def display_stars(self, obj):
+        stars = "⭐" * obj.rating + "☆" * (5 - obj.rating)
+        return format_html('<span title="{}/5">{}</span>', obj.rating, stars)
+    display_stars.short_description = "Note"
+
+    def save_model(self, request, obj, form, change):
+        """Met à jour admin_reply_at automatiquement si la réponse est renseignée."""
+        from django.utils import timezone
+        if obj.admin_reply and not obj.admin_reply_at:
+            obj.admin_reply_at = timezone.now()
+        elif not obj.admin_reply:
+            obj.admin_reply_at = None
+        super().save_model(request, obj, form, change)
+        # Si l'avis vient d'être approuvé, notifier le client
+        if change and obj.is_approved:
+            was_approved = Review.objects.filter(pk=obj.pk, is_approved=True).exists()
+            if was_approved:
+                try:
+                    from .notifications import trigger_review_approved_alerts
+                    trigger_review_approved_alerts(obj)
+                except Exception:
+                    pass

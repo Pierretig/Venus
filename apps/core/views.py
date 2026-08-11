@@ -99,6 +99,96 @@ def home(request):
     
     # 5. Récupération des 3 derniers articles de blog PUBLIÉS
     posts = Post.objects.filter(published=True).order_by('-created_at')[:3]
+
+    # 6. Avis dynamiques pour la section "Ils ont trouvé la paix"
+    testimonials = []
+    static_testimonials = []
+    reviews_section_enabled = True
+
+    if site_settings:
+        reviews_section_enabled = site_settings.reviews_homepage_enabled
+        max_reviews = site_settings.reviews_homepage_limit or 6
+        mode = site_settings.reviews_homepage_mode or 'mix'
+    else:
+        max_reviews = 6
+        mode = 'mix'
+
+    if reviews_section_enabled:
+        # Import local pour éviter les importations circulaires
+        from apps.products.models import Review
+
+        # Construction du queryset selon le mode choisi
+        base_qs = Review.objects.filter(is_approved=True).select_related('product', 'user__profile')
+
+        if mode == 'recent':
+            real_reviews = list(base_qs.order_by('-created_at')[:max_reviews])
+        elif mode == 'best':
+            real_reviews = list(base_qs.filter(rating__gte=4).order_by('-rating', '-created_at')[:max_reviews])
+        elif mode == 'pinned':
+            real_reviews = list(base_qs.filter(is_pinned=True).order_by('-created_at')[:max_reviews])
+        else:  # 'mix' : d'abord les épinglés, ensuite les mieux notés/récents
+            pinned = list(base_qs.filter(is_pinned=True).order_by('-created_at')[:max_reviews])
+            remaining_slots = max_reviews - len(pinned)
+            if remaining_slots > 0:
+                pinned_ids = [r.id for r in pinned]
+                others = list(
+                    base_qs.exclude(id__in=pinned_ids)
+                    .order_by('-rating', '-created_at')[:remaining_slots]
+                )
+            else:
+                others = []
+            real_reviews = pinned + others
+
+        # Témoignages statiques de remplacement progressif
+        DEFAULT_TESTIMONIALS = [
+            {
+                "client_name": "Ablavi M.",
+                "comment": "Les pierres de Venus Luna ont totalement changé l'énergie de mon bureau. Je me sens beaucoup plus apaisée.",
+                "rating": 5,
+                "verified_purchase": False,
+                "product": None,
+            },
+            {
+                "client_name": "Koffi T.",
+                "comment": "Service client exceptionnel et livraison très rapide à Adidoadin. Je recommande vivement !",
+                "rating": 5,
+                "verified_purchase": False,
+                "product": None,
+            },
+            {
+                "client_name": "Emefa S.",
+                "comment": "Des articles spirituels de qualité qu'on ne trouve nulle part ailleurs au Togo.",
+                "rating": 5,
+                "verified_purchase": False,
+                "product": None,
+            },
+            {
+                "client_name": "Yawa D.",
+                "comment": "Mes bougies sentent divinement bon. Un vrai rituel de bien-être à la maison.",
+                "rating": 5,
+                "verified_purchase": False,
+                "product": None,
+            },
+            {
+                "client_name": "Kossi A.",
+                "comment": "L'encens Palo Santo a un parfum unique. Je suis fan de cette boutique depuis ma première commande.",
+                "rating": 5,
+                "verified_purchase": False,
+                "product": None,
+            },
+            {
+                "client_name": "Mawuli K.",
+                "comment": "Commande reçue dans les délais, packaging soigné et produits de qualité supérieure. Merci !",
+                "rating": 5,
+                "verified_purchase": False,
+                "product": None,
+            },
+        ]
+
+        # Remplissage progressif : vrais avis en premier, statiques en complement
+        slots_remaining = max_reviews - len(real_reviews)
+        static_testimonials = DEFAULT_TESTIMONIALS[:slots_remaining] if slots_remaining > 0 else []
+        testimonials = real_reviews
     
     # Construction du contexte unique
     context = {
@@ -108,6 +198,9 @@ def home(request):
         'products': products,
         'categories': categories,
         'posts': posts,
+        'testimonials': testimonials,
+        'static_testimonials': static_testimonials,
+        'reviews_section_enabled': reviews_section_enabled,
     }
     
     return render(request, 'pages/home.html', context)

@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.utils.text import slugify
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
 from cloudinary.models import CloudinaryField
 
 
@@ -86,6 +87,11 @@ class Product(models.Model):
     restocking_date = models.DateField("Date de réapprovisionnement estimée", null=True, blank=True)
     low_stock_threshold = models.PositiveIntegerField("Seuil d'alerte stock faible", default=5)
     low_stock_alert_sent = models.BooleanField("Alerte stock faible envoyée", default=False)
+    
+    # Cache des notes
+    average_rating = models.DecimalField("Note moyenne", max_digits=3, decimal_places=2, default=0.00)
+    total_reviews = models.PositiveIntegerField("Nombre total d'avis", default=0)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -303,3 +309,35 @@ class AdminNotification(models.Model):
 
     def __str__(self):
         return f"{self.title} - {'Lu' if self.is_read else 'Non lu'}"
+
+
+class Review(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews', verbose_name="Produit")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviews', verbose_name="Client")
+    client_name = models.CharField("Nom ou Pseudonyme", max_length=150, help_text="Nom affiché publiquement")
+    rating = models.PositiveSmallIntegerField("Note", validators=[MinValueValidator(1), MaxValueValidator(5)])
+    title = models.CharField("Titre de l'avis", max_length=150, blank=True)
+    comment = models.TextField("Commentaire")
+    created_at = models.DateTimeField("Date de publication", auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Modération
+    is_approved = models.BooleanField("Approuvé / Public", default=False, db_index=True)
+    is_pinned = models.BooleanField("Épinglé", default=False, help_text="Afficher en priorité")
+    is_featured = models.BooleanField("Mis en avant sur l'accueil", default=False)
+    
+    # Achat vérifié
+    verified_purchase = models.BooleanField("Achat vérifié", default=False)
+    
+    # Réponse officielle admin
+    admin_reply = models.TextField("Réponse de l'administrateur", blank=True)
+    admin_reply_at = models.DateTimeField("Date de réponse", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Avis client"
+        verbose_name_plural = "Avis clients"
+        ordering = ['-is_pinned', '-created_at']
+        unique_together = ('product', 'user')
+
+    def __str__(self):
+        return f"{self.client_name} - {self.product.name} ({self.rating}/5)"

@@ -215,14 +215,22 @@ def parse_database_url(db_url: str) -> dict:
 
 def get_database_config() -> dict:
     # Préférer DB_* si complet : évite DATABASE_URL invalide (ex. @ non encodé dans le mot de passe)
+    db_engine = os.getenv("DB_ENGINE", "django.db.backends.postgresql")
     db_name = os.getenv("DB_NAME")
     db_user = os.getenv("DB_USER")
     db_password = os.getenv("DB_PASSWORD", "")
     db_host = os.getenv("DB_HOST")
     db_port = os.getenv("DB_PORT", "5432")
+    
+    if db_engine == 'django.db.backends.sqlite3':
+        return {
+            "ENGINE": db_engine,
+            "NAME": db_name or str(BASE_DIR / 'db.sqlite3'),
+        }
+
     if db_name and db_user and db_host:
         return {
-            "ENGINE": "django.db.backends.postgresql",
+            "ENGINE": db_engine,
             "NAME": db_name,
             "USER": db_user,
             "PASSWORD": db_password,
@@ -238,7 +246,7 @@ def get_database_config() -> dict:
             pass
 
     return {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": db_engine,
         "NAME": db_name or "venus_luna",
         "USER": db_user or "postgres",
         "PASSWORD": db_password,

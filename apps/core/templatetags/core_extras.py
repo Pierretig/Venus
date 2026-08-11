@@ -14,3 +14,11 @@ def chunk(value, chunk_size):
         size = 1
     items = list(value)
     return [items[i : i + size] for i in range(0, len(items), size)]
+
+
+@register.filter
+def dict_key(dictionary, key):
+    """Retourne la valeur d'une clé dans un dictionnaire."""
+    if not dictionary:
+        return None
+    return dictionary.get(key)
