@@ -488,57 +488,7 @@
         {% endif %}
       </div>
 
-      <div class="products-grid">
-        {% for product in products %}
-          <article class="product-card">
-            <div class="product-image-box">
-              {% if product.old_price %}
-                <span class="offer-badge">Offre</span>
-              {% endif %}
-              <a href="{% url 'products:product_detail' product.slug %}">
-                {% if product.images.first %}
-                  <img src="{% protected_image product.images.first 'image' %}" class="protected-image" alt="{{ product.name }}">
-                {% else %}
-                  <img src="{% static 'img/aze1.png' %}" alt="{{ product.name }}">
-                {% endif %}
-              </a>
-            </div>
-            <div class="product-body">
-              <h3 class="product-title">
-                <a href="{% url 'products:product_detail' product.slug %}">{{ product.name }}</a>
-              </h3>
-              <div class="product-prices">
-                {% if product.old_price %}
-                  <span class="old-price">{{ product.old_price }} F CFA</span>
-                {% endif %}
-                <span class="price">{{ product.price }} F CFA</span>
-              </div>
-{% if product.is_out_of_stock %}
-              <div class="mt-2">
-                <button class="btn-explore" type="button" disabled style="opacity: 0.5; cursor: not-allowed; background: #6c757d; border-color: #6c757d;">
-                  <i class="fas fa-times-circle me-2"></i> En rupture
-                </button>
-                {% if product.restocking_date %}
-                <div class="x-small text-muted mt-2 text-center">
-                  <i class="fas fa-truck-loading me-1"></i> Réappro. {{ product.restocking_date|date:"d/m/Y" }}
-                </div>
-                {% endif %}
-              </div>
-              {% else %}
-              <form action="{% url 'orders:cart_add' product.id %}" method="post" class="mt-2">
-                {% csrf_token %}
-                <input type="hidden" name="quantity" value="1">
-                <button class="btn-explore" type="submit">
-                  <i class="fas fa-cart-plus me-2"></i> Ajouter au panier
-                </button>
-              </form>
-              {% endif %}
-            </div>
-          </article>
-        {% empty %}
-          <p class="px-3 py-4">Aucun produit ne correspond à votre recherche.</p>
-        {% endfor %}
-      </div>
+      {% include "products/_product_grid.html" with products=products %}
 
       {% if products.has_other_pages %}
         <div class="pagination-wrap">

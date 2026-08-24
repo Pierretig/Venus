@@ -1,0 +1,32 @@
+{% load static %}
+{% load core_extras %}
+<article class="product-card">
+  <div class="product-image-box">
+    {% if product.is_new %}<span class="new-badge">Nouveau</span>{% endif %}
+    {% if product.old_price %}<span class="offer-badge">Offre</span>{% endif %}
+    {% if product.is_out_of_stock %}<span class="stock-badge">Rupture de stock</span>{% endif %}
+    <a href="{% url 'products:product_detail' product.slug %}">
+      {% if product.images.first %}
+        <img src="{% protected_image product.images.first 'image' %}" class="protected-image" alt="{{ product.name }}">
+      {% else %}
+        <img src="{% static 'img/aze1.png' %}" alt="{{ product.name }}">
+      {% endif %}
+    </a>
+  </div>
+  <div class="product-body">
+    <h3 class="product-title"><a href="{% url 'products:product_detail' product.slug %}">{{ product.name }}</a></h3>
+    <div class="product-prices">
+      {% if product.old_price %}<span class="old-price">{{ product.old_price }} F CFA</span>{% endif %}
+      <span class="price">{{ product.price }} F CFA</span>
+    </div>
+    {% if product.is_out_of_stock %}
+      <button class="btn-explore" type="button" disabled aria-disabled="true">Indisponible</button>
+    {% else %}
+      <form action="{% url 'orders:cart_add' product.id %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="quantity" value="1">
+        <button class="btn-explore" type="submit">Ajouter au panier</button>
+      </form>
+    {% endif %}
+  </div>
+</article>

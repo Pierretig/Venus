@@ -13,6 +13,7 @@ from .models import Banner, SiteSettings, SocialLink
 
 # Import des modèles des autres applications
 from apps.products.models import Product, Category 
+from apps.products.forms import ReviewForm
 from apps.blog.models import Post
 from apps.contact.forms import ContactForm
 
@@ -201,6 +202,9 @@ def home(request):
         'testimonials': testimonials,
         'static_testimonials': static_testimonials,
         'reviews_section_enabled': reviews_section_enabled,
+        'review_form': ReviewForm(initial={
+            'client_name': request.user.first_name or request.user.username
+        }) if request.user.is_authenticated else None,
     }
     
     return render(request, 'pages/home.html', context)

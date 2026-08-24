@@ -1,3 +1,5 @@
+import logging
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
@@ -15,6 +17,8 @@ from .forms import ReviewForm
 from apps.core.models import SiteSettings
 from django.contrib import messages
 from django.utils.html import strip_tags
+
+logger = logging.getLogger(__name__)
 
 
 # --- VUE : TABLEAU DE BORD ADMIN ---
@@ -309,6 +313,29 @@ def submit_review(request, product_id):
                 messages.error(request, error)
 
     return redirect(product.get_absolute_url())
+
+
+@login_required
+def submit_general_review(request):
+    """Traite un avis général affiché sur la page d'accueil."""
+    if request.method != 'POST':
+        return redirect('core:home')
+
+    form = ReviewForm(request.POST)
+    if form.is_valid():
+        review = form.save(commit=False)
+        review.user = request.user
+        review.client_name = strip_tags(review.client_name.strip())
+        review.title = strip_tags(review.title.strip())
+        review.comment = strip_tags(review.comment.strip())
+        review.is_approved = False
+        review.save()
+        messages.success(request, "Votre avis a été enregistré. Il sera publié après validation.")
+    else:
+        for error_list in form.errors.values():
+            for error in error_list:
+                messages.error(request, error)
+    return redirect('core:home')
 
 
 # --- VUE : TABLEAU DE BORD DES STOCKS ---

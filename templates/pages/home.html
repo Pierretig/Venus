@@ -212,6 +212,19 @@
             {% endfor %}
 
         </div><!-- /.row -->
+        {% if user.is_authenticated %}
+        <form method="post" action="{% url 'products:submit_general_review' %}" class="general-review-form mx-auto mt-5">
+            {% csrf_token %}
+            <h3 class="h5 text-white">Partager votre expérience</h3>
+            {{ review_form.client_name }}
+            {{ review_form.rating }}
+            {{ review_form.title }}
+            {{ review_form.comment }}
+            <button type="submit" class="btn-gold-custom mt-3 px-4 py-2">Publier mon avis</button>
+        </form>
+        {% else %}
+        <p class="text-center text-white-50 mt-4"><a href="{% url 'accounts:login' %}?next={{ request.path }}" class="text-warning">Connectez-vous</a> pour partager votre expérience.</p>
+        {% endif %}
     </div>
 </section>
 
@@ -229,6 +242,8 @@
         border-color: rgba(212, 175, 55, 0.4);
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
     }
+    .general-review-form { max-width: 620px; }
+    .general-review-form input, .general-review-form textarea { display: block; width: 100%; margin-top: 10px; padding: 10px 14px; border: 0; border-radius: 8px; }
 </style>
 {% endif %}
 
@@ -365,35 +380,7 @@
             <div style="height: 3px; width: 60px; background: #d4af37; margin: 15px auto;"></div>
         </div>
 
-        <div class="row g-4">
-            {% for product in products %}
-            <div class="col-md-6 col-lg-4">
-                <div class="product-grid-card shadow-sm h-100">
-                    {% if product.compare_price %}
-                    <span class="badge-offre">OFFRE</span>
-                    {% endif %}
-                    <div class="img-zoom-container">
-                        <a href="{% url 'products:product_detail' product.slug %}">
-                            {% with product.images.all|first as first_img %}
-<img src="{% if first_img %}{% protected_image first_img 'image' %}{% else %}{% static 'img/aze1.png' %}{% endif %}" class="protected-image" style="max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; transition:0.6s;" alt="{{ product.name }}">
-                            {% endwith %}
-                        </a>
-                    </div>
-                    <div class="p-4 text-center">
-                        <p class="text-uppercase text-muted small mb-1">{{ product.category.name }}</p>
-                        <h5 class="fw-bold mb-3" style="font-family: 'Playfair Display', serif; color: #111; font-size: 1.15rem;">{{ product.name }}</h5>
-                        <div class="mb-3">
-                            {% if product.compare_price %}
-                            <span class="text-muted text-decoration-line-through small me-2">{{ product.compare_price }} F</span>
-                            {% endif %}
-                            <span class="fw-bold h5 mb-0" style="color: #d4af37;">{{ product.price }} F CFA</span>
-                        </div>
-                        <a href="{% url 'products:product_detail' product.slug %}" class="btn-explorer">EXPLORER</a>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+        {% include "products/_product_grid.html" with products=products %}
         <div class="text-center mt-5">
             <a href="{% url 'products:list' %}" class="btn-catalogue-all">VOIR TOUT LE CATALOGUE <i class="fas fa-arrow-right ms-2"></i></a>
         </div>

@@ -5,6 +5,8 @@ Couvre : dépôt, validation, achat vérifié, recalcul, modération, page d'acc
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
+from django.utils import timezone
+from datetime import timedelta
 
 from apps.products.models import Product, Category, Review
 from apps.orders.models import Order, OrderItem
@@ -28,6 +30,24 @@ class ReviewModelTest(TestCase):
         )
         self.assertEqual(review.rating, 5)
         self.assertFalse(review.is_approved)
+
+    def test_general_review_has_no_product(self):
+        review = Review.objects.create(
+            user=self.user, client_name="Koffi", rating=5, comment="Accueil chaleureux"
+        )
+        self.assertIsNone(review.product)
+        self.assertIn("Venus Luna", str(review))
+
+    def test_new_badge_window(self):
+        recent = Product.objects.create(name="Récent", slug="recent", price=100, stock=1)
+        old = Product.objects.create(name="Ancien", slug="ancien", price=100, stock=1)
+        Product.objects.filter(pk=old.pk).update(
+            created_at=timezone.now() - timedelta(days=16)
+        )
+        recent.refresh_from_db()
+        old.refresh_from_db()
+        self.assertTrue(recent.is_new)
+        self.assertFalse(old.is_new)
 
     def test_product_rating_cache_updated_on_approve(self):
         """Le cache average_rating/total_reviews doit se mettre à jour après approbation."""
@@ -111,6 +131,15 @@ class ReviewViewTest(TestCase):
         review = Review.objects.filter(product=self.product, user=self.user).first()
         self.assertIsNotNone(review)
         self.assertFalse(review.is_approved)  # En attente de modération
+
+    def test_submit_general_review_logged_in(self):
+        self.client.login(username='venus_user', password='securepass123')
+        url = reverse('products:submit_general_review')
+        response = self.client.post(url, {
+            'rating': '5', 'comment': 'Très belle expérience', 'client_name': 'Venus User'
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Review.objects.filter(product__isnull=True, user=self.user).exists())
 
     def test_cannot_submit_duplicate_review(self):
         """Un deuxième avis pour le même produit doit être refusé."""

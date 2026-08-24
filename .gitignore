@@ -20,5 +20,5 @@ __pycache__/
 .DS_Store
 media/
 staticfiles/
-
+venus-luna
 TODO.md

@@ -52,6 +52,7 @@ load_fallback_env(BASE_DIR / ".env")
 
 # --- SITE ID pour Django Sites (SEO) ---
 SITE_ID = 1
+NOUVEAU_DUREE_JOURS = 15
 
 # --- SÉCURITÉ (Utilise les variables d'environnement / .env en local) ---
 SECRET_KEY = os.getenv('SECRET_KEY', 'u49lvqEsH5hTNlBcq7cuAq7yoXdgRjww35qxrn-sFrcugL2K6QyuqhV6vphkKD6L-IA')
@@ -99,6 +100,10 @@ LOGGING = {
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS if h.strip()]
+if DEBUG:
+    for local_host in ('127.0.0.1', 'localhost'):
+        if local_host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(local_host)
 if not DEBUG:
     ALLOWED_HOSTS.append('*')  # Temporaire pour prod, restreindre après
 

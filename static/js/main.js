@@ -1,4 +1,16 @@
 document.addEventListener('DOMContentLoaded', function() {
+  const termsVersion = '1.0';
+  const consent = document.getElementById('terms-consent');
+  const acceptedVersion = localStorage.getItem('terms_version');
+  if (consent && (localStorage.getItem('terms_accepted') !== 'true' || acceptedVersion !== termsVersion)) {
+    window.setTimeout(() => { consent.hidden = false; }, 1200);
+  }
+  document.getElementById('terms-accept')?.addEventListener('click', () => {
+    localStorage.setItem('terms_accepted', 'true');
+    localStorage.setItem('terms_version', termsVersion);
+    if (consent) consent.hidden = true;
+  });
+
     
     // 1. Configuration de l'observateur
     const observerOptions = {

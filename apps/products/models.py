@@ -4,6 +4,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
 from django.utils import timezone
+from datetime import timedelta
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from cloudinary.models import CloudinaryField
@@ -129,6 +130,11 @@ class Product(models.Model):
     def is_out_of_stock(self):
         """True si le produit n'a plus de stock réel disponible à la vente."""
         return self.stock <= 0 or self.get_available_stock() <= 0
+
+    @property
+    def is_new(self):
+        cutoff = timezone.now() - timedelta(days=getattr(settings, 'NOUVEAU_DUREE_JOURS', 15))
+        return self.created_at >= cutoff
 
     @property
     def is_low_stock(self):
@@ -312,7 +318,7 @@ class AdminNotification(models.Model):
 
 
 class Review(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews', verbose_name="Produit")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews', null=True, blank=True, verbose_name="Produit")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviews', verbose_name="Client")
     client_name = models.CharField("Nom ou Pseudonyme", max_length=150, help_text="Nom affiché publiquement")
     rating = models.PositiveSmallIntegerField("Note", validators=[MinValueValidator(1), MaxValueValidator(5)])
@@ -340,4 +346,5 @@ class Review(models.Model):
         unique_together = ('product', 'user')
 
     def __str__(self):
-        return f"{self.client_name} - {self.product.name} ({self.rating}/5)"
+        product_name = self.product.name if self.product else "Venus Luna"
+        return f"{self.client_name} - {product_name} ({self.rating}/5)"

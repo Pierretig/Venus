@@ -20,6 +20,7 @@ urlpatterns = [
     # Utilisation du SLUG pour le SEO (ex: /products/bougie-spirituelle/)
     path('produit/<slug:slug>/', views.product_detail, name='product_detail'),
     path('produit/<int:product_id>/laisser-un-avis/', views.submit_review, name='submit_review'),
+    path('laisser-un-avis-general/', views.submit_general_review, name='submit_general_review'),
     
     # --- Wishlist ---
     path('ma-wishlist/', views.wishlist_detail, name='wishlist'),

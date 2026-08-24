@@ -24,9 +24,13 @@ def update_product_rating_stats(product):
 @receiver(post_save, sender=Review)
 def review_saved(sender, instance, **kwargs):
     """Déclenché lors de la création, modification ou modération d'un avis."""
+    if instance.product_id is None:
+        return
     update_product_rating_stats(instance.product)
 
 @receiver(post_delete, sender=Review)
 def review_deleted(sender, instance, **kwargs):
     """Déclenché lors de la suppression d'un avis."""
+    if instance.product_id is None:
+        return
     update_product_rating_stats(instance.product)

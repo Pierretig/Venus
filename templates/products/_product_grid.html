@@ -1,0 +1,8 @@
+{% load static %}
+<div class="products-grid">
+  {% for product in products %}
+    {% include "products/_product_card.html" with product=product %}
+  {% empty %}
+    <p class="px-3 py-4">Aucun produit ne correspond à votre recherche.</p>
+  {% endfor %}
+</div>
