@@ -213,15 +213,43 @@
 
         </div><!-- /.row -->
         {% if user.is_authenticated %}
-        <form method="post" action="{% url 'products:submit_general_review' %}" class="general-review-form mx-auto mt-5">
-            {% csrf_token %}
-            <h3 class="h5 text-white">Partager votre expérience</h3>
-            {{ review_form.client_name }}
-            {{ review_form.rating }}
-            {{ review_form.title }}
-            {{ review_form.comment }}
-            <button type="submit" class="btn-gold-custom mt-3 px-4 py-2">Publier mon avis</button>
-        </form>
+        <div class="general-review-form-card mx-auto mt-5 p-4 rounded-4" style="max-width: 620px; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); border: 1px solid rgba(212, 175, 55, 0.3);">
+            <form method="post" action="{% url 'products:submit_general_review' %}">
+                {% csrf_token %}
+                <h3 class="h5 text-white mb-3 text-center fw-bold"><i class="fas fa-comment-dots me-2" style="color: var(--venus-or, #d4af37);"></i>Partager votre expérience</h3>
+                
+                <div class="mb-3 text-center">
+                    <label class="form-label text-white-50 small mb-1 d-block">Votre note globale :</label>
+                    <div class="star-rating-selector d-inline-flex gap-2 text-muted justify-content-center" style="font-size: 1.6rem; cursor: pointer;">
+                        <i class="fas fa-star star-btn text-warning" data-value="1"></i>
+                        <i class="fas fa-star star-btn text-warning" data-value="2"></i>
+                        <i class="fas fa-star star-btn text-warning" data-value="3"></i>
+                        <i class="fas fa-star star-btn text-warning" data-value="4"></i>
+                        <i class="fas fa-star star-btn text-warning" data-value="5"></i>
+                    </div>
+                    {{ review_form.rating }}
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-md-6 mb-2">
+                        <label for="{{ review_form.client_name.id_for_label }}" class="form-label text-white-50 small mb-1">Votre nom ou prénom <span class="text-danger">*</span></label>
+                        {{ review_form.client_name }}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label for="{{ review_form.title.id_for_label }}" class="form-label text-white-50 small mb-1">Titre de l'avis (optionnel)</label>
+                        {{ review_form.title }}
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label for="{{ review_form.comment.id_for_label }}" class="form-label text-white-50 small mb-1">Votre témoignage <span class="text-danger">*</span></label>
+                        {{ review_form.comment }}
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button type="submit" class="btn-gold-custom rounded-pill px-5 py-2 fw-bold" style="cursor: pointer;">Publier mon avis</button>
+                </div>
+            </form>
+        </div>
         {% else %}
         <p class="text-center text-white-50 mt-4"><a href="{% url 'accounts:login' %}?next={{ request.path }}" class="text-warning">Connectez-vous</a> pour partager votre expérience.</p>
         {% endif %}
@@ -242,8 +270,6 @@
         border-color: rgba(212, 175, 55, 0.4);
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
     }
-    .general-review-form { max-width: 620px; }
-    .general-review-form input, .general-review-form textarea { display: block; width: 100%; margin-top: 10px; padding: 10px 14px; border: 0; border-radius: 8px; }
 </style>
 {% endif %}
 

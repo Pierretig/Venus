@@ -2,9 +2,11 @@
 {% load core_extras %}
 <article class="product-card">
   <div class="product-image-box">
-    {% if product.is_new %}<span class="new-badge">Nouveau</span>{% endif %}
-    {% if product.old_price %}<span class="offer-badge">Offre</span>{% endif %}
-    {% if product.is_out_of_stock %}<span class="stock-badge">Rupture de stock</span>{% endif %}
+    <div class="product-badges">
+      {% if product.is_new %}<span class="badge-item new-badge">Nouveau</span>{% endif %}
+      {% if product.old_price %}<span class="badge-item offer-badge">Offre</span>{% endif %}
+      {% if product.is_out_of_stock %}<span class="badge-item stock-badge">Rupture de stock</span>{% endif %}
+    </div>
     <a href="{% url 'products:product_detail' product.slug %}">
       {% if product.images.first %}
         <img src="{% protected_image product.images.first 'image' %}" class="protected-image" alt="{{ product.name }}">

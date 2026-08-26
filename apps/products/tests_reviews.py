@@ -2,7 +2,7 @@
 Tests automatisés pour le système d'avis clients de Venus Luna.
 Couvre : dépôt, validation, achat vérifié, recalcul, modération, page d'accueil.
 """
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -98,6 +98,7 @@ class ReviewModelTest(TestCase):
             Review.objects.create(product=self.product, user=self.user, client_name="Koffi", rating=4, comment="2ème avis")
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class ReviewViewTest(TestCase):
     """Tests fonctionnels sur les vues de soumission d'avis."""
 

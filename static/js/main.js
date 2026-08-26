@@ -11,6 +11,32 @@ document.addEventListener('DOMContentLoaded', function() {
     if (consent) consent.hidden = true;
   });
 
+  // Sélecteur d'étoiles interactif (produits et avis général accueil)
+  document.querySelectorAll('.star-rating-selector').forEach(container => {
+    const form = container.closest('form');
+    const ratingInput = form ? form.querySelector('#id_rating_input') : document.getElementById('id_rating_input');
+    const stars = container.querySelectorAll('.star-btn');
+    if (ratingInput && stars.length > 0) {
+      if (!ratingInput.value) ratingInput.value = "5";
+      stars.forEach(star => {
+        star.addEventListener('click', function() {
+          const selectedVal = parseInt(this.dataset.value, 10);
+          ratingInput.value = selectedVal.toString();
+          stars.forEach(s => {
+            const sVal = parseInt(s.dataset.value, 10);
+            if (sVal <= selectedVal) {
+              s.classList.remove('text-muted');
+              s.classList.add('text-warning');
+            } else {
+              s.classList.remove('text-warning');
+              s.classList.add('text-muted');
+            }
+          });
+        });
+      });
+    }
+  });
+
     
     // 1. Configuration de l'observateur
     const observerOptions = {
