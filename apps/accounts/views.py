@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.contrib.auth.models import User
@@ -11,7 +11,7 @@ from datetime import timedelta
 
 # Imports de tes modèles
 from apps.orders.models import Order, OrderItem 
-from .forms import UserProfileForm
+from .forms import UserProfileForm, RegisterForm, EmailOrUsernameAuthForm
 
 # --- DASHBOARD ADMIN ---
 @user_passes_test(lambda u: u.is_staff)
@@ -63,31 +63,31 @@ def register(request):
     if request.user.is_authenticated:
         return redirect('accounts:client_dashboard')
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
             messages.success(request, f"Bienvenue {user.username} ! Votre compte a été créé.")
             return redirect('accounts:client_dashboard')
-        messages.error(request, "Erreur lors de l'inscription.")
+        messages.error(request, "Erreur lors de l'inscription. Veuillez corriger les champs.")
     else:
-        form = UserCreationForm()
+        form = RegisterForm()
     return render(request, 'accounts/register.html', {'form': form})
 
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('accounts:client_dashboard')
     if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
+        form = EmailOrUsernameAuthForm(request, data=request.POST)
         if form.is_valid():
             user = form.get_user()
             login(request, user)
             next_url = request.GET.get('next')
             messages.success(request, f"Ravi de vous revoir, {user.username} !")
             return redirect(next_url or 'accounts:client_dashboard')
-        messages.error(request, "Identifiants incorrects.")
+        messages.error(request, "Identifiants incorrects. Vérifiez votre nom d'utilisateur, e-mail ou mot de passe.")
     else:
-        form = AuthenticationForm()
+        form = EmailOrUsernameAuthForm(request)
     return render(request, 'accounts/login.html', {'form': form})
 
 def logout_view(request):
