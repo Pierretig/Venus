@@ -351,7 +351,7 @@ EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '20'))
 EMAIL_HOST_USER = os.getenv('BREVO_SMTP_LOGIN') or os.getenv('EMAIL_HOST_USER') or os.getenv('EMAIL_USER')
 EMAIL_HOST_PASSWORD = os.getenv('BREVO_SMTP_KEY') or os.getenv('EMAIL_HOST_PASSWORD') or os.getenv('EMAIL_APP_PASSWORD')
 
-BREVO_FROM_EMAIL = os.getenv('BREVO_FROM_EMAIL', 'noreply@venus-luna.com')
+BREVO_FROM_EMAIL = os.getenv('BREVO_FROM_EMAIL', 'lsvenusluna@gmail.com')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'Boutique Venus-Luna <{BREVO_FROM_EMAIL}>')
 SERVER_EMAIL = os.getenv('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 

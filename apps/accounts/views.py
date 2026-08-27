@@ -1,5 +1,8 @@
+import logging
 from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login, logout
+from django.urls import reverse_lazy
+from django.conf import settings
+from django.contrib.auth import authenticate, login, logout, views as auth_views
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -9,9 +12,52 @@ from django.utils import timezone
 from django.db.models.functions import TruncDay
 from datetime import timedelta
 
+logger = logging.getLogger(__name__)
+
 # Imports de tes modèles
 from apps.orders.models import Order, OrderItem 
 from .forms import UserProfileForm, RegisterForm, EmailOrUsernameAuthForm
+
+
+# --- RÉINITIALISATION DU MOT DE PASSE SÉCURISÉE ---
+
+class CustomPasswordResetView(auth_views.PasswordResetView):
+    """
+    Vue de réinitialisation de mot de passe sécurisée et résiliente.
+    - Évite l'erreur 500 en cas d'erreur SMTP / réseau
+    - Force un domaine et protocole propres
+    - Journalise l'erreur exacte pour l'administrateur
+    - Protection contre l'énumération des utilisateurs
+    """
+    template_name = 'accounts/password_reset_form.html'
+    email_template_name = 'emails/password_reset_email.txt'
+    html_email_template_name = 'emails/password_reset_email.html'
+    subject_template_name = 'emails/password_reset_subject.txt'
+    success_url = reverse_lazy('accounts:password_reset_done')
+
+    def form_valid(self, form):
+        site_domain = getattr(settings, 'SITE_DOMAIN', 'venus-luna.com')
+        protocol = 'https' if not getattr(settings, 'DEBUG', False) else 'http'
+        opts = {
+            'use_https': (protocol == 'https'),
+            'token_generator': self.token_generator,
+            'from_email': getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+            'email_template_name': self.email_template_name,
+            'subject_template_name': self.subject_template_name,
+            'request': self.request,
+            'html_email_template_name': self.html_email_template_name,
+            'extra_email_context': {
+                'domain': site_domain,
+                'site_name': 'Venus-Luna',
+                'protocol': protocol,
+            },
+            'domain_override': site_domain,
+        }
+        try:
+            form.save(**opts)
+        except Exception as e:
+            logger.error(f"[PASSWORD_RESET] Erreur lors de l'envoi de l'e-mail de réinitialisation : {e}", exc_info=True)
+        return redirect(self.get_success_url())
 
 # --- DASHBOARD ADMIN ---
 @user_passes_test(lambda u: u.is_staff)
