@@ -203,8 +203,9 @@ def home(request):
         'static_testimonials': static_testimonials,
         'reviews_section_enabled': reviews_section_enabled,
         'review_form': ReviewForm(initial={
-            'client_name': request.user.first_name or request.user.username
-        }) if request.user.is_authenticated else None,
+            'client_name': (request.user.first_name or request.user.username)
+            if request.user.is_authenticated else ''
+        }),
     }
     
     return render(request, 'pages/home.html', context)

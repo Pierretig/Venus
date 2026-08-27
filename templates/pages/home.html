@@ -212,7 +212,6 @@
             {% endfor %}
 
         </div><!-- /.row -->
-        {% if user.is_authenticated %}
         <div class="general-review-form-card mx-auto mt-5 p-4 rounded-4" style="max-width: 620px; background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); border: 1px solid rgba(212, 175, 55, 0.3);">
             <form method="post" action="{% url 'products:submit_general_review' %}">
                 {% csrf_token %}
@@ -250,9 +249,6 @@
                 </div>
             </form>
         </div>
-        {% else %}
-        <p class="text-center text-white-50 mt-4"><a href="{% url 'accounts:login' %}?next={{ request.path }}" class="text-warning">Connectez-vous</a> pour partager votre expérience.</p>
-        {% endif %}
     </div>
 </section>
 

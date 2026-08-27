@@ -245,42 +245,51 @@ def product_detail(request, slug):
     return render(request, 'products/product_detail.html', context)
 
 
-@login_required
 def submit_review(request, product_id):
     """
     Traite la soumission d'un avis client.
+    Accessible aux visiteurs connectés ET non connectés.
     """
     if request.method != 'POST':
         return redirect('products:list')
 
     product = get_object_or_404(Product, id=product_id, is_active=True)
 
-    # Double sécurité : Vérification d'avis unique par utilisateur
-    if Review.objects.filter(product=product, user=request.user).exists():
-        messages.error(request, "Vous avez déjà rédigé un avis pour ce produit.")
-        return redirect(product.get_absolute_url())
-
     site_settings = SiteSettings.get_solo()
     reviews_only_buyers = site_settings.reviews_only_buyers if site_settings else False
-    is_buyer = check_verified_purchase(request.user, product)
 
-    # Si dépôt réservé aux acheteurs vérifiés
-    if reviews_only_buyers and not is_buyer:
-        messages.error(request, "Désolé, le dépôt d'avis pour ce produit est réservé aux personnes l'ayant acheté.")
-        return redirect(product.get_absolute_url())
+    # Double sécurité pour les utilisateurs connectés : un avis unique par produit
+    if request.user.is_authenticated:
+        if Review.objects.filter(product=product, user=request.user).exists():
+            messages.error(request, "Vous avez déjà rédigé un avis pour ce produit.")
+            return redirect(product.get_absolute_url())
+
+        is_buyer = check_verified_purchase(request.user, product)
+
+        # Si dépôt réservé aux acheteurs vérifiés (connectés uniquement)
+        if reviews_only_buyers and not is_buyer:
+            messages.error(request, "Désolé, le dépôt d'avis pour ce produit est réservé aux personnes l'ayant acheté.")
+            return redirect(product.get_absolute_url())
+    else:
+        # Visiteur anonyme : impossible de vérifier l'achat
+        is_buyer = False
+        if reviews_only_buyers:
+            messages.error(request, "Le dépôt d'avis pour ce produit est réservé aux acheteurs. Veuillez vous connecter.")
+            return redirect(product.get_absolute_url())
 
     form = ReviewForm(request.POST)
     if form.is_valid():
         review = form.save(commit=False)
         review.product = product
-        review.user = request.user
-        
+        # user = None pour les visiteurs anonymes (champ nullable dans le modèle)
+        review.user = request.user if request.user.is_authenticated else None
+
         # Protection XSS
         review.client_name = strip_tags(review.client_name.strip())
         review.title = strip_tags(review.title.strip())
         review.comment = strip_tags(review.comment.strip())
-        
-        # Achat vérifié
+
+        # Achat vérifié (False pour les anonymes)
         review.verified_purchase = is_buyer
         review.is_approved = False  # Nécessite validation de l'admin
         review.save()
@@ -288,9 +297,10 @@ def submit_review(request, product_id):
         # Enregistrement de la notification d'administration
         try:
             title = f"Nouvel avis à modérer : {product.name}"
+            user_info = request.user.username if request.user.is_authenticated else "Visiteur anonyme"
             message = (
                 f"Produit : {product.name}\n"
-                f"Client : {review.client_name} (User: {request.user.username})\n"
+                f"Client : {review.client_name} (User: {user_info})\n"
                 f"Note : {review.rating}/5\n"
                 f"Commentaire : {review.comment}"
             )
@@ -299,8 +309,8 @@ def submit_review(request, product_id):
                 message=message,
                 notification_type='new_review'
             )
-            
-            # Envoi d'alertes par email/ WhatsApp
+
+            # Envoi d'alertes par email / WhatsApp
             from .notifications import trigger_new_review_alerts
             trigger_new_review_alerts(review)
         except Exception as e:
@@ -315,16 +325,18 @@ def submit_review(request, product_id):
     return redirect(product.get_absolute_url())
 
 
-@login_required
 def submit_general_review(request):
-    """Traite un avis général affiché sur la page d'accueil."""
+    """Traite un avis général affiché sur la page d'accueil.
+    Accessible aux visiteurs connectés ET non connectés.
+    """
     if request.method != 'POST':
         return redirect('core:home')
 
     form = ReviewForm(request.POST)
     if form.is_valid():
         review = form.save(commit=False)
-        review.user = request.user
+        # user = None pour les visiteurs anonymes (champ nullable dans le modèle)
+        review.user = request.user if request.user.is_authenticated else None
         review.client_name = strip_tags(review.client_name.strip())
         review.title = strip_tags(review.title.strip())
         review.comment = strip_tags(review.comment.strip())
