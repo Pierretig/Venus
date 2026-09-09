@@ -24,6 +24,19 @@ def cgv_view(request):
     return render(request, 'pages/cgv.html') # Assure-toi que ce template existe
 
 
+# Liste blanche stricte des triplets (app_label, model_name, field_name) autorisés pour le proxy d'image public
+ALLOWED_SERVE_IMAGE_FIELDS = {
+    ('products', 'product', 'image'),
+    ('products', 'productimage', 'image'),
+    ('products', 'category', 'image'),
+    ('core', 'banner', 'image'),
+    ('core', 'sitesettings', 'logo'),
+    ('core', 'sitesettings', 'favicon'),
+    ('accounts', 'profile', 'avatar'),
+    ('blog', 'post', 'image'),
+}
+
+
 def serve_image(request, app_label, model_name, pk, field_name):
     """
     Vue proxy qui sert les images Cloudinary avec ou sans watermark
@@ -35,7 +48,16 @@ def serve_image(request, app_label, model_name, pk, field_name):
     L'URL utilise le modèle Django et la PK ; le public_id Cloudinary
     n'est JAMAIS exposé dans le HTML.
     """
-    model = apps.get_model(app_label, model_name)
+    # Validation stricte contre l'extraction arbitraire d'attributs (Information Disclosure)
+    app_key = (app_label.lower(), model_name.lower(), field_name.lower())
+    if app_key not in ALLOWED_SERVE_IMAGE_FIELDS:
+        raise Http404("Image non autorisée ou ressource introuvable.")
+
+    try:
+        model = apps.get_model(app_label, model_name)
+    except (LookupError, ValueError):
+        raise Http404("Modèle introuvable.")
+
     instance = get_object_or_404(model, pk=pk)
 
     field = getattr(instance, field_name, None)

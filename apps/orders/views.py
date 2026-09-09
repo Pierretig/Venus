@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponse, JsonResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
@@ -39,7 +39,22 @@ BKAPAY_SECRET_WEBHOOK = getattr(settings, 'BKAPAY_SECRET_WEBHOOK', None)
 CASHPAY_SECRET_WEBHOOK = getattr(settings, 'CASHPAY_SECRET_WEBHOOK', None)
 
 
-@login_required  # Optionnel : seulement si tu veux que ce soit privé
+def _can_access_order(request, order):
+    """
+    Vérifie si l'utilisateur courant a le droit d'accéder à la commande :
+    - Administrateurs (is_staff) : toujours autorisé.
+    - Commande liée à un compte : uniquement si l'utilisateur est connecté et propriétaire.
+    - Commande passée en invité (order.user is None) : autorisé si l'ID correspond à la session active du client.
+    """
+    if request.user.is_authenticated and request.user.is_staff:
+        return True
+    if order.user_id is not None:
+        return request.user.is_authenticated and request.user.id == order.user_id
+    # Commande invité : vérification de la session
+    return request.session.get('last_order_id') == order.id
+
+
+@user_passes_test(lambda u: u.is_authenticated and u.is_staff)
 def dashboard_view(request):
     # On récupère les vraies données de ta base
     orders = Order.objects.all()
@@ -246,6 +261,9 @@ def checkout(request):
                     country=form.cleaned_data.get('country', 'Togo')
                 )
 
+                # Mémoriser l'ID de la commande en session pour permettre l'accès légitime aux invités
+                request.session['last_order_id'] = order.id
+
                 if total_final < 200:
                     messages.error(request, f"Le montant ({total_final} F) est trop bas.")
                     order.delete()
@@ -314,18 +332,12 @@ def payment_success(request):
 
 @csrf_exempt
 def cashpay_webhook(request):
-    """Webhook CashPay: reçoit un body contenant un JWT (token).
-
-    NB: Cette implémentation ne valide pas la signature JWT (dépendante du secret/clef CashPay) pour éviter les erreurs en prod.
-    On utilise le JWT uniquement pour lire state/order_reference.
-    """
-
+    """Webhook CashPay: reçoit un body contenant un JWT (token) et valide sa signature."""
     if request.method != 'POST':
         return HttpResponse(status=405)
 
     try:
         payload = request.body
-        # CashPay envoie un body JSON (souvent {"token": "..."})
         data = json.loads(payload) if payload else {}
         token = data.get('token') or data.get('Token') or data.get('jwt')
         if not token:
@@ -335,20 +347,34 @@ def cashpay_webhook(request):
             )
             return HttpResponse(status=400)
 
-        import base64
-        import json as _json
+        # Validation cryptographique de la signature JWT si le secret est configuré
+        webhook_secret = getattr(settings, 'CASHPAY_SECRET_WEBHOOK', None)
+        decoded_payload = None
 
-        def _b64url_decode(s):
-            s = s.encode('utf-8')
-            s += b'=' * (-len(s) % 4)
-            return base64.urlsafe_b64decode(s)
+        if webhook_secret:
+            try:
+                import jwt
+                decoded_payload = jwt.decode(token, webhook_secret, algorithms=["HS256"])
+            except Exception as jwt_err:
+                logger.error(f"CashPay webhook: échec de vérification de signature JWT : {jwt_err}")
+                return HttpResponse("Signature invalide", status=401)
+        else:
+            logger.warning("CashPay webhook: CASHPAY_SECRET_WEBHOOK non configuré, vérification désactivée.")
+            import base64
+            import json as _json
 
-        parts = token.split('.')
-        if len(parts) < 2:
-            return HttpResponse(status=400)
+            def _b64url_decode(s):
+                s = s.encode('utf-8')
+                s += b'=' * (-len(s) % 4)
+                return base64.urlsafe_b64decode(s)
 
-        header_b64, payload_b64 = parts[0], parts[1]
-        decoded_payload = _json.loads(_b64url_decode(payload_b64).decode('utf-8'))
+            parts = token.split('.')
+            if len(parts) < 2:
+                return HttpResponse(status=400)
+
+            header_b64, payload_b64 = parts[0], parts[1]
+            decoded_payload = _json.loads(_b64url_decode(payload_b64).decode('utf-8'))
+
 
         order_reference = decoded_payload.get('order_reference')
         merchant_reference = decoded_payload.get('merchant_reference')
@@ -395,6 +421,10 @@ def cashpay_webhook(request):
 
 def order_confirm(request, order_id):
     order = get_object_or_404(Order, pk=order_id)
+    if not _can_access_order(request, order):
+        if not request.user.is_authenticated:
+            return redirect(f"{reverse('accounts:login')}?next={request.path}")
+        raise Http404("Commande introuvable ou accès non autorisé.")
     return render(request, 'orders/confirm.html', {'order': order})
 
 
@@ -410,6 +440,10 @@ def order_history(request):
 
 def export_order_pdf(request, order_id):
     order = get_object_or_404(Order, id=order_id)
+    if not _can_access_order(request, order):
+        if not request.user.is_authenticated:
+            return redirect(f"{reverse('accounts:login')}?next={request.path}")
+        raise Http404("Commande introuvable ou accès non autorisé.")
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="Facture_VenusLuna_{order.id}.pdf"'
 

@@ -175,3 +175,32 @@ class UrlExposureTest(TestCase):
         expected_pattern = '/media/image/blog/post/99/image/'
         self.assertEqual(url, expected_pattern)
 
+
+class SecurityServeImageTest(TestCase):
+    """Vérifie le blocage strict des tentatives d'extraction d'attributs arbitraires."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def test_unauthorized_model_returns_404(self):
+        """Tentative d'accès au modèle User -> 404."""
+        from django.http import Http404
+        request = self.factory.get('/media/image/auth/user/1/password/')
+        with self.assertRaises(Http404):
+            serve_image(request, 'auth', 'user', 1, 'password')
+
+    def test_unauthorized_field_on_allowed_model_returns_404(self):
+        """Tentative d'accès à un champ non-image sur un modèle autorisé -> 404."""
+        from django.http import Http404
+        request = self.factory.get('/media/image/products/product/1/price/')
+        with self.assertRaises(Http404):
+            serve_image(request, 'products', 'product', 1, 'price')
+
+    def test_unauthorized_arbitrary_model_returns_404(self):
+        """Tentative d'accès au modèle Order -> 404."""
+        from django.http import Http404
+        request = self.factory.get('/media/image/orders/order/1/total/')
+        with self.assertRaises(Http404):
+            serve_image(request, 'orders', 'order', 1, 'total')
+
+

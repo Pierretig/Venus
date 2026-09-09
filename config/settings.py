@@ -55,8 +55,18 @@ SITE_ID = 1
 NOUVEAU_DUREE_JOURS = 15
 
 # --- SÉCURITÉ (Utilise les variables d'environnement / .env en local) ---
-SECRET_KEY = os.getenv('SECRET_KEY', 'u49lvqEsH5hTNlBcq7cuAq7yoXdgRjww35qxrn-sFrcugL2K6QyuqhV6vphkKD6L-IA')
+_env_secret = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+if _env_secret:
+    SECRET_KEY = _env_secret
+else:
+    import logging as _logging
+    _logging.getLogger('django.security').warning(
+        "ATTENTION SÉCURITÉ : La variable d'environnement SECRET_KEY n'est pas définie. "
+        "Définissez impérativement SECRET_KEY dans vos variables de production !"
+    )
+    SECRET_KEY = 'django-insecure-venus-luna-fallback-must-set-env-secret-key'
 
 # PROD LOGGING pour debug 502 errors
 LOGGING = {
@@ -98,14 +108,12 @@ LOGGING = {
     },
 }
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,venus-luna.com,www.venus-luna.com').split(',')
 ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS if h.strip()]
 if DEBUG:
     for local_host in ('127.0.0.1', 'localhost'):
         if local_host not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(local_host)
-if not DEBUG:
-    ALLOWED_HOSTS.append('*')  # Temporaire pour prod, restreindre après
 
 # --- CORRECTION CSRF PRODUCTION ---
 CSRF_TRUSTED_ORIGINS = [
@@ -122,12 +130,15 @@ if not DEBUG:
 # Chemins exemptés de la redirection HTTP→HTTPS (sondes internes sans en-têtes proxy)
 SECURE_REDIRECT_EXEMPT = [r'^health/?$']
 
-# HTTPS/SSL Settings pour SEO (uniquement en production)
+# HTTPS/SSL Settings pour SEO et durcissement sécurité (uniquement en production)
 if not DEBUG:
     SECURE_SSL_REDIRECT = True  # Redirect HTTP to HTTPS
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
 else:
     SECURE_SSL_REDIRECT = False
     

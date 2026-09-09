@@ -185,20 +185,30 @@
     </div>
 </div>
 
+{{ chart_labels|json_script:"sales-labels-data" }}
+{{ chart_values|json_script:"sales-values-data" }}
+{{ pie_labels|json_script:"category-labels-data" }}
+{{ pie_values|json_script:"category-values-data" }}
+
 <script>
     // Configuration Chart.js
     const venusGreen = '#1c683b';
     const venusGold = '#d4af37';
+
+    const salesLabels = JSON.parse(document.getElementById('sales-labels-data').textContent || '[]');
+    const salesValues = JSON.parse(document.getElementById('sales-values-data').textContent || '[]');
+    const categoryLabels = JSON.parse(document.getElementById('category-labels-data').textContent || '[]');
+    const categoryValues = JSON.parse(document.getElementById('category-values-data').textContent || '[]');
 
     // 1. Line Chart : Revenus
     const salesCtx = document.getElementById('salesChart').getContext('2d');
     new Chart(salesCtx, {
         type: 'line',
         data: {
-            labels: {{ chart_labels|safe }},
+            labels: salesLabels,
             datasets: [{
                 label: 'Revenus',
-                data: {{ chart_values|safe }},
+                data: salesValues,
                 borderColor: venusGold,
                 backgroundColor: 'rgba(212, 175, 55, 0.1)',
                 borderWidth: 4,
@@ -225,9 +235,9 @@
     new Chart(categoryCtx, {
         type: 'doughnut',
         data: {
-            labels: {{ pie_labels|safe }},
+            labels: categoryLabels,
             datasets: [{
-                data: {{ pie_values|safe }},
+                data: categoryValues,
                 backgroundColor: [venusGreen, venusGold, '#155430', '#fbc02d', '#c0c0c0'],
                 borderWidth: 5,
                 borderColor: '#ffffff'
