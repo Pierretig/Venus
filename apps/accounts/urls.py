@@ -39,6 +39,7 @@ urlpatterns = [
     
     path('mon-compte/', views.client_dashboard, name='client_dashboard'),
     path('mon-compte/modifier/', views.edit_profile, name='profile_edit'),
+    path('mon-compte/changer-mot-de-passe/', views.change_password, name='change_password'),
     # Espace Gestion Boutique (Admin)
     path('gestion-boutique/', views.admin_dashboard, name='admin_dashboard'),
 

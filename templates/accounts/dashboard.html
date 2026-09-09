@@ -85,6 +85,9 @@
                         <a href="{% url 'accounts:profile_edit' %}" class="list-group-item list-group-item-action d-flex align-items-center">
                             <i class="fas fa-fingerprint me-2"></i> Sécurité & Profil
                         </a>
+                        <a href="{% url 'accounts:change_password' %}" class="list-group-item list-group-item-action d-flex align-items-center">
+                            <i class="fas fa-key me-2"></i> Modifier mon mot de passe
+                        </a>
                         <form action="{% url 'accounts:logout' %}" method="post" class="px-3 mt-3">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-sm btn-outline-danger w-100 rounded-pill">

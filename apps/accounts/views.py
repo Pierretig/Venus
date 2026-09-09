@@ -2,11 +2,13 @@ import logging
 from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from django.conf import settings
-from django.contrib.auth import authenticate, login, logout, views as auth_views
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import authenticate, login, logout, views as auth_views, update_session_auth_hash
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django.db.models import Sum, Count
 from django.utils import timezone
 from django.db.models.functions import TruncDay
@@ -158,3 +160,72 @@ def edit_profile(request):
     else:
         form = UserProfileForm(instance=request.user)
     return render(request, 'accounts/edit_profile.html', {'form': form})
+
+
+# --- CHANGEMENT DE MOT DE PASSE (utilisateur connecté) ---
+
+@login_required
+def change_password(request):
+    """
+    Permet à un utilisateur authentifié de modifier son mot de passe.
+
+    Sécurité :
+    - Protégé par @login_required → redirection vers LOGIN_URL si non connecté
+    - Utilise PasswordChangeForm (Django natif) :
+        * vérifie le mot de passe actuel via check_password()
+        * soumet le nouveau mdp aux AUTH_PASSWORD_VALIDATORS configurés
+        * hash le nouveau mdp via Django (jamais en clair)
+    - update_session_auth_hash() maintient la session sans déconnecter l'utilisateur
+    - Aucun mot de passe n'est jamais loggé ni réaffiché dans les messages d'erreur
+    - Protection CSRF assurée par le middleware ({% csrf_token %} dans le template)
+    - Impossible de modifier le mdp d'un autre utilisateur (form lié à request.user)
+    """
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Maintient la session après changement (évite la déconnexion forcée)
+            update_session_auth_hash(request, user)
+
+            # Envoi email de confirmation — même pattern que CustomPasswordResetView
+            try:
+                subject = "Votre mot de passe Venus Luna a été modifié"
+                site_domain = getattr(settings, 'SITE_DOMAIN', 'venus-luna.com')
+                protocol = 'https' if not getattr(settings, 'DEBUG', False) else 'http'
+                context = {
+                    'user': user,
+                    'domain': site_domain,
+                    'protocol': protocol,
+                    'site_name': 'Venus-Luna',
+                }
+                html_message = render_to_string(
+                    'emails/password_changed_email.html', context
+                )
+                plain_message = render_to_string(
+                    'emails/password_changed_email.txt', context
+                )
+                if user.email:
+                    send_mail(
+                        subject=subject,
+                        message=plain_message,
+                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+                        recipient_list=[user.email],
+                        html_message=html_message,
+                        fail_silently=False,
+                    )
+            except Exception as e:
+                # Ne bloque pas le flux si l'envoi échoue (même comportement que CustomPasswordResetView)
+                logger.error(
+                    "[CHANGE_PASSWORD] Erreur lors de l'envoi de l'e-mail de confirmation : %s",
+                    e,
+                    exc_info=True,
+                )
+
+            messages.success(request, "Votre mot de passe a été modifié avec succès.")
+            return redirect('accounts:client_dashboard')
+        # En cas d'erreur : le formulaire est réaffiché avec les erreurs
+        # Les champs de mot de passe sont vides (comportement Django par défaut — sécurisé)
+    else:
+        form = PasswordChangeForm(request.user)
+
+    return render(request, 'accounts/change_password.html', {'form': form})

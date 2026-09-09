@@ -22,3 +22,22 @@ media/
 staticfiles/
 venus-luna
 TODO.md
+API Cashpay V3.0.pdf
+
+# Docker
+*.tar
+
+# Logs de production
+*.log
+django.log
+
+# Fichiers de production
+*.lock
+
+# Logs de production
+django.log
+gunicorn_access.log
+gunicorn_error.log
+
+# Fichiers de production
+*.lock
