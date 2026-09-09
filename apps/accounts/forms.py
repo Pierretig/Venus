@@ -133,6 +133,11 @@ class UserProfileForm(forms.ModelForm):
         required=False,
         widget=forms.Textarea(attrs={'rows': 3, 'class': 'form-control'})
     )
+    avatar = forms.ImageField(
+        label="Photo de profil (Avatar)",
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/png,image/jpeg,image/webp'})
+    )
 
     class Meta:
         model = User
@@ -143,8 +148,29 @@ class UserProfileForm(forms.ModelForm):
             'email': forms.EmailInput(attrs={'readonly': 'readonly', 'class': 'form-control'}),
         }
 
+    def clean_avatar(self):
+        avatar = self.cleaned_data.get('avatar')
+        if avatar and hasattr(avatar, 'size'):
+            max_size = 2 * 1024 * 1024
+            if avatar.size > max_size:
+                raise forms.ValidationError("L'image ne doit pas dépasser 2 Mo.")
+            allowed_types = ['image/jpeg', 'image/png', 'image/webp']
+            content_type = getattr(avatar, 'content_type', '')
+            if content_type and content_type not in allowed_types:
+                raise forms.ValidationError("Format d'image non supporté. Formats acceptés : JPEG, PNG, WEBP.")
+        return avatar
+
+    def clean_email(self):
+        # Sécurité anti-falsification : l'adresse email ne peut pas être modifiée via ce formulaire
+        if self.instance and self.instance.pk:
+            return self.instance.email
+        return self.cleaned_data.get('email')
+
     def __init__(self, *args, **kwargs):
         super(UserProfileForm, self).__init__(*args, **kwargs)
+        # Sécurité : le champ email est verrouillé côté serveur (disabled=True ignore tout POST falsifié)
+        if 'email' in self.fields:
+            self.fields['email'].disabled = True
         # Si l'utilisateur a deja un profil, on pre-remplit les champs phone et address
         if self.instance and hasattr(self.instance, 'profile'):
             self.fields['phone'].initial = self.instance.profile.phone

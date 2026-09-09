@@ -204,3 +204,24 @@ class SecurityServeImageTest(TestCase):
             serve_image(request, 'orders', 'order', 1, 'total')
 
 
+class SecurityHeadersTest(TestCase):
+    """Tests des en-têtes HTTP de durcissement."""
+
+    def test_permissions_policy_header_present(self):
+        """Vérifie que l'en-tête Permissions-Policy est injecté sur chaque réponse."""
+        response = self.client.get(reverse('core:home'))
+        self.assertIn('Permissions-Policy', response.headers)
+        self.assertIn('camera=()', response.headers['Permissions-Policy'])
+
+    @override_settings(DEBUG=False)
+    def test_csp_header_present_in_production(self):
+        """Vérifie que la politique CSP est injectée en mode production."""
+        response = self.client.get(reverse('core:home'))
+        self.assertIn('Content-Security-Policy', response.headers)
+        csp = response.headers['Content-Security-Policy']
+        self.assertIn('res.cloudinary.com', csp)
+        self.assertIn('api.semoa-payments.ovh', csp)
+        self.assertIn("default-src 'self'", csp)
+
+
+

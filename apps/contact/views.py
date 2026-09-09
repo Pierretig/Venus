@@ -1,8 +1,10 @@
 # ...existing code...
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from apps.core.ratelimit import ratelimit
 from .forms import ContactForm
 
+@ratelimit(rate='5/m', key='ip', block=True, redirect_url='contact:contact', error_message="Trop de messages envoyés. Veuillez patienter une minute avant de renvoyer un message.")
 def contact(request):
     if request.method == 'POST':
         form = ContactForm(request.POST)

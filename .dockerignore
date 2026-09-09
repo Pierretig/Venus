@@ -10,5 +10,8 @@ __pycache__/
 media/
 staticfiles/
 arborescence.txt
-
-
+db.sqlite3
+*.sqlite3
+venus-luna
+*.log
+django.log

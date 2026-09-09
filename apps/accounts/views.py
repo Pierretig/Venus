@@ -16,8 +16,8 @@ from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
-# Imports de tes modèles
 from apps.orders.models import Order, OrderItem 
+from apps.core.ratelimit import ratelimit
 from .forms import UserProfileForm, RegisterForm, EmailOrUsernameAuthForm
 
 
@@ -36,6 +36,10 @@ class CustomPasswordResetView(auth_views.PasswordResetView):
     html_email_template_name = 'emails/password_reset_email.html'
     subject_template_name = 'emails/password_reset_subject.txt'
     success_url = reverse_lazy('accounts:password_reset_done')
+
+    @ratelimit(rate='5/m', key='ip', block=True, redirect_url='accounts:password_reset', error_message="Trop de tentatives de réinitialisation. Veuillez patienter avant de réessayer.")
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def form_valid(self, form):
         site_domain = getattr(settings, 'SITE_DOMAIN', 'venus-luna.com')
@@ -107,6 +111,7 @@ def admin_dashboard(request):
 
 # --- GESTION DES COMPTES ---
 
+@ratelimit(rate='5/m', key='ip', block=True, redirect_url='accounts:register', error_message="Trop de tentatives d'inscription. Veuillez patienter une minute.")
 def register(request):
     if request.user.is_authenticated:
         return redirect('accounts:client_dashboard')
@@ -122,6 +127,7 @@ def register(request):
         form = RegisterForm()
     return render(request, 'accounts/register.html', {'form': form})
 
+@ratelimit(rate='5/m', key='ip', block=True, redirect_url='accounts:login', error_message="Trop de tentatives de connexion échouées. Veuillez patienter une minute avant de réessayer.")
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('accounts:client_dashboard')
@@ -139,6 +145,13 @@ def login_view(request):
     return render(request, 'accounts/login.html', {'form': form})
 
 def logout_view(request):
+    """
+    Déconnexion sécurisée :
+    - Exige la méthode POST pour prévenir les attaques CSRF Logout via des balises <img> ou liens tiers.
+    - Si une requête GET arrive, l'utilisateur n'est pas déconnecté et est redirigé sans effet de bord.
+    """
+    if request.method != 'POST':
+        return redirect('accounts:client_dashboard' if request.user.is_authenticated else 'accounts:login')
     logout(request)
     messages.info(request, "Vous avez été déconnecté.")
     return redirect('accounts:login')
@@ -152,7 +165,7 @@ def client_dashboard(request):
 @login_required
 def edit_profile(request):
     if request.method == 'POST':
-        form = UserProfileForm(request.POST, instance=request.user)
+        form = UserProfileForm(request.POST, request.FILES, instance=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, "Profil mis à jour avec succès.")

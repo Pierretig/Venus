@@ -204,3 +204,102 @@ class ChangePasswordViewTests(TestCase):
             other_user.check_password('MotDePasseAutre123!'),
             "Le mot de passe d'un autre utilisateur ne doit pas être modifié."
         )
+
+
+class AccountsSecurityHardeningTests(TestCase):
+    """Tests du durcissement de sécurité des comptes."""
+
+    def test_password_reset_timeout_is_one_hour(self):
+        """Vérifie que la durée de vie du token de réinitialisation est bien de 3600s (1h)."""
+        from django.conf import settings
+        self.assertEqual(settings.PASSWORD_RESET_TIMEOUT, 3600)
+
+    def test_login_rate_limiting_blocks_after_threshold(self):
+        """Vérifie que le rate limiting bloque après 5 tentatives de connexion par minute."""
+        from django.core.cache import cache
+        cache.clear()
+        client = Client()
+        login_url = reverse('accounts:login')
+
+        # 5 premières tentatives échouées
+        for i in range(5):
+            response = client.post(login_url, {'username': f'baduser_{i}', 'password': 'badpassword'})
+            self.assertEqual(response.status_code, 200)
+
+        # 6e tentative -> doit être bloquée par le rate limit (redirect avec message d'erreur)
+        response_blocked = client.post(login_url, {'username': 'baduser_6', 'password': 'badpassword'}, follow=True)
+        messages_list = [str(m) for m in response_blocked.context['messages']]
+        self.assertTrue(any('Trop de tentatives' in m for m in messages_list))
+
+    def test_user_profile_form_avatar_size_validation(self):
+        """Vérifie que le formulaire rejette les avatars dépassant 2 Mo."""
+        import io
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from apps.accounts.forms import UserProfileForm
+
+        # Création d'une image PNG valide paddée à 2.5 Mo
+        img = Image.new('RGB', (20, 20), color='green')
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        oversized_content = buf.getvalue() + b' ' * (int(2.5 * 1024 * 1024))
+
+        oversized_file = SimpleUploadedFile(
+            'big_avatar.png',
+            oversized_content,
+            content_type='image/png'
+        )
+
+        form = UserProfileForm(
+            data={'first_name': 'Test', 'last_name': 'User', 'email': 'test@venus-luna.com'},
+            files={'avatar': oversized_file}
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('avatar', form.errors)
+        self.assertTrue(any('2 Mo' in err for err in form.errors['avatar']))
+
+    def test_user_profile_email_cannot_be_tampered(self):
+        """Vérifie que l'adresse email de l'utilisateur ne peut pas être modifiée via edit_profile."""
+        client = Client()
+        user = User.objects.create_user(
+            username='user_tamper',
+            email='legitimate@venus-luna.com',
+            password='Password123!'
+        )
+        client.login(username='user_tamper', password='Password123!')
+        url = reverse('accounts:profile_edit')
+
+        # Tentative de falsification de l'email via requête POST
+        response = client.post(url, {
+            'first_name': 'HackedName',
+            'last_name': 'HackedLast',
+            'email': 'evil_hijack@venus-luna.com',
+            'phone': '+22890000000',
+            'address': 'Quartier Test'
+        })
+        self.assertEqual(response.status_code, 302)
+
+        user.refresh_from_db()
+        # Le nom doit avoir changé, mais l'email DOIT être resté intact
+        self.assertEqual(user.first_name, 'HackedName')
+        self.assertEqual(user.email, 'legitimate@venus-luna.com')
+
+    def test_logout_ignores_get_request(self):
+        """Protection CSRF Logout : une requête GET ne déconnecte pas l'utilisateur."""
+        client = Client()
+        user = User.objects.create_user(
+            username='user_logout_test',
+            email='logout_test@venus-luna.com',
+            password='Password123!'
+        )
+        client.login(username='user_logout_test', password='Password123!')
+        logout_url = reverse('accounts:logout')
+
+        # Requête GET sur la déconnexion
+        response = client.get(logout_url)
+        self.assertEqual(response.status_code, 302)
+
+        # L'utilisateur doit toujours être connecté
+        dashboard_response = client.get(reverse('accounts:client_dashboard'))
+        self.assertEqual(dashboard_response.status_code, 200)
+

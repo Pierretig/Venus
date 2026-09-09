@@ -14,6 +14,8 @@ DATABASES = {
     }
 }
 
+SECRET_KEY = "test-secret-key-for-unit-tests-only"
+
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 SECURE_SSL_REDIRECT = False
 DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"

@@ -22,6 +22,7 @@ from .forms import CheckoutForm
 from .models import Order, OrderItem, ShippingAddress, ShippingZone
 from .utils import send_order_pending_payment_email, send_order_paid_email
 from apps.products.models import Product, StockReservation
+from apps.core.ratelimit import ratelimit
 from apps.products.stock_utils import (
     get_available_stock, reserve_stock, release_reservation_session,
     sync_reservations_from_cart, is_cart_available,
@@ -202,6 +203,7 @@ def cart_remove(request, product_id):
 # PROCESSUS DE COMMANDE (CHECKOUT & CASHPAY)
 # =====================================================
 
+@ratelimit(rate='10/m', key='ip', block=True, redirect_url='orders:cart_detail', error_message="Trop de tentatives de commande. Veuillez patienter une minute.")
 def checkout(request):
     items, total = get_cart_data(request)
     zones = ShippingZone.objects.all()
@@ -304,8 +306,12 @@ def checkout(request):
                 return redirect(payment_url)
 
             except Exception as e:
-                logger.error(f"Erreur checkout : {e}")
-                messages.error(request, f"Un problème est survenu : {e}")
+                logger.error(f"Erreur checkout : {e}", exc_info=True)
+                messages.error(
+                    request,
+                    "Un problème est survenu lors de l'initialisation du paiement. "
+                    "Veuillez réessayer dans quelques instants ou contacter notre service client."
+                )
     else:
         form = CheckoutForm()
 
@@ -347,34 +353,18 @@ def cashpay_webhook(request):
             )
             return HttpResponse(status=400)
 
-        # Validation cryptographique de la signature JWT si le secret est configuré
+        # Validation cryptographique stricte de la signature JWT (Politique Fail-Closed)
         webhook_secret = getattr(settings, 'CASHPAY_SECRET_WEBHOOK', None)
-        decoded_payload = None
+        if not webhook_secret:
+            logger.critical("CashPay webhook rejeté: CASHPAY_SECRET_WEBHOOK non configuré en base/environnement.")
+            return HttpResponse("Configuration webhook requise", status=503)
 
-        if webhook_secret:
-            try:
-                import jwt
-                decoded_payload = jwt.decode(token, webhook_secret, algorithms=["HS256"])
-            except Exception as jwt_err:
-                logger.error(f"CashPay webhook: échec de vérification de signature JWT : {jwt_err}")
-                return HttpResponse("Signature invalide", status=401)
-        else:
-            logger.warning("CashPay webhook: CASHPAY_SECRET_WEBHOOK non configuré, vérification désactivée.")
-            import base64
-            import json as _json
-
-            def _b64url_decode(s):
-                s = s.encode('utf-8')
-                s += b'=' * (-len(s) % 4)
-                return base64.urlsafe_b64decode(s)
-
-            parts = token.split('.')
-            if len(parts) < 2:
-                return HttpResponse(status=400)
-
-            header_b64, payload_b64 = parts[0], parts[1]
-            decoded_payload = _json.loads(_b64url_decode(payload_b64).decode('utf-8'))
-
+        try:
+            import jwt
+            decoded_payload = jwt.decode(token, webhook_secret, algorithms=["HS256"])
+        except Exception as jwt_err:
+            logger.error(f"CashPay webhook: échec de vérification de signature JWT : {jwt_err}")
+            return HttpResponse("Signature invalide", status=401)
 
         order_reference = decoded_payload.get('order_reference')
         merchant_reference = decoded_payload.get('merchant_reference')
@@ -401,6 +391,19 @@ def cashpay_webhook(request):
         if not order:
             return HttpResponse(status=404)
 
+        # Vérification du montant payé si transmis dans le payload
+        payload_amount = decoded_payload.get('amount')
+        if payload_amount is not None:
+            try:
+                if int(Decimal(str(payload_amount))) < int(order.total):
+                    logger.error(
+                        f"CashPay webhook: Montant insuffisant pour la commande #{order.id}. "
+                        f"Reçu: {payload_amount}, Attendu: {order.total}"
+                    )
+                    return HttpResponse("Montant incohérent", status=400)
+            except Exception as amount_err:
+                logger.warning(f"CashPay webhook: Erreur lors de la comparaison de montant : {amount_err}")
+
         # CashPay bill states: Paid / Partial / Excess / Pending...
         if state == 'Paid' and not order.payment_status:
             order.status = 'paid'
@@ -411,7 +414,7 @@ def cashpay_webhook(request):
         return JsonResponse({'received': True})
 
     except Exception as e:
-        logger.error(f"CashPay webhook error: {e}")
+        logger.error(f"CashPay webhook error: {e}", exc_info=True)
         return HttpResponse(status=400)
 
 

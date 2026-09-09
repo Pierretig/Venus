@@ -175,7 +175,7 @@ class OrderSecurityTests(TestCase):
     def test_cashpay_webhook_accepts_valid_signature(self):
         """Le webhook accepte un jeton valablement signé avec le secret configuré."""
         valid_token = jwt.encode(
-            {'merchant_reference': str(self.order_a.id), 'state': 'Paid'},
+            {'merchant_reference': str(self.order_a.id), 'state': 'Paid', 'amount': 5000},
             'mon_secret_de_test_securise',
             algorithm='HS256'
         )
@@ -189,3 +189,39 @@ class OrderSecurityTests(TestCase):
         self.order_a.refresh_from_db()
         self.assertTrue(self.order_a.payment_status)
         self.assertEqual(self.order_a.status, 'paid')
+
+    @override_settings(CASHPAY_SECRET_WEBHOOK='')
+    def test_cashpay_webhook_rejects_when_secret_not_configured(self):
+        """Fail-Closed : le webhook rejette (HTTP 503) toute notification si le secret n'est pas configuré."""
+        valid_token = jwt.encode(
+            {'merchant_reference': str(self.order_a.id), 'state': 'Paid'},
+            'cle_quelconque',
+            algorithm='HS256'
+        )
+        url = reverse('orders:cashpay_webhook')
+        response = self.client.post(
+            url,
+            data=json.dumps({'token': valid_token}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 503)
+        self.order_a.refresh_from_db()
+        self.assertFalse(self.order_a.payment_status)
+
+    @override_settings(CASHPAY_SECRET_WEBHOOK='mon_secret_de_test_securise')
+    def test_cashpay_webhook_rejects_inconsistent_amount(self):
+        """Le webhook rejette (HTTP 400) un jeton dont le montant payé est inférieur au total attendu."""
+        underpaid_token = jwt.encode(
+            {'merchant_reference': str(self.order_a.id), 'state': 'Paid', 'amount': 100},  # 100 au lieu de 5000
+            'mon_secret_de_test_securise',
+            algorithm='HS256'
+        )
+        url = reverse('orders:cashpay_webhook')
+        response = self.client.post(
+            url,
+            data=json.dumps({'token': underpaid_token}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.order_a.refresh_from_db()
+        self.assertFalse(self.order_a.payment_status)

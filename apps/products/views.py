@@ -17,6 +17,7 @@ from .forms import ReviewForm
 from apps.core.models import SiteSettings
 from django.contrib import messages
 from django.utils.html import strip_tags
+from apps.core.ratelimit import ratelimit
 
 logger = logging.getLogger(__name__)
 
@@ -245,6 +246,7 @@ def product_detail(request, slug):
     return render(request, 'products/product_detail.html', context)
 
 
+@ratelimit(rate='5/m', key='ip', block=True, error_message="Trop d'avis soumis. Veuillez patienter une minute avant de réessayer.")
 def submit_review(request, product_id):
     """
     Traite la soumission d'un avis client.
@@ -325,6 +327,7 @@ def submit_review(request, product_id):
     return redirect(product.get_absolute_url())
 
 
+@ratelimit(rate='5/m', key='ip', block=True, redirect_url='core:home', error_message="Trop d'avis soumis. Veuillez patienter une minute avant de réessayer.")
 def submit_general_review(request):
     """Traite un avis général affiché sur la page d'accueil.
     Accessible aux visiteurs connectés ET non connectés.

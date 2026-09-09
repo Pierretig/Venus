@@ -60,15 +60,21 @@ DEBUG = os.getenv('DEBUG', 'False').strip().lower() in {'1', 'true', 'yes', 'on'
 
 if _env_secret:
     SECRET_KEY = _env_secret
+elif not DEBUG:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        "ATTENTION SÉCURITÉ CRITIQUE : La variable d'environnement SECRET_KEY n'est pas définie en production. "
+        "L'application refuse de démarrer pour prévenir tout risque de falsification de session."
+    )
 else:
     import logging as _logging
     _logging.getLogger('django.security').warning(
-        "ATTENTION SÉCURITÉ : La variable d'environnement SECRET_KEY n'est pas définie. "
-        "Définissez impérativement SECRET_KEY dans vos variables de production !"
+        "ATTENTION SÉCURITÉ : La variable d'environnement SECRET_KEY n'est pas définie en local. "
+        "Utilisation de la clé de repli de développement."
     )
-    SECRET_KEY = 'django-insecure-venus-luna-fallback-must-set-env-secret-key'
+    SECRET_KEY = 'django-insecure-venus-luna-dev-fallback-key'
 
-# PROD LOGGING pour debug 502 errors
+# PROD LOGGING pour debug (12-factor standard : console uniquement)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -82,12 +88,6 @@ LOGGING = {
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.FileHandler',
-            'filename': 'django.log',
             'formatter': 'verbose',
         },
     },
@@ -136,9 +136,9 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-    SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 else:
     SECURE_SSL_REDIRECT = False
     
@@ -177,6 +177,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'apps.core.middleware.SecurityHeadersMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -290,8 +291,8 @@ try:
     import cloudinary.api
     cloudinary.config(
         cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME', 'dse5hwjvt'),
-        api_key=os.getenv('CLOUDINARY_API_KEY', '298756569597144'),
-        api_secret=os.getenv('CLOUDINARY_API_SECRET', 'egry0kUkkucqSh7t7mR32zrElqA'),
+        api_key=os.getenv('CLOUDINARY_API_KEY', ''),
+        api_secret=os.getenv('CLOUDINARY_API_SECRET', ''),
         secure=True,
     )
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
@@ -383,8 +384,8 @@ BREVO_FROM_EMAIL = os.getenv('BREVO_FROM_EMAIL', 'lsvenusluna@gmail.com')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'Boutique Venus-Luna <{BREVO_FROM_EMAIL}>')
 SERVER_EMAIL = os.getenv('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 
-# Sécurité token reset mot de passe (24h)
-PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', '86400'))
+# Sécurité token reset mot de passe (1h)
+PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', '3600'))
 
 # --- LIENS RÉSEAUX SOCIAUX ---
 WHATSAPP_NUMBER = os.getenv('WHATSAPP_NUMBER', '22893343403')
