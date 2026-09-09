@@ -23,8 +23,6 @@ COPY . .
 # Rendre le script d'entrée exécutable
 RUN chmod +x entrypoint.sh
 
-# Collecte des fichiers statiques
-RUN python manage.py collectstatic --noinput
 
 # Utilisateur non-root
 RUN adduser --disabled-password --gecos '' appuser && chown -R appuser /app
