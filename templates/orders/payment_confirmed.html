@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Paiement confirmé — Venus Luna{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --venus-or: #d4af37;
+        --venus-jaune: #fbc02d;
+        --venus-emeraude: #2ecc71;
+    }
+    .confirmed-section {
+        background: radial-gradient(ellipse at 30% 20%, #163d24, #0a2012 70%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .confirmed-section::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+            radial-gradient(circle at 15% 85%, rgba(212,175,55,0.08) 0%, transparent 50%),
+            radial-gradient(circle at 85% 15%, rgba(46,204,113,0.06) 0%, transparent 50%);
+        pointer-events: none;
+    }
+    .glass-confirmed-card {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(24px);
+        border: 1px solid rgba(212, 175, 55, 0.25);
+        border-radius: 40px;
+        padding: 56px 44px;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+        position: relative;
+        z-index: 2;
+    }
+    .success-ring-outer {
+        width: 130px; height: 130px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(46,204,113,0.15), transparent 70%);
+        border: 2px solid rgba(46,204,113,0.3);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 32px;
+        animation: ringPulse 2.5s ease-in-out infinite;
+        position: relative;
+    }
+    .success-ring-outer::before {
+        content: ''; position: absolute; inset: -8px;
+        border-radius: 50%;
+        border: 1px solid rgba(212,175,55,0.15);
+        animation: ringPulse 2.5s ease-in-out infinite 0.4s;
+    }
+    .success-icon {
+        font-size: 4.5rem; color: var(--venus-emeraude);
+        filter: drop-shadow(0 0 20px rgba(46,204,113,0.5));
+        animation: checkBounce 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    @keyframes checkBounce {
+        0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+        70%  { transform: scale(1.15) rotate(5deg); }
+        100% { transform: scale(1) rotate(0); opacity: 1; }
+    }
+    @keyframes ringPulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50%       { transform: scale(1.06); opacity: 0.7; }
+    }
+    .cashpay-badge {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 6px 18px;
+        background: rgba(212, 175, 55, 0.08);
+        border: 1px solid rgba(212, 175, 55, 0.4);
+        border-radius: 50px; color: var(--venus-or);
+        font-size: 0.72rem; font-weight: 700;
+        letter-spacing: 2px; text-transform: uppercase; margin-bottom: 28px;
+    }
+    .order-ref-box {
+        background: rgba(212, 175, 55, 0.06);
+        border: 1px dashed rgba(212, 175, 55, 0.35);
+        border-radius: 16px; padding: 20px 28px; margin: 28px 0;
+    }
+    .order-ref-label {
+        font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase;
+        color: rgba(255,255,255,0.45); margin-bottom: 6px;
+    }
+    .order-ref-value {
+        font-size: 2rem; font-weight: 800; color: var(--venus-or);
+        font-family: 'Courier New', monospace; letter-spacing: 3px;
+    }
+    .detail-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 28px 0;
+    }
+    @media (max-width: 576px) {
+        .detail-grid { grid-template-columns: 1fr; }
+        .glass-confirmed-card { padding: 32px 20px; }
+    }
+    .detail-item {
+        background: rgba(255,255,255,0.04); border-radius: 14px;
+        padding: 18px 20px; border: 1px solid rgba(255,255,255,0.06);
+        text-align: left; transition: border-color 0.3s;
+    }
+    .detail-item:hover { border-color: rgba(212,175,55,0.2); }
+    .detail-item-label {
+        font-size: 0.68rem; letter-spacing: 1.5px; text-transform: uppercase;
+        color: rgba(255,255,255,0.4); margin-bottom: 6px;
+    }
+    .detail-item-value { font-size: 1rem; font-weight: 600; color: rgba(255,255,255,0.9); }
+    .detail-item-value.gold { color: var(--venus-or); }
+    .order-summary {
+        background: rgba(0,0,0,0.2); border-radius: 16px;
+        padding: 20px 24px; margin: 20px 0;
+        border: 1px solid rgba(255,255,255,0.05); text-align: left;
+    }
+    .order-summary-item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem;
+    }
+    .order-summary-item:last-child { border-bottom: none; }
+    .order-summary-item .item-name { color: rgba(255,255,255,0.75); }
+    .order-summary-item .item-price { color: var(--venus-or); font-weight: 600; }
+    .redirect-notice {
+        background: rgba(255,255,255,0.04); border-radius: 12px;
+        padding: 14px 20px; margin-top: 24px; font-size: 0.85rem;
+        color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.06);
+    }
+    .redirect-notice strong { color: var(--venus-or); }
+    .redirect-bar {
+        height: 3px; background: rgba(255,255,255,0.07);
+        border-radius: 10px; overflow: hidden; margin-top: 10px;
+    }
+    .redirect-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--venus-or), var(--venus-jaune));
+        width: 100%; transform-origin: left;
+    }
+    .btn-venus-primary {
+        background: linear-gradient(135deg, var(--venus-or), var(--venus-jaune));
+        color: #0a2012 !important; border-radius: 50px;
+        font-weight: 800; letter-spacing: 1px; transition: 0.35s; border: none;
+    }
+    .btn-venus-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(212,175,55,0.3);
+    }
+    .btn-venus-outline {
+        border: 2px solid rgba(255,255,255,0.2);
+        color: rgba(255,255,255,0.85) !important;
+        border-radius: 50px; font-weight: 600; transition: 0.35s; background: transparent;
+    }
+    .btn-venus-outline:hover {
+        background: rgba(255,255,255,0.08);
+        border-color: rgba(255,255,255,0.4); color: white !important;
+    }
+</style>
+
+<section class="confirmed-section py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-9 col-xl-8 text-center">
+                <div class="glass-confirmed-card">
+
+                    <div class="cashpay-badge">
+                        <i class="fas fa-shield-alt"></i>
+                        Paiement CashPay confirmé
+                    </div>
+
+                    <div class="success-ring-outer">
+                        <i class="fas fa-check success-icon"></i>
+                    </div>
+
+                    <h1 class="display-5 fw-bold mb-3" style="font-family: 'Playfair Display', serif;">
+                        Paiement effectué avec succès !
+                    </h1>
+
+                    <p class="lead mb-1" style="color: rgba(255,255,255,0.65); max-width: 540px; margin: 0 auto 8px;">
+                        Merci{% if order.shipping_address.full_name %}, <strong style="color:white;">{{ order.shipping_address.full_name }}</strong>{% endif %}. <br>
+                        Votre paiement a bien été confirmé par CashPay.
+                    </p>
+
+                    <div class="order-ref-box">
+                        <div class="order-ref-label">Référence de commande</div>
+                        <div class="order-ref-value">VL-{{ order.id|stringformat:"06d" }}</div>
+                    </div>
+
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-item-label"><i class="fas fa-coins me-1"></i> Montant payé</div>
+                            <div class="detail-item-value gold">{{ order.total }} FCFA</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-item-label"><i class="fas fa-calendar-check me-1"></i> Date</div>
+                            <div class="detail-item-value">{{ order.updated_at|date:"d/m/Y" }}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-item-label"><i class="fas fa-credit-card me-1"></i> Moyen de paiement</div>
+                            <div class="detail-item-value">CashPay</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-item-label"><i class="fas fa-truck me-1"></i> Livraison</div>
+                            <div class="detail-item-value">
+                                {% if order.shipping_address.city %}{{ order.shipping_address.city }}{% else %}Lomé{% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if order.items.all %}
+                    <div class="order-summary">
+                        <div class="detail-item-label mb-3"><i class="fas fa-shopping-bag me-1"></i> Votre commande</div>
+                        {% for item in order.items.all %}
+                        <div class="order-summary-item">
+                            <span class="item-name">{{ item.name }}{% if item.quantity > 1 %} &times; {{ item.quantity }}{% endif %}</span>
+                            <span class="item-price">{{ item.line_total }} F</span>
+                        </div>
+                        {% endfor %}
+                        {% if order.shipping_price > 0 %}
+                        <div class="order-summary-item">
+                            <span class="item-name" style="color: rgba(255,255,255,0.45);">Livraison</span>
+                            <span class="item-price" style="color: rgba(255,255,255,0.55);">{{ order.shipping_price }} F</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid gap-3 d-sm-flex justify-content-sm-center mt-4">
+                        <a href="{% url 'products:list' %}" id="btn-continue"
+                           class="btn btn-venus-primary px-5 py-3 text-uppercase">
+                            <i class="fas fa-store me-2"></i> Continuer mes achats
+                        </a>
+                        <a href="{% url 'orders:order_confirm' order.id %}"
+                           class="btn btn-venus-outline px-5 py-3 text-uppercase">
+                            <i class="fas fa-receipt me-2"></i> Voir ma commande
+                        </a>
+                    </div>
+
+                    <div class="redirect-notice">
+                        <i class="fas fa-clock me-1"></i>
+                        Vous serez automatiquement redirigé vers la boutique dans
+                        <strong id="countdown">{{ redirect_delay }}</strong> secondes…
+                        <div class="redirect-bar">
+                            <div class="redirect-bar-fill" id="redirect-bar-fill"></div>
+                        </div>
+                    </div>
+
+                </div>{# /.glass-confirmed-card #}
+
+                <p class="mt-4 small" style="color: rgba(255,255,255,0.35);">
+                    Vous recevrez un e-mail de confirmation à <strong>{{ order.email }}</strong>.<br>
+                    Une question ? <a href="https://wa.me/22893343403" class="text-decoration-none"
+                    style="color: #d4af37;">Contactez-nous sur WhatsApp</a>.
+                </p>
+
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+(function () {
+    var delay = parseInt("{{ redirect_delay }}", 10) || 8;
+    var target = "{% url 'products:list' %}";
+    var remaining = delay;
+    var countdownEl = document.getElementById('countdown');
+    var barFill = document.getElementById('redirect-bar-fill');
+
+    if (barFill) {
+        barFill.style.transition = 'transform ' + delay + 's linear';
+        // Force reflow so the transition fires
+        void barFill.offsetWidth;
+        barFill.style.transform = 'scaleX(0)';
+        barFill.style.transformOrigin = 'left';
+    }
+
+    var timer = setInterval(function () {
+        remaining -= 1;
+        if (countdownEl) countdownEl.textContent = remaining;
+        if (remaining <= 0) {
+            clearInterval(timer);
+            window.location.href = target;
+        }
+    }, 1000);
+
+    var btnContinue = document.getElementById('btn-continue');
+    if (btnContinue) {
+        btnContinue.addEventListener('click', function () { clearInterval(timer); });
+    }
+})();
+</script>
+{% endblock %}

@@ -80,6 +80,7 @@ class CashPayService:
         callback_url: str,
         phone: str,
         type_notif=None,
+        return_url: str = None,
     ):
         access_token = self._get_access_token()
         url = f"{self.api_base_url}/orders"
@@ -106,6 +107,11 @@ class CashPayService:
         }
         if type_notif:
             body["type_notif"] = type_notif
+        # return_url : CashPay redirige le navigateur client vers cette URL après paiement.
+        # IMPORTANT : cette URL sert UNIQUEMENT à l'expérience utilisateur.
+        # La confirmation réelle du paiement provient exclusivement du webhook (callback_url).
+        if return_url:
+            body["return_url"] = return_url
 
         headers = {
             "Authorization": f"Bearer {access_token}",

@@ -17,6 +17,9 @@ urlpatterns = [
     path('history/', views.order_history, name='order_history'),
     path('success/', views.payment_success, name='payment_success'),
 
+    # Retour navigateur CashPay après paiement (vérification côté serveur)
+    path('retour/<int:order_id>/', views.cashpay_return, name='cashpay_return'),
+
     # Webhook CashPay
     path('webhook/cashpay/', views.cashpay_webhook, name='cashpay_webhook'),
 

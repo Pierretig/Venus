@@ -122,7 +122,7 @@
                         </div>
                         <div class="step-item">
                             <i class="fas fa-satellite-dish"></i>
-                            <span>Notre passerelle <strong>BKApay</strong> interroge les serveurs sécurisés.</span>
+                            <span>Notre passerelle <strong>CashPay</strong> interroge les serveurs sécurisés.</span>
                         </div>
                         <div class="step-item mb-0">
                             <i class="fas fa-magic"></i>
@@ -153,36 +153,43 @@
 </section>
 
 <script>
-    function checkStatus() {
-        const bar = document.getElementById('progress-bar');
-        bar.style.transition = "none";
-        bar.style.width = "0%";
-        
-        setTimeout(() => { 
-            bar.style.transition = "width 4.8s linear";
-            bar.style.width = "100%"; 
-        }, 50);
-
-        fetch(window.location.href, { 
-            headers: { 'X-Requested-With': 'XMLHttpRequest' } 
-        })
-        .then(response => {
-            if (response.redirected) {
-                window.location.href = response.url;
-            } else {
-                return response.text();
+    (function () {
+        // Polling JSON vers cashpay_return — propre et sans détection de texte HTML
+        function checkStatus() {
+            var bar = document.getElementById('progress-bar');
+            if (bar) {
+                bar.style.transition = "none";
+                bar.style.width = "0%";
+                setTimeout(function () {
+                    bar.style.transition = "width 4.8s linear";
+                    bar.style.width = "100%";
+                }, 50);
             }
-        })
-        .then(html => {
-            // On vérifie si la réponse contient un indicateur de succès ou si le statut a changé
-            if (html && (html.includes("Transaction Réussie") || html.includes("success"))) {
-                window.location.reload();
-            }
-        })
-        .catch(err => console.log("Alignement des étoiles en cours..."));
-    }
 
-    checkStatus();
-    setInterval(checkStatus, 5000);
+            fetch(window.location.href, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function (response) {
+                return response.json();
+            })
+            .then(function (data) {
+                if (data.paid && data.redirect_url) {
+                    // Paiement confirmé → on recharge la page (qui affichera payment_confirmed.html)
+                    window.location.href = data.redirect_url;
+                } else if (data.failed) {
+                    // Paiement échoué définitivement → redirection vers page d'échec
+                    window.location.reload();
+                }
+                // Sinon : toujours en attente, on retente dans 5s
+            })
+            .catch(function () {
+                // Erreur réseau : on réessaie silencieusement
+            });
+        }
+
+        // Premier check immédiat, puis toutes les 5 secondes
+        checkStatus();
+        setInterval(checkStatus, 5000);
+    })();
 </script>
 {% endblock %}

@@ -272,6 +272,10 @@ def checkout(request):
                     return redirect('orders:cart_detail')
 
                 callback_url = request.build_absolute_uri(reverse('orders:cashpay_webhook'))
+                # return_url : redirection navigateur après paiement (UX uniquement, PAS source de vérité)
+                return_url = request.build_absolute_uri(
+                    reverse('orders:cashpay_return', kwargs={'order_id': order.id})
+                )
 
                 # --- CashPay: Link2Pay ---
                 from .cashpay_service import CashPayService
@@ -294,6 +298,7 @@ def checkout(request):
                     callback_url=callback_url,
                     phone=phone_formatted,
                     type_notif=["SMS", "MAIL"],
+                    return_url=return_url,
                 )
 
                 # Données attendues: bill_url et/ou order_reference
@@ -321,15 +326,80 @@ def checkout(request):
 
 
 def payment_success(request):
-    status = request.GET.get('status')
-    if status == 'success':
-        # Libère les réservations de la session après paiement réussi
+    """
+    Point d'entrée legacy (conservé pour compatibilité).
+    Si une order_id est connue en session, redirige vers cashpay_return.
+    Sinon affiche la page d'échec (pas de vérification possible).
+    """
+    order_id = request.session.get('last_order_id')
+    if order_id:
+        return redirect(reverse('orders:cashpay_return', kwargs={'order_id': order_id}))
+    return render(request, 'orders/payment_failed.html')
+
+
+def cashpay_return(request, order_id):
+    """
+    Vue de retour CashPay — vérification CÔTÉ SERVEUR uniquement.
+
+    CashPay redirige le navigateur ici après paiement (return_url).
+    Cette vue ne fait JAMAIS confiance aux paramètres GET : elle interroge
+    directement la base de données pour connaître le vrai statut de la commande.
+
+    Scénarios :
+    - payment_status=True  → paiement confirmé → page succès avec compte à rebours
+    - payment_status=False + status='pending' → paiement en attente de confirmation webhook
+    - Toute autre situation → page d'échec
+
+    Support AJAX : si X-Requested-With est présent (polling depuis waiting_confirm.html),
+    renvoie un JSON {paid, redirect_url} pour permettre une redirection JavaScript propre.
+    """
+    # Récupération sécurisée de la commande
+    try:
+        order = Order.objects.get(pk=order_id)
+    except Order.DoesNotExist:
+        raise Http404("Commande introuvable.")
+
+    # Contrôle d'accès : propriétaire, invité avec session, ou staff
+    if not _can_access_order(request, order):
+        if not request.user.is_authenticated:
+            return redirect(f"{reverse('accounts:login')}?next={request.path}")
+        raise Http404("Accès non autorisé à cette commande.")
+
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    # --- SOURCE DE VÉRITÉ : base de données uniquement, jamais les params GET ---
+    if order.payment_status:
+        # Paiement confirmé par le webhook CashPay
+        # Nettoyage session/panier (idempotent)
         if request.session.session_key:
             StockReservation.objects.filter(session_key=request.session.session_key).delete()
-        if 'cart' in request.session:
-            del request.session['cart']
-        return render(request, 'orders/thanks.html')
-    return render(request, 'orders/payment_failed.html')
+        request.session.pop('cart', None)
+
+        if is_ajax:
+            return JsonResponse({
+                'paid': True,
+                'redirect_url': request.build_absolute_uri(
+                    reverse('orders:cashpay_return', kwargs={'order_id': order_id})
+                ),
+            })
+
+        return render(request, 'orders/payment_confirmed.html', {
+            'order': order,
+            'redirect_delay': 8,  # secondes avant redirection automatique
+        })
+
+    elif order.status == 'pending':
+        # Le webhook n'est pas encore arrivé : paiement en cours de confirmation
+        if is_ajax:
+            return JsonResponse({'paid': False})
+        # On affiche la page d'attente avec polling automatique
+        return render(request, 'orders/waiting_confirm.html', {'order': order})
+
+    else:
+        # Commande annulée, remboursée, ou statut inattendu
+        if is_ajax:
+            return JsonResponse({'paid': False, 'failed': True})
+        return render(request, 'orders/payment_failed.html', {'order': order})
 
 
 # =====================================================

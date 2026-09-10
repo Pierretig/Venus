@@ -225,3 +225,143 @@ class OrderSecurityTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.order_a.refresh_from_db()
         self.assertFalse(self.order_a.payment_status)
+
+
+class CashpayReturnViewTests(TestCase):
+    """
+    Tests de la vue cashpay_return — vérification côté serveur du parcours post-paiement.
+
+    TEST 1 : Paiement réussi → page de confirmation
+    TEST 2 : Paiement refusé → pas de confirmation
+    TEST 3 : Paiement annulé → pas de confirmation
+    TEST 4 : Paiement en attente → page d'attente, pas de confirmation
+    TEST 5 : Accès manuel frauduleux à l'URL success → impossible de falsifier
+    TEST 6 : Callback reçu deux fois → idempotent (couvert par le webhook, testé ici côté vue)
+    TEST 7 : Commande déjà payée → la vue affiche le succès, sans reprocessing
+    TEST 8 : Montant incorrect → webhook rejette (déjà couvert par webhook tests)
+    """
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='test_user_return', email='return@test.com', password='ReturnPass123!'
+        )
+        self.order_pending = Order.objects.create(
+            user=self.user, email=self.user.email,
+            subtotal=Decimal('5000'), total=Decimal('5000'),
+            status='pending', payment_status=False
+        )
+        ShippingAddress.objects.create(
+            order=self.order_pending, full_name='Test Return',
+            phone='+22890000099', address='Rue Test', city='Lomé'
+        )
+        self.order_paid = Order.objects.create(
+            user=self.user, email=self.user.email,
+            subtotal=Decimal('7500'), total=Decimal('7500'),
+            status='paid', payment_status=True
+        )
+        ShippingAddress.objects.create(
+            order=self.order_paid, full_name='Test Paid',
+            phone='+22890000098', address='Rue Payee', city='Lomé'
+        )
+        self.order_cancelled = Order.objects.create(
+            user=self.user, email=self.user.email,
+            subtotal=Decimal('3000'), total=Decimal('3000'),
+            status='cancelled', payment_status=False
+        )
+        ShippingAddress.objects.create(
+            order=self.order_cancelled, full_name='Test Cancelled',
+            phone='+22890000097', address='Rue Annulee', city='Lomé'
+        )
+        self.client.login(username='test_user_return', password='ReturnPass123!')
+
+    # TEST 1 : Paiement réussi → page de confirmation (vérification BDD)
+    def test_cashpay_return_shows_confirmed_page_when_paid(self):
+        """Quand payment_status=True en BDD, cashpay_return affiche payment_confirmed.html."""
+        url = reverse('orders:cashpay_return', kwargs={'order_id': self.order_paid.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'orders/payment_confirmed.html')
+        self.assertContains(response, 'Paiement effectué avec succès')
+
+    # TEST 1b : AJAX → JSON {paid: true}
+    def test_cashpay_return_ajax_returns_json_when_paid(self):
+        """En AJAX, cashpay_return retourne {paid: true} si le paiement est confirmé."""
+        url = reverse('orders:cashpay_return', kwargs={'order_id': self.order_paid.id})
+        response = self.client.get(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertTrue(data['paid'])
+
+    # TEST 2/3 : Paiement refusé/annulé → page d'échec
+    def test_cashpay_return_shows_failed_page_when_cancelled(self):
+        """Quand status=cancelled, cashpay_return affiche payment_failed.html."""
+        url = reverse('orders:cashpay_return', kwargs={'order_id': self.order_cancelled.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'orders/payment_failed.html')
+
+    # TEST 4 : Paiement en attente → page d'attente (PAS de confirmation)
+    def test_cashpay_return_shows_waiting_page_when_pending(self):
+        """Quand payment_status=False et status=pending, cashpay_return affiche waiting_confirm.html."""
+        url = reverse('orders:cashpay_return', kwargs={'order_id': self.order_pending.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'orders/waiting_confirm.html')
+        # Ne doit PAS contenir le message de succès
+        self.assertNotContains(response, 'Paiement effectué avec succès')
+
+    # TEST 4b : AJAX en attente → JSON {paid: false}
+    def test_cashpay_return_ajax_returns_not_paid_when_pending(self):
+        """En AJAX sur commande pending, cashpay_return retourne {paid: false}."""
+        url = reverse('orders:cashpay_return', kwargs={'order_id': self.order_pending.id})
+        response = self.client.get(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertFalse(data['paid'])
+
+    # TEST 5 : Accès manuel frauduleux → la vue vérifie la BDD, pas les params GET
+    def test_cashpay_return_ignores_get_params_success(self):
+        """Un attaquant passant ?status=success ne peut PAS déclencher une confirmation."""
+        url = reverse('orders:cashpay_return', kwargs={'order_id': self.order_pending.id})
+        # On passe le paramètre GET frauduleux : doit être IGNORÉ
+        response = self.client.get(url + '?status=success&paid=true&state=Paid')
+        self.assertEqual(response.status_code, 200)
+        # La commande est toujours pending → waiting_confirm, PAS payment_confirmed
+        self.assertTemplateUsed(response, 'orders/waiting_confirm.html')
+        self.assertNotContains(response, 'Paiement effectué avec succès')
+        # Vérification BDD : la commande N'EST PAS marquée comme payée
+        self.order_pending.refresh_from_db()
+        self.assertFalse(self.order_pending.payment_status)
+
+    # TEST 5b : Accès d'un autre utilisateur → IDOR protection
+    def test_cashpay_return_denies_other_user(self):
+        """L'utilisateur B ne peut pas accéder à la page de retour de la commande de A."""
+        other_user = User.objects.create_user(
+            username='other_return', email='other_return@test.com', password='OtherPass123!'
+        )
+        self.client.logout()
+        self.client.login(username='other_return', password='OtherPass123!')
+        url = reverse('orders:cashpay_return', kwargs={'order_id': self.order_paid.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+    # TEST 7 : Commande déjà payée → la vue affiche le succès (idempotent, pas de reprocessing)
+    def test_cashpay_return_already_paid_shows_success_without_reprocessing(self):
+        """Une commande déjà payée affiche la confirmation sans re-déclencher les traitements."""
+        # Le signal post_save a déjà géré stock_updated=True lors du paiement initial
+        # cashpay_return doit simplement afficher la page de confirmation
+        url = reverse('orders:cashpay_return', kwargs={'order_id': self.order_paid.id})
+        response1 = self.client.get(url)
+        response2 = self.client.get(url)
+        # Les deux requêtes doivent retourner la page de succès
+        self.assertEqual(response1.status_code, 200)
+        self.assertEqual(response2.status_code, 200)
+        self.assertTemplateUsed(response1, 'orders/payment_confirmed.html')
+        self.assertTemplateUsed(response2, 'orders/payment_confirmed.html')
+
+    # TEST : URL 404 sur commande inexistante
+    def test_cashpay_return_returns_404_for_nonexistent_order(self):
+        """cashpay_return retourne 404 si l'order_id n'existe pas."""
+        url = reverse('orders:cashpay_return', kwargs={'order_id': 99999})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
