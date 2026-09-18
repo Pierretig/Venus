@@ -20,6 +20,7 @@
         color: white;
         position: relative;
         overflow: hidden;
+        padding: 40px 15px;
     }
 
     .payment-relay-section::before {
@@ -27,8 +28,8 @@
         position: absolute;
         inset: 0;
         background-image:
-            radial-gradient(circle at 10% 90%, rgba(0, 179, 89, 0.06) 0%, transparent 50%),
-            radial-gradient(circle at 90% 10%, rgba(212, 175, 55, 0.06) 0%, transparent 50%);
+            radial-gradient(circle at 10% 90%, rgba(0, 179, 89, 0.08) 0%, transparent 50%),
+            radial-gradient(circle at 90% 10%, rgba(212, 175, 55, 0.08) 0%, transparent 50%);
         pointer-events: none;
     }
 
@@ -36,8 +37,8 @@
         background: rgba(255, 255, 255, 0.03);
         backdrop-filter: blur(24px);
         border: 1px solid rgba(0, 179, 89, 0.2);
-        border-radius: 40px;
-        padding: 56px 44px;
+        border-radius: 36px;
+        padding: 48px 36px;
         box-shadow: 0 40px 100px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
         position: relative;
         z-index: 2;
@@ -48,7 +49,7 @@
         align-items: center;
         justify-content: center;
         gap: 0;
-        margin-bottom: 40px;
+        margin-bottom: 35px;
         flex-wrap: wrap;
         row-gap: 12px;
     }
@@ -61,10 +62,10 @@
     }
 
     .step-circle {
-        width: 44px; height: 44px;
+        width: 42px; height: 42px;
         border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-weight: 800; font-size: 0.95rem;
+        font-weight: 800; font-size: 0.9rem;
         border: 2px solid;
     }
 
@@ -94,34 +95,45 @@
         text-transform: uppercase;
         color: rgba(255,255,255,0.45);
         text-align: center;
-        max-width: 70px;
+        max-width: 80px;
     }
 
-    .step-label.active { color: var(--cashpay-green); }
+    .step-label.active { color: var(--cashpay-green); font-weight: 700; }
     .step-label.done { color: var(--venus-or); }
 
     .step-connector {
-        width: 40px; height: 2px;
-        background: rgba(255,255,255,0.1);
-        margin: 0 4px;
-        margin-bottom: 20px;
+        width: 50px; height: 2px;
+        background: rgba(255,255,255,0.12);
+        margin: 0 8px 20px;
     }
-
-    .step-connector.done {
-        background: linear-gradient(90deg, var(--venus-or), rgba(255,255,255,0.2));
-    }
+    .step-connector.done { background: var(--venus-or); }
 
     @keyframes stepPulse {
-        0%, 100% { box-shadow: 0 0 20px rgba(0,179,89,0.3); }
-        50% { box-shadow: 0 0 35px rgba(0,179,89,0.6); }
+        0%, 100% { box-shadow: 0 0 0 0 rgba(0,179,89,0.4); }
+        50% { box-shadow: 0 0 0 10px rgba(0,179,89,0); }
+    }
+
+    .cashpay-badge-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(0, 179, 89, 0.12);
+        border: 1px solid rgba(0, 179, 89, 0.3);
+        color: #4ade80;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        margin-bottom: 24px;
     }
 
     .order-summary-box {
-        background: rgba(0,0,0,0.25);
-        border: 1px solid rgba(212, 175, 55, 0.15);
+        background: rgba(0,0,0,0.3);
+        border: 1px solid rgba(255,255,255,0.07);
         border-radius: 20px;
-        padding: 24px 28px;
-        margin: 28px 0;
+        padding: 20px 24px;
+        margin: 24px 0;
         text-align: left;
     }
 
@@ -129,119 +141,179 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding: 6px 0;
         font-size: 0.9rem;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
     }
-
-    .order-summary-line:last-child { border-bottom: none; }
-    .order-summary-line .label { color: rgba(255,255,255,0.5); }
-    .order-summary-line .value { color: rgba(255,255,255,0.9); font-weight: 600; }
-    .order-summary-line .value.gold { color: var(--venus-or); font-size: 1.05rem; }
+    .order-summary-line:last-child {
+        border-bottom: none;
+        padding-top: 12px;
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+    .order-summary-line .label { color: rgba(255,255,255,0.6); }
+    .order-summary-line .value { color: white; font-weight: 600; }
+    .order-summary-line .value.gold { color: var(--venus-or); }
 
     .btn-cashpay-pay {
-        background: linear-gradient(135deg, #00b359, #00802e);
-        color: white !important;
-        border: none;
-        border-radius: 50px;
+        display: block;
+        width: 100%;
+        background: linear-gradient(135deg, #00b359, #008f45);
+        color: white;
         font-weight: 800;
-        font-size: 1.05rem;
-        letter-spacing: 1px;
-        padding: 18px 48px;
-        transition: all 0.35s;
-        box-shadow: 0 8px 25px rgba(0,179,89,0.35);
+        font-size: 1.1rem;
+        letter-spacing: 0.5px;
+        padding: 18px 28px;
+        border-radius: 18px;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        box-shadow: 0 12px 32px rgba(0, 179, 89, 0.4);
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .btn-cashpay-pay:hover {
+        background: linear-gradient(135deg, #00c965, #00a04e);
+        box-shadow: 0 16px 40px rgba(0, 179, 89, 0.55);
+        color: white;
+        transform: translateY(-2px);
+    }
+    .btn-cashpay-pay:disabled, .btn-cashpay-pay.clicked {
+        opacity: 0.75;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .btn-reopen-tab {
         display: inline-flex;
         align-items: center;
-        gap: 12px;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 14px;
+        font-size: 0.88rem;
+        font-weight: 600;
         text-decoration: none;
+        transition: all 0.2s ease;
+        margin-top: 12px;
+    }
+    .btn-reopen-tab:hover {
+        background: rgba(255, 255, 255, 0.16);
+        color: var(--venus-or);
+        border-color: var(--venus-or);
     }
 
-    .btn-cashpay-pay:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 16px 40px rgba(0,179,89,0.5);
-        color: white !important;
+    /* Animation Orb & Loader */
+    .orb-container {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        margin: 20px auto 25px;
+    }
+    .orb-core {
+        position: absolute;
+        inset: 20px;
+        background: radial-gradient(circle, var(--cashpay-green), #004d26);
+        border-radius: 50%;
+        box-shadow: 0 0 30px rgba(0, 179, 89, 0.6);
+        animation: orbPulse 2s infinite ease-in-out;
+    }
+    .orb-ring-1, .orb-ring-2 {
+        position: absolute;
+        inset: 0;
+        border: 2px dashed rgba(212, 175, 55, 0.4);
+        border-radius: 50%;
+        animation: orbRotate 10s linear infinite;
+    }
+    .orb-ring-2 {
+        inset: 10px;
+        border-color: rgba(0, 179, 89, 0.5);
+        animation: orbRotateRev 7s linear infinite;
+    }
+    @keyframes orbRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes orbRotateRev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+    @keyframes orbPulse {
+        0%, 100% { transform: scale(0.9); opacity: 0.8; }
+        50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 45px rgba(0, 179, 89, 0.85); }
     }
 
-    .btn-cashpay-pay:active { transform: translateY(0); }
-
-    .btn-cashpay-pay.clicked {
-        background: linear-gradient(135deg, #005a2a, #003d1f);
-        cursor: default;
-        transform: none;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    /* Progress bar minimal */
+    .progress-minimal {
+        height: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 18px 0 10px;
+    }
+    .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--cashpay-green), var(--venus-or));
+        border-radius: 4px;
+        transition: width 2.9s linear;
     }
 
-    .cashpay-badge-inline {
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 5px 16px;
+    .notice-card {
+        background: rgba(212, 175, 55, 0.08);
+        border: 1px solid rgba(212, 175, 55, 0.25);
+        border-radius: 18px;
+        padding: 16px 20px;
+        text-align: left;
+        margin: 20px 0;
+        font-size: 0.88rem;
+    }
+
+    .notice-card.info {
         background: rgba(0, 179, 89, 0.08);
-        border: 1px solid rgba(0, 179, 89, 0.3);
-        border-radius: 50px; color: #00e06e;
-        font-size: 0.7rem; font-weight: 700;
-        letter-spacing: 2px; text-transform: uppercase;
-        margin-bottom: 24px;
+        border-color: rgba(0, 179, 89, 0.3);
+    }
+
+    .warning-box {
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #fca5a5;
+        border-radius: 16px;
+        padding: 14px 18px;
+        font-size: 0.85rem;
+        margin-top: 16px;
+        text-align: left;
     }
 
     .status-polling {
-        background: rgba(255,255,255,0.03);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 14px;
-        padding: 16px 24px;
-        margin-top: 24px;
-        font-size: 0.82rem;
-        color: rgba(255,255,255,0.4);
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.88rem;
+        color: rgba(255,255,255,0.7);
+        margin-top: 14px;
     }
-
     .polling-dot {
-        display: inline-block;
-        width: 6px; height: 6px;
+        width: 10px; height: 10px;
         background: var(--cashpay-green);
         border-radius: 50%;
-        margin-right: 8px;
-        animation: blink 1.4s ease-in-out infinite;
-        vertical-align: middle;
+        animation: blink 1.2s ease-in-out infinite;
     }
-
-    @keyframes blink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.2; }
-    }
+    @keyframes blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.7); } }
 
     .security-note {
-        font-size: 0.75rem;
-        color: rgba(255,255,255,0.3);
+        font-size: 0.78rem;
+        color: rgba(255,255,255,0.35);
         margin-top: 20px;
-    }
-
-    .security-note i { color: rgba(0,179,89,0.6); margin-right: 6px; }
-
-    /* État "paiement en cours de vérification" après clic */
-    .verifying-state {
-        display: none;
-        text-align: center;
-        padding: 20px;
-    }
-
-    .spin-icon {
-        animation: spinIt 1s linear infinite;
-        font-size: 2rem;
-        color: var(--cashpay-green);
-    }
-
-    @keyframes spinIt {
-        to { transform: rotate(360deg); }
     }
 </style>
 
-<section class="payment-relay-section py-5">
+<section class="payment-relay-section">
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-lg-8 col-xl-7 text-center">
+            <div class="col-lg-6 col-md-8 text-center">
+
                 <div class="relay-card">
 
                     <div class="cashpay-badge-inline">
                         <i class="fas fa-shield-alt"></i>
-                        Paiement sécurisé CashPay
+                        Paiement 100% Sécurisé CashPay
                     </div>
 
                     <!-- Fil d'Ariane visuel -->
@@ -252,58 +324,63 @@
                         </div>
                         <div class="step-connector done"></div>
                         <div class="step-item-flow">
-                            <div class="step-circle active"><i class="fas fa-credit-card"></i></div>
-                            <div class="step-label active">Paiement</div>
+                            <div class="step-circle active" id="step-circle-payment">
+                                <i class="fas fa-credit-card"></i>
+                            </div>
+                            <div class="step-label active" id="step-label-payment">Paiement</div>
                         </div>
-                        <div class="step-connector"></div>
+                        <div class="step-connector" id="step-connector-confirm"></div>
                         <div class="step-item-flow">
-                            <div class="step-circle pending"><i class="fas fa-check-circle"></i></div>
-                            <div class="step-label pending">Confirmation</div>
+                            <div class="step-circle pending" id="step-circle-confirm">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="step-label pending" id="step-label-confirm">Confirmation</div>
                         </div>
                     </div>
 
-                    <h1 class="h3 fw-bold mb-2" style="font-family: 'Playfair Display', serif;">
-                        Finalisez votre paiement
-                    </h1>
-                    <p style="color: rgba(255,255,255,0.55); font-size: 0.95rem;">
-                        Cliquez sur le bouton ci-dessous pour accéder à la page de paiement CashPay.
-                        Votre commande sera automatiquement confirmée dès réception du paiement.
-                    </p>
+                    <!-- ============================================== -->
+                    <!-- ÉTAT 1 : AVANT CLIC (« Payer avec CashPay »)  -->
+                    <!-- ============================================== -->
+                    <div id="pre-pay-section">
+                        <h1 class="h3 fw-bold mb-2" style="font-family: 'Playfair Display', serif;">
+                            Finalisez votre paiement
+                        </h1>
+                        <p style="color: rgba(255,255,255,0.65); font-size: 0.95rem;">
+                            Cliquez sur le bouton ci-dessous pour ouvrir la page de paiement sécurisée CashPay dans un nouvel onglet.
+                        </p>
 
-                    <!-- Récapitulatif commande -->
-                    <div class="order-summary-box">
-                        <div class="order-summary-line">
-                            <span class="label"><i class="fas fa-hashtag me-1"></i> Référence</span>
-                            <span class="value">VL-{{ order.id|stringformat:"06d" }}</span>
+                        <!-- Récapitulatif commande -->
+                        <div class="order-summary-box">
+                            <div class="order-summary-line">
+                                <span class="label"><i class="fas fa-hashtag me-1"></i> Référence</span>
+                                <span class="value">VL-{{ order.id|stringformat:"06d" }}</span>
+                            </div>
+                            {% for item in order.items.all %}
+                            <div class="order-summary-line">
+                                <span class="label">{{ item.name }}{% if item.quantity > 1 %} × {{ item.quantity }}{% endif %}</span>
+                                <span class="value">{{ item.line_total }} F</span>
+                            </div>
+                            {% endfor %}
+                            {% if order.shipping_price > 0 %}
+                            <div class="order-summary-line">
+                                <span class="label"><i class="fas fa-truck me-1"></i> Livraison</span>
+                                <span class="value">{{ order.shipping_price }} F</span>
+                            </div>
+                            {% endif %}
+                            <div class="order-summary-line">
+                                <span class="label fw-bold" style="color: rgba(255,255,255,0.85);">Total à payer</span>
+                                <span class="value gold">{{ order.total }} FCFA</span>
+                            </div>
                         </div>
-                        {% for item in order.items.all %}
-                        <div class="order-summary-line">
-                            <span class="label">{{ item.name }}{% if item.quantity > 1 %} × {{ item.quantity }}{% endif %}</span>
-                            <span class="value">{{ item.line_total }} F</span>
-                        </div>
-                        {% endfor %}
-                        {% if order.shipping_price > 0 %}
-                        <div class="order-summary-line">
-                            <span class="label"><i class="fas fa-truck me-1"></i> Livraison</span>
-                            <span class="value">{{ order.shipping_price }} F</span>
-                        </div>
-                        {% endif %}
-                        <div class="order-summary-line">
-                            <span class="label fw-bold" style="color: rgba(255,255,255,0.8);">Total à payer</span>
-                            <span class="value gold">{{ order.total }} FCFA</span>
-                        </div>
-                    </div>
 
-                    <!-- Bouton principal de paiement -->
-                    <div id="pay-section">
                         {% if bill_url %}
-                        <a href="{{ bill_url }}"
-                           id="btn-pay-cashpay"
-                           class="btn-cashpay-pay"
-                           onclick="onPayClick(this)">
-                            <i class="fas fa-external-link-alt"></i>
+                        <button id="btn-pay-cashpay"
+                                type="button"
+                                class="btn-cashpay-pay"
+                                onclick="handlePayClick()">
+                            <i class="fas fa-external-link-alt me-2"></i>
                             Payer {{ order.total }} FCFA avec CashPay
-                        </a>
+                        </button>
                         {% else %}
                         <div class="alert alert-warning text-dark mt-3">
                             <i class="fas fa-exclamation-triangle me-2"></i>
@@ -311,35 +388,120 @@
                         </div>
                         {% endif %}
 
-                        <div class="verifying-state" id="verifying-section">
-                            <i class="fas fa-circle-notch spin-icon d-block mb-3"></i>
-                            <p style="color: rgba(255,255,255,0.6);">
-                                Vérification du paiement en cours…<br>
-                                <small>Ne fermez pas cette page.</small>
-                            </p>
+                        <p class="security-note mt-3">
+                            <i class="fas fa-info-circle me-1"></i>
+                            La facture CashPay s'ouvrira dans un nouvel onglet. Cet onglet Venus Luna restera ouvert pour confirmer automatiquement votre commande.
+                        </p>
+                    </div>
+
+                    <!-- ============================================== -->
+                    <!-- ÉTAT 2 : APRÈS CLIC (« Paiement en attente ») -->
+                    <!-- ============================================== -->
+                    <div id="waiting-pay-section" style="display: none;">
+                        <h1 class="h3 fw-bold mb-2 text-warning" style="font-family: 'Playfair Display', serif;">
+                            <i class="fas fa-clock me-2"></i>Paiement en attente
+                        </h1>
+
+                        <!-- Notification d'ouverture nouvel onglet -->
+                        <div class="notice-card info">
+                            <div class="d-flex align-items-start gap-3">
+                                <i class="fas fa-external-link-alt fs-5 text-success mt-1"></i>
+                                <div>
+                                    <strong class="text-white">Une page CashPay vient de s'ouvrir dans un nouvel onglet.</strong>
+                                    <p class="text-white-50 mb-0 mt-1" style="font-size: 0.85rem;">
+                                        Finalisez votre règlement sur CashPay (Moov / TMoney). Dès que le paiement est validé, cette page se mettra à jour automatiquement.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Récapitulatif montant & commande -->
+                        <div class="order-summary-box my-3">
+                            <div class="order-summary-line">
+                                <span class="label"><i class="fas fa-hashtag me-1"></i> Commande</span>
+                                <span class="value">VL-{{ order.id|stringformat:"06d" }}</span>
+                            </div>
+                            <div class="order-summary-line">
+                                <span class="label"><i class="fas fa-coins me-1"></i> Montant attendu</span>
+                                <span class="value gold">{{ order.total }} FCFA</span>
+                            </div>
+                        </div>
+
+                        <!-- Loader Mystique Venus Luna -->
+                        <div class="orb-container">
+                            <div class="orb-ring-1"></div>
+                            <div class="orb-ring-2"></div>
+                            <div class="orb-core"></div>
+                        </div>
+
+                        <div class="progress-minimal">
+                            <div id="progress-bar" class="progress-fill"></div>
+                        </div>
+
+                        <!-- Statut polling -->
+                        <div class="status-polling">
+                            <span class="polling-dot" id="poll-dot"></span>
+                            <span id="polling-status-text">Nous attendons la confirmation de votre paiement…</span>
+                        </div>
+
+                        <!-- Avertissement de ne pas fermer -->
+                        <div class="warning-box">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            <strong>Ne fermez pas cette page.</strong>
+                            Votre commande sera confirmée automatiquement dès détection de votre paiement.
+                        </div>
+
+                        <!-- Si popup bloqué ou utilisateur souhaite réaccéder à CashPay -->
+                        <div id="popup-blocked-box" class="mt-3" style="display: none;">
+                            <div class="alert alert-warning text-dark py-2 px-3 small mb-2">
+                                <i class="fas fa-info-circle me-1"></i>
+                                L'onglet CashPay ne s'est pas ouvert automatiquement ?
+                            </div>
+                            <a href="{{ bill_url }}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="btn-reopen-tab">
+                                <i class="fas fa-external-link-alt"></i> Ouvrir la facture CashPay
+                            </a>
+                        </div>
+
+                        <div class="mt-3">
+                            <a href="{{ bill_url }}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="btn-reopen-tab"
+                               style="font-size: 0.8rem; padding: 6px 14px;">
+                                <i class="fas fa-redo-alt"></i> Réaccéder à la facture CashPay
+                            </a>
                         </div>
                     </div>
 
-                    <!-- Statut polling -->
-                    <div class="status-polling">
-                        <span class="polling-dot"></span>
-                        <span id="polling-status">En attente de confirmation CashPay…</span>
+                    <!-- ============================================== -->
+                    <!-- ÉTAT 3 : PAIEMENT ÉCHOUÉ / EXPIRÉ              -->
+                    <!-- ============================================== -->
+                    <div id="failed-pay-section" style="display: none;">
+                        <h1 class="h3 fw-bold mb-2 text-danger" style="font-family: 'Playfair Display', serif;">
+                            <i class="fas fa-times-circle me-2"></i>Paiement non finalisé
+                        </h1>
+                        <p class="text-white-50" id="failed-message-text">
+                            Le paiement a été annulé ou n'a pas pu être validé par CashPay.
+                        </p>
+                        <div class="mt-4">
+                            <a href="{% url 'orders:checkout' %}" class="btn-cashpay-pay" style="background: #e11d48;">
+                                <i class="fas fa-redo me-2"></i>Recommencer le checkout
+                            </a>
+                        </div>
                     </div>
-
-                    <p class="security-note mt-3">
-                        <i class="fas fa-lock"></i>
-                        Paiement 100% sécurisé via CashPay SEMOA.
-                        Votre commande sera confirmée automatiquement.
-                    </p>
 
                 </div>
 
-                <p class="mt-4 small" style="color: rgba(255,255,255,0.3);">
-                    Un problème ?
-                    <a href="https://wa.me/22893343403" class="text-decoration-none" style="color: #d4af37;">
-                        <i class="fab fa-whatsapp me-1"></i>Contactez-nous
+                <p class="mt-4 small" style="color: rgba(255,255,255,0.35);">
+                    Besoin d'aide ?
+                    <a href="https://wa.me/22893343403" class="text-decoration-none" style="color: #d4af37;" target="_blank">
+                        <i class="fab fa-whatsapp me-1"></i>Contactez le support client
                     </a>
                 </p>
+
             </div>
         </div>
     </div>
@@ -347,106 +509,179 @@
 
 <script>
 (function () {
-    // URL de polling vers cashpay_return (vérification BDD + API CashPay)
-    var pollUrl = "{% url 'orders:cashpay_return' order.id %}";
+    var orderId = {{ order.id }};
+    var billUrl = "{{ bill_url|escapejs }}";
+    var signedToken = "{{ signed_token|escapejs }}";
+    var statusUrl = "{% url 'orders:cashpay_payment_status' order.id %}?token=" + encodeURIComponent(signedToken);
+
     var pollInterval = null;
     var pollCount = 0;
-    var MAX_POLLS = 120; // 10 minutes max (120 × 5s)
+    var MAX_POLLS = 200; // ~10 minutes (200 × 3s)
     var payClicked = false;
+    var storageKey = 'cashpay_order_waiting_' + orderId;
 
-    function updateStatus(msg) {
-        var el = document.getElementById('polling-status');
-        if (el) el.textContent = msg;
-    }
+    var prePaySection = document.getElementById('pre-pay-section');
+    var waitingSection = document.getElementById('waiting-pay-section');
+    var failedSection = document.getElementById('failed-pay-section');
+    var popupBlockedBox = document.getElementById('popup-blocked-box');
+    var statusText = document.getElementById('polling-status-text');
+    var progressBar = document.getElementById('progress-bar');
+    var btnPay = document.getElementById('btn-pay-cashpay');
 
-    function onPayClicked() {
-        payClicked = true;
-        // Après 3 secondes (délai pour que l'utilisateur parte vers CashPay),
-        // on affiche l'état "vérification" et on active le polling
+    function animateProgressBar() {
+        if (!progressBar) return;
+        progressBar.style.transition = 'none';
+        progressBar.style.width = '0%';
         setTimeout(function () {
-            var verSection = document.getElementById('verifying-section');
-            if (verSection) verSection.style.display = 'block';
-            startPolling();
-        }, 3000);
+            progressBar.style.transition = 'width 2.9s linear';
+            progressBar.style.width = '100%';
+        }, 50);
     }
 
-    function startPolling() {
-        if (pollInterval) return; // Déjà lancé
-        checkStatus(); // Premier check immédiat
-        pollInterval = setInterval(checkStatus, 5000);
+    function showWaitingState(isPopupBlocked) {
+        if (prePaySection) prePaySection.style.display = 'none';
+        if (failedSection) failedSection.style.display = 'none';
+        if (waitingSection) waitingSection.style.display = 'block';
+
+        if (isPopupBlocked && popupBlockedBox) {
+            popupBlockedBox.style.display = 'block';
+        }
+
+        try {
+            sessionStorage.setItem(storageKey, 'true');
+        } catch (e) {}
+
+        startPolling();
+    }
+
+    function showFailedState(message) {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+        try {
+            sessionStorage.removeItem(storageKey);
+        } catch (e) {}
+
+        if (prePaySection) prePaySection.style.display = 'none';
+        if (waitingSection) waitingSection.style.display = 'none';
+        if (failedSection) failedSection.style.display = 'block';
+
+        var msgEl = document.getElementById('failed-message-text');
+        if (msgEl && message) msgEl.textContent = message;
+    }
+
+    function handleSuccess(redirectUrl) {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+        try {
+            sessionStorage.removeItem(storageKey);
+        } catch (e) {}
+
+        // Mise à jour visuelle du fil d'Ariane
+        var pCircle = document.getElementById('step-circle-payment');
+        var cCircle = document.getElementById('step-circle-confirm');
+        var cConn = document.getElementById('step-connector-confirm');
+        if (pCircle) { pCircle.className = 'step-circle done'; pCircle.innerHTML = '<i class="fas fa-check"></i>'; }
+        if (cConn) cConn.className = 'step-connector done';
+        if (cCircle) { cCircle.className = 'step-circle active'; }
+
+        if (statusText) {
+            statusText.innerHTML = '<strong class="text-success"><i class="fas fa-check-circle me-1"></i> Paiement confirmé ! Redirection vers votre commande…</strong>';
+        }
+
+        setTimeout(function () {
+            window.location.href = redirectUrl;
+        }, 800);
     }
 
     function checkStatus() {
         if (pollCount >= MAX_POLLS) {
-            clearInterval(pollInterval);
-            updateStatus("Délai dépassé. Vérifiez votre commande ou contactez-nous.");
+            if (pollInterval) clearInterval(pollInterval);
+            if (statusText) statusText.textContent = "Délai de vérification dépassé. Contactez le service client.";
             return;
         }
         pollCount++;
+        animateProgressBar();
 
-        fetch(pollUrl, {
+        fetch(statusUrl, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(function (response) { return response.json(); })
         .then(function (data) {
-            if (data.paid && data.redirect_url) {
-                clearInterval(pollInterval);
-                updateStatus("✅ Paiement confirmé ! Redirection en cours…");
-                // Courte pause puis redirection vers payment_confirmed.html
-                setTimeout(function () {
-                    window.location.href = data.redirect_url;
-                }, 800);
-            } else if (data.failed) {
-                clearInterval(pollInterval);
-                updateStatus("❌ Paiement échoué ou annulé.");
-                setTimeout(function () { window.location.reload(); }, 2000);
+            if (data.status === 'paid' && data.redirect_url) {
+                handleSuccess(data.redirect_url);
+            } else if (data.status === 'failed') {
+                showFailedState("Votre paiement n'a pas pu être validé ou a été annulé.");
+            } else if (data.status === 'expired') {
+                showFailedState("La session de paiement CashPay a expiré. Veuillez repasser commande.");
             } else {
-                // Toujours en attente
-                var mins = Math.floor(pollCount * 5 / 60);
-                var secs = (pollCount * 5) % 60;
-                updateStatus(
-                    "En attente de confirmation CashPay… (" +
-                    (mins > 0 ? mins + "min " : "") + secs + "s)"
-                );
+                // Toujours en attente (status === 'pending')
+                var mins = Math.floor(pollCount * 3 / 60);
+                var secs = (pollCount * 3) % 60;
+                if (statusText) {
+                    statusText.textContent = "Nous attendons la confirmation de votre paiement… (" +
+                        (mins > 0 ? mins + "min " : "") + secs + "s)";
+                }
             }
         })
         .catch(function () {
-            // Erreur réseau — on réessaie silencieusement
+            // Erreur réseau temporaire : on réessaie au prochain cycle
         });
     }
 
-    // Exposé globalement pour le onclick du bouton
-    window.onPayClick = function(btn) {
-        if (payClicked) return false;
-        btn.classList.add('clicked');
-        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Connexion à CashPay…';
-        onPayClicked();
+    function startPolling() {
+        if (pollInterval) return;
+        checkStatus(); // Vérification immédiate
+        pollInterval = setInterval(checkStatus, 3000); // Polling toutes les 3 secondes
+    }
+
+    // Gestion du clic sur « Payer avec CashPay »
+    window.handlePayClick = function () {
+        if (payClicked) return;
+        payClicked = true;
+
+        if (btnPay) {
+            btnPay.disabled = true;
+            btnPay.classList.add('clicked');
+            btnPay.innerHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i> Ouverture de CashPay…';
+        }
+
+        // OUVERTURE SYNCHRONE DANS UN NOUVEL ONGLET
+        var cashpayWindow = null;
+        var isBlocked = false;
+        try {
+            cashpayWindow = window.open(billUrl, '_blank', 'noopener,noreferrer');
+            if (!cashpayWindow || cashpayWindow.closed || typeof cashpayWindow.closed === 'undefined') {
+                isBlocked = true;
+            }
+        } catch (e) {
+            isBlocked = true;
+        }
+
+        // Bascule immédiate de l'onglet Venus Luna en mode « Paiement en attente »
+        showWaitingState(isBlocked);
     };
 
-    // Si l'utilisateur revient via le bouton Précédent du navigateur
-    // (après avoir payé sur CashPay), on lance un check immédiat
-    window.addEventListener('pageshow', function (e) {
-        if (e.persisted) {
-            // Page restaurée depuis le cache navigateur (retour CashPay → Venus Luna)
-            startPolling();
+    // Si la page est rechargée alors qu'une attente était en cours
+    try {
+        if (sessionStorage.getItem(storageKey) === 'true') {
+            showWaitingState(false);
         }
-    });
+    } catch (e) {}
 
-    // Polling passif dès le chargement (pour le cas où le webhook arrive avant le clic)
-    // Intervalle plus lent (15s) pour ne pas surcharger avant que l'utilisateur parte
-    var passiveInterval = setInterval(function () {
-        if (!payClicked) {
-            fetch(pollUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-                if (d.paid && d.redirect_url) {
-                    clearInterval(passiveInterval);
-                    window.location.href = d.redirect_url;
-                }
-            })
-            .catch(function () {});
+    // Polling passif dès le chargement au cas où le webhook a déjà confirmé
+    fetch(statusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+        if (d.status === 'paid' && d.redirect_url) {
+            handleSuccess(d.redirect_url);
         }
-    }, 15000);
+    })
+    .catch(function () {});
+
 })();
 </script>
 {% endblock %}

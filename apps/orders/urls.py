@@ -20,6 +20,9 @@ urlpatterns = [
     # Retour navigateur CashPay après paiement (vérification côté serveur)
     path('retour/<int:order_id>/', views.cashpay_return, name='cashpay_return'),
 
+    # Endpoint de statut de paiement pour polling frontend (JSON)
+    path('payment-status/<int:order_id>/', views.cashpay_payment_status, name='cashpay_payment_status'),
+
     # Page relay : affichée après checkout, avant départ vers CashPay
     path('paiement/<int:order_id>/', views.cashpay_payment_page, name='cashpay_payment_page'),
 

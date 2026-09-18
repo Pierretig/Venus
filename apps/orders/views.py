@@ -330,13 +330,12 @@ def checkout(request):
                 )
                 send_order_pending_payment_email(order, payment_url)
 
-                # Mémoriser en session pour la page relay si nécessaire
+                # Mémoriser en session pour la page relay
                 request.session['cashpay_bill_url'] = payment_url
                 request.session['cashpay_order_ref'] = cashpay_order_ref
 
-                # Redirection directe du navigateur vers la passerelle CashPay
-                # Après paiement réussi, CashPay redirige automatiquement le navigateur vers redirect_url
-                return redirect(payment_url)
+                # Redirection vers la page de paiement Venus Luna (l'onglet principal restant ouvert)
+                return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order.id}))
 
             except Exception as e:
                 logger.error(f"Erreur checkout : {e}", exc_info=True)
@@ -367,15 +366,12 @@ def payment_success(request):
 
 def cashpay_payment_page(request, order_id):
     """
-    Page relay : affichée APRÈS le checkout, AVANT que l'utilisateur parte sur CashPay.
-
-    Rôle : garantir que l'utilisateur reste sur Venus Luna et voit la confirmation.
-    - Affiche un bouton "Payer avec CashPay" (redirige vers bill_url dans le même onglet).
-    - Lance un polling AJAX toutes les 5s vers cashpay_return (X-Requested-With).
-    - Dès que payment_status=True (via webhook OU API fallback), redirige vers la confirmation.
-
-    CashPay ne documentant pas return_url dans Link2Pay, cette page est la solution
-    pour que la vidéo de démonstration montre le retour marchand complet.
+    Page relay Venus Luna (Onglet 1) :
+    - Affiche la commande et le bouton « Payer avec CashPay ».
+    - Au clic utilisateur, CashPay s'ouvre dans un nouvel onglet (Onglet 2).
+    - L'onglet Venus Luna affiche immédiatement « Paiement en attente ».
+    - Lance le polling toutes les 3s vers cashpay_payment_status.
+    - Dès que le paiement est confirmé, bascule automatiquement vers la confirmation.
     """
     try:
         order = Order.objects.get(pk=order_id)
@@ -387,17 +383,102 @@ def cashpay_payment_page(request, order_id):
             return redirect(f"{reverse('accounts:login')}?next={request.path}")
         raise Http404("Accès non autorisé à cette commande.")
 
-    # Si le paiement est déjà confirmé (webhook arrivé avant l'utilisateur),
-    # on redirige directement vers la page de confirmation.
+    from django.core import signing
+    token = signing.dumps(order.id, salt='cashpay-return')
+
+    # Si le paiement est déjà confirmé, redirection directe vers la confirmation
     if order.payment_status:
-        return redirect(reverse('orders:cashpay_return', kwargs={'order_id': order_id}))
+        return redirect(
+            reverse('orders:cashpay_return', kwargs={'order_id': order_id}) + f"?token={token}"
+        )
 
     bill_url = request.session.get('cashpay_bill_url') or order.payment_url or ''
 
     return render(request, 'orders/cashpay_payment_page.html', {
         'order': order,
         'bill_url': bill_url,
+        'signed_token': token,
     })
+
+
+def cashpay_payment_status(request, order_id):
+    """
+    Endpoint JSON de statut de commande pour le polling frontend Venus Luna.
+    Interrogé toutes les 3 secondes par l'onglet Venus Luna pendant que CashPay est ouvert.
+    Sécurisé par contrôle d'accès : _can_access_order (session/auth OU jeton signé ?token=...).
+
+    Format de réponse JSON strict :
+    - {"status": "paid", "redirect_url": "/orders/retour/<id>/?token=..."}
+    - {"status": "pending"}
+    - {"status": "failed"}
+    - {"status": "expired"}
+    """
+    try:
+        order = Order.objects.get(pk=order_id)
+    except Order.DoesNotExist:
+        return JsonResponse({'status': 'not_found'}, status=404)
+
+    if not _can_access_order(request, order):
+        return JsonResponse({'status': 'unauthorized'}, status=403)
+
+    from django.core import signing
+    token = request.GET.get('token') or signing.dumps(order.id, salt='cashpay-return')
+    return_url = request.build_absolute_uri(
+        reverse('orders:cashpay_return', kwargs={'order_id': order.id})
+    ) + f"?token={token}"
+
+    # 1. Source de vérité primaire : BDD (mise à jour par webhook)
+    if order.payment_status:
+        return JsonResponse({
+            'status': 'paid',
+            'redirect_url': return_url
+        })
+
+    # 2. Si statut 'pending' : interrogation API fallback CashPay
+    if order.status == 'pending':
+        cashpay_order_ref = request.session.get('cashpay_order_ref', '') or order.paygate_tx_id or ''
+        if cashpay_order_ref:
+            try:
+                from .cashpay_service import CashPayService
+                cashpay = CashPayService()
+                api_data = cashpay.get_order_status(cashpay_order_ref)
+                api_state = api_data.get('state', '')
+                logger.info(
+                    f"CashPay API status check pour commande #{order.id} "
+                    f"(ref={cashpay_order_ref}) : état={api_state}"
+                )
+                if api_state == 'Paid':
+                    order.status = 'paid'
+                    order.payment_status = True
+                    order.save(update_fields=['status', 'payment_status'])
+                    send_order_paid_email(order)
+                    return JsonResponse({
+                        'status': 'paid',
+                        'redirect_url': return_url
+                    })
+                elif api_state in ('Canceled', 'Error'):
+                    order.status = 'cancelled'
+                    order.save(update_fields=['status'])
+                    return JsonResponse({'status': 'failed'})
+                elif api_state == 'Expired':
+                    return JsonResponse({'status': 'expired'})
+            except Exception as e:
+                logger.warning(f"CashPay API status check échoué pour #{order.id} : {e}")
+
+    # 3. Rechargement BDD après éventuel fallback
+    order.refresh_from_db()
+
+    if order.payment_status:
+        return JsonResponse({
+            'status': 'paid',
+            'redirect_url': return_url
+        })
+    elif order.status == 'pending':
+        return JsonResponse({'status': 'pending'})
+    elif order.status in ('cancelled', 'refunded'):
+        return JsonResponse({'status': 'failed'})
+    else:
+        return JsonResponse({'status': 'failed'})
 
 
 def cashpay_return(request, order_id):

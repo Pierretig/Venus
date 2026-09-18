@@ -388,3 +388,135 @@ class CashpayReturnViewTests(TestCase):
         response = fresh_client.get(url)
         # Redirige vers login ou 404 car non autorisé
         self.assertIn(response.status_code, (302, 404))
+
+
+class CashpayPaymentStatusEndpointTests(TestCase):
+    """
+    Tests exhaustifs du nouvel endpoint de polling :
+    GET /orders/payment-status/<order_id>/?token=<signed_token>
+    """
+    def setUp(self):
+        self.client = Client()
+        self.order_paid = Order.objects.create(
+            user=None,
+            email="paid@example.com",
+            subtotal=Decimal("5000"),
+            total=Decimal("5000"),
+            status="paid",
+            payment_status=True,
+            paygate_tx_id="SANDBOX-PAID-001"
+        )
+        self.order_pending = Order.objects.create(
+            user=None,
+            email="pending@example.com",
+            subtotal=Decimal("4500"),
+            total=Decimal("4500"),
+            status="pending",
+            payment_status=False,
+            paygate_tx_id="SANDBOX-PENDING-002"
+        )
+
+    def _get_token(self, order_id):
+        from django.core import signing
+        return signing.dumps(order_id, salt='cashpay-return')
+
+    def test_status_endpoint_returns_paid_when_already_paid(self):
+        """Si la commande est déjà payée en BDD, retourne status=paid et redirect_url."""
+        token = self._get_token(self.order_paid.id)
+        url = reverse('orders:cashpay_payment_status', kwargs={'order_id': self.order_paid.id}) + f"?token={token}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data.get('status'), 'paid')
+        self.assertTrue('redirect_url' in data)
+        self.assertIn(f"/orders/retour/{self.order_paid.id}/", data['redirect_url'])
+
+    def test_status_endpoint_returns_pending_when_pending_and_no_fallback(self):
+        """Si en attente et API non interrogée ou toujours Pending, retourne status=pending."""
+        from unittest.mock import patch
+        token = self._get_token(self.order_pending.id)
+        url = reverse('orders:cashpay_payment_status', kwargs={'order_id': self.order_pending.id}) + f"?token={token}"
+        
+        with patch('apps.orders.cashpay_service.CashPayService.get_order_status') as mock_status:
+            mock_status.return_value = {'state': 'Pending'}
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data.get('status'), 'pending')
+
+    def test_status_endpoint_fallback_api_confirms_paid(self):
+        """Quand l'API CashPay retourne 'Paid', la BDD est mise à jour et status=paid est renvoyé."""
+        from unittest.mock import patch
+        token = self._get_token(self.order_pending.id)
+        url = reverse('orders:cashpay_payment_status', kwargs={'order_id': self.order_pending.id}) + f"?token={token}"
+        
+        with patch('apps.orders.cashpay_service.CashPayService.get_order_status') as mock_status:
+            mock_status.return_value = {'state': 'Paid'}
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data.get('status'), 'paid')
+            self.assertTrue('redirect_url' in data)
+
+        # Vérification BDD : commande marquée payée
+        self.order_pending.refresh_from_db()
+        self.assertTrue(self.order_pending.payment_status)
+        self.assertEqual(self.order_pending.status, 'paid')
+
+    def test_status_endpoint_fallback_api_detects_cancelled(self):
+        """Quand l'API CashPay retourne 'Canceled', la commande est annulée et status=failed est renvoyé."""
+        from unittest.mock import patch
+        token = self._get_token(self.order_pending.id)
+        url = reverse('orders:cashpay_payment_status', kwargs={'order_id': self.order_pending.id}) + f"?token={token}"
+        
+        with patch('apps.orders.cashpay_service.CashPayService.get_order_status') as mock_status:
+            mock_status.return_value = {'state': 'Canceled'}
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data.get('status'), 'failed')
+
+        self.order_pending.refresh_from_db()
+        self.assertEqual(self.order_pending.status, 'cancelled')
+
+    def test_status_endpoint_fallback_api_detects_expired(self):
+        """Quand l'API CashPay retourne 'Expired', status=expired est renvoyé."""
+        from unittest.mock import patch
+        token = self._get_token(self.order_pending.id)
+        url = reverse('orders:cashpay_payment_status', kwargs={'order_id': self.order_pending.id}) + f"?token={token}"
+        
+        with patch('apps.orders.cashpay_service.CashPayService.get_order_status') as mock_status:
+            mock_status.return_value = {'state': 'Expired'}
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data.get('status'), 'expired')
+
+    def test_status_endpoint_denies_access_without_token_or_session(self):
+        """Accès interdit (403) sans session valide et sans token signé."""
+        fresh_client = Client()
+        url = reverse('orders:cashpay_payment_status', kwargs={'order_id': self.order_pending.id})
+        response = fresh_client.get(url)
+        self.assertEqual(response.status_code, 403)
+
+    def test_status_endpoint_returns_404_for_nonexistent_order(self):
+        """Retourne 404 pour un order_id inexistant."""
+        url = reverse('orders:cashpay_payment_status', kwargs={'order_id': 99999})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_status_endpoint_ignores_fraudulent_get_params(self):
+        """Un paramètre ?status=paid passé dans l'URL ne déclenche PAS de confirmation sans preuve réelle."""
+        from unittest.mock import patch
+        token = self._get_token(self.order_pending.id)
+        url = reverse('orders:cashpay_payment_status', kwargs={'order_id': self.order_pending.id}) + f"?token={token}&status=paid&paid=true"
+        
+        with patch('apps.orders.cashpay_service.CashPayService.get_order_status') as mock_status:
+            mock_status.return_value = {'state': 'Pending'}
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data.get('status'), 'pending')
+
+        self.order_pending.refresh_from_db()
+        self.assertFalse(self.order_pending.payment_status)
