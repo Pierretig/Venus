@@ -105,10 +105,11 @@ LOGGING = {
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,venus-luna.com,www.venus-luna.com').split(',')
 ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS if h.strip()]
-if DEBUG:
-    for local_host in ('127.0.0.1', 'localhost'):
-        if local_host not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append(local_host)
+# Toujours inclure 127.0.0.1 et localhost pour les sondes HEALTHCHECK internes du conteneur Docker
+for local_host in ('127.0.0.1', 'localhost'):
+    if local_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(local_host)
+
 
 # --- CORRECTION CSRF PRODUCTION ---
 CSRF_TRUSTED_ORIGINS = [
