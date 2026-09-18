@@ -20,6 +20,9 @@ urlpatterns = [
     # Retour navigateur CashPay après paiement (vérification côté serveur)
     path('retour/<int:order_id>/', views.cashpay_return, name='cashpay_return'),
 
+    # Page relay : affichée après checkout, avant départ vers CashPay
+    path('paiement/<int:order_id>/', views.cashpay_payment_page, name='cashpay_payment_page'),
+
     # Webhook CashPay
     path('webhook/cashpay/', views.cashpay_webhook, name='cashpay_webhook'),
 

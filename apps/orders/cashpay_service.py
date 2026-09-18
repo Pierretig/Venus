@@ -23,11 +23,11 @@ class CashPayService:
         self.client_secret = _clean(getattr(settings, "CASHPAY_CLIENT_SECRET", ""))
         self.username = _clean(getattr(settings, "CASHPAY_USERNAME", ""))
         self.password = _clean(getattr(settings, "CASHPAY_PASSWORD", ""))
-        
+
         self.api_base_url = _clean(getattr(
             settings,
             "CASHPAY_API_BASE_URL",
-            "https://api.semoa-payments.ovh/dev-v3",
+            "https://api.semoa-payments.ovh/sandbox-v3",
         )).rstrip("/")
         self._token = None
         self._token_expires_at = 0
@@ -80,12 +80,23 @@ class CashPayService:
         callback_url: str,
         phone: str,
         type_notif=None,
-        return_url: str = None,
     ):
+        """
+        Crée une commande Link2Pay sur CashPay et retourne la réponse complète.
+
+        Champs utiles dans la réponse :
+          - bill_url       : URL de la facture CashPay (rediriger le client ici)
+          - order_reference: référence interne CashPay (pour get_order_status)
+          - merchant_reference: référence merchant (= order.id Venus Luna)
+
+        NB : return_url n'est PAS documenté dans l'API Link2Pay CashPay v3.
+        La redirection navigateur après paiement est gérée côté Venus Luna via
+        la page cashpay_payment_page + polling de cashpay_return.
+        """
         access_token = self._get_access_token()
         url = f"{self.api_base_url}/orders"
 
-        # S'assurer que le numéro commence par '+'
+        # Normalisation du numéro de téléphone en format international
         if phone:
             phone = phone.strip()
             if not phone.startswith('+'):
@@ -96,7 +107,6 @@ class CashPayService:
                 else:
                     phone = f"+{phone}"
 
-        # Doc: callback_url dans le body, et client.phone en international format.
         body = {
             "amount": int(amount),
             "currency": currency,
@@ -107,11 +117,6 @@ class CashPayService:
         }
         if type_notif:
             body["type_notif"] = type_notif
-        # return_url : CashPay redirige le navigateur client vers cette URL après paiement.
-        # IMPORTANT : cette URL sert UNIQUEMENT à l'expérience utilisateur.
-        # La confirmation réelle du paiement provient exclusivement du webhook (callback_url).
-        if return_url:
-            body["return_url"] = return_url
 
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -133,9 +138,40 @@ class CashPayService:
         except requests.RequestException as e:
             raise RuntimeError(f"Erreur lors de la création de la commande CashPay : {e}")
 
-        # Link2Pay renvoie bill_url (d'après doc)
+        # Link2Pay renvoie bill_url et order_reference (d'après doc)
         if data.get("status") == "success":
             return data
 
         raise RuntimeError(data.get("message") or "CashPay order creation failed")
 
+    def get_order_status(self, order_reference: str) -> dict:
+        """
+        Interroge directement l'API CashPay pour connaître le statut d'une commande.
+
+        Mécanisme de fallback au webhook :
+        si le webhook n'arrive pas (réseau, config), le polling frontend appelle
+        cette méthode via cashpay_return pour confirmer le paiement côté serveur.
+
+        Retourne le dict de réponse CashPay (champs : state, amount, bill_url, …)
+        ou lève RuntimeError en cas d'erreur.
+
+        États possibles : Pending, Paid, Partial, Excess, Canceled, Error, Expired
+        """
+        access_token = self._get_access_token()
+        url = f"{self.api_base_url}/orders/{order_reference}"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        try:
+            resp = requests.get(url, headers=headers, timeout=15)
+            if resp.status_code == 404:
+                raise RuntimeError(f"Commande CashPay introuvable : {order_reference}")
+            if resp.status_code not in (200, 201):
+                raise RuntimeError(
+                    f"Erreur API CashPay get_order_status ({resp.status_code}) : {resp.text[:300]}"
+                )
+            return resp.json()
+        except requests.RequestException as e:
+            raise RuntimeError(f"Erreur réseau CashPay get_order_status : {e}")

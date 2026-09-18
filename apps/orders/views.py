@@ -272,10 +272,6 @@ def checkout(request):
                     return redirect('orders:cart_detail')
 
                 callback_url = request.build_absolute_uri(reverse('orders:cashpay_webhook'))
-                # return_url : redirection navigateur après paiement (UX uniquement, PAS source de vérité)
-                return_url = request.build_absolute_uri(
-                    reverse('orders:cashpay_return', kwargs={'order_id': order.id})
-                )
 
                 # --- CashPay: Link2Pay ---
                 from .cashpay_service import CashPayService
@@ -298,17 +294,26 @@ def checkout(request):
                     callback_url=callback_url,
                     phone=phone_formatted,
                     type_notif=["SMS", "MAIL"],
-                    return_url=return_url,
                 )
 
-                # Données attendues: bill_url et/ou order_reference
-                payment_url = resp.get('bill_url') or resp.get('bill_url'.encode('utf-8')) or resp.get('payment_url')
+                # bill_url : URL de la facture CashPay
+                # order_reference : référence interne CashPay (pour le polling API fallback)
+                payment_url = resp.get('bill_url') or resp.get('payment_url')
+                cashpay_order_ref = resp.get('order_reference', '')
+
                 if not payment_url:
-                    payment_url = resp.get('order_reference')
+                    raise RuntimeError("CashPay n'a pas retourné de bill_url dans la réponse.")
 
                 Order.objects.filter(id=order.id).update(payment_url=payment_url)
                 send_order_pending_payment_email(order, payment_url)
-                return redirect(payment_url)
+
+                # Stocker bill_url et order_reference CashPay en session pour la page relay
+                request.session['cashpay_bill_url'] = payment_url
+                request.session['cashpay_order_ref'] = cashpay_order_ref
+
+                # Rediriger vers la page relay (pas directement vers CashPay).
+                # La page relay affiche le bouton "Payer" et poll le statut en arrière-plan.
+                return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order.id}))
 
             except Exception as e:
                 logger.error(f"Erreur checkout : {e}", exc_info=True)
@@ -328,30 +333,65 @@ def checkout(request):
 def payment_success(request):
     """
     Point d'entrée legacy (conservé pour compatibilité).
-    Si une order_id est connue en session, redirige vers cashpay_return.
+    Si une order_id est connue en session, redirige vers cashpay_payment_page.
     Sinon affiche la page d'échec (pas de vérification possible).
     """
     order_id = request.session.get('last_order_id')
     if order_id:
-        return redirect(reverse('orders:cashpay_return', kwargs={'order_id': order_id}))
+        return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order_id}))
     return render(request, 'orders/payment_failed.html')
+
+
+def cashpay_payment_page(request, order_id):
+    """
+    Page relay : affichée APRÈS le checkout, AVANT que l'utilisateur parte sur CashPay.
+
+    Rôle : garantir que l'utilisateur reste sur Venus Luna et voit la confirmation.
+    - Affiche un bouton "Payer avec CashPay" (redirige vers bill_url dans le même onglet).
+    - Lance un polling AJAX toutes les 5s vers cashpay_return (X-Requested-With).
+    - Dès que payment_status=True (via webhook OU API fallback), redirige vers la confirmation.
+
+    CashPay ne documentant pas return_url dans Link2Pay, cette page est la solution
+    pour que la vidéo de démonstration montre le retour marchand complet.
+    """
+    try:
+        order = Order.objects.get(pk=order_id)
+    except Order.DoesNotExist:
+        raise Http404("Commande introuvable.")
+
+    if not _can_access_order(request, order):
+        if not request.user.is_authenticated:
+            return redirect(f"{reverse('accounts:login')}?next={request.path}")
+        raise Http404("Accès non autorisé à cette commande.")
+
+    # Si le paiement est déjà confirmé (webhook arrivé avant l'utilisateur),
+    # on redirige directement vers la page de confirmation.
+    if order.payment_status:
+        return redirect(reverse('orders:cashpay_return', kwargs={'order_id': order_id}))
+
+    bill_url = request.session.get('cashpay_bill_url') or order.payment_url or ''
+
+    return render(request, 'orders/cashpay_payment_page.html', {
+        'order': order,
+        'bill_url': bill_url,
+    })
 
 
 def cashpay_return(request, order_id):
     """
     Vue de retour CashPay — vérification CÔTÉ SERVEUR uniquement.
 
-    CashPay redirige le navigateur ici après paiement (return_url).
-    Cette vue ne fait JAMAIS confiance aux paramètres GET : elle interroge
-    directement la base de données pour connaître le vrai statut de la commande.
+    Utilisée par :
+    1. Le polling AJAX de cashpay_payment_page (X-Requested-With: XMLHttpRequest)
+    2. La redirection directe si CashPay supporte return_url dans le futur
 
     Scénarios :
-    - payment_status=True  → paiement confirmé → page succès avec compte à rebours
-    - payment_status=False + status='pending' → paiement en attente de confirmation webhook
-    - Toute autre situation → page d'échec
+    - payment_status=True  → paiement confirmé par le webhook → page succès
+    - payment_status=False + status='pending' → tente le fallback API CashPay ;
+      si l'API confirme 'Paid', met à jour la BDD et confirme
+    - Toute autre situation → paiement en attente ou échoué
 
-    Support AJAX : si X-Requested-With est présent (polling depuis waiting_confirm.html),
-    renvoie un JSON {paid, redirect_url} pour permettre une redirection JavaScript propre.
+    Support AJAX : renvoie JSON {paid, redirect_url} pour le polling JavaScript.
     """
     # Récupération sécurisée de la commande
     try:
@@ -367,13 +407,46 @@ def cashpay_return(request, order_id):
 
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
-    # --- SOURCE DE VÉRITÉ : base de données uniquement, jamais les params GET ---
+    # --- SOURCE DE VÉRITÉ PRIMAIRE : base de données (mise à jour par le webhook) ---
+    if not order.payment_status and order.status == 'pending':
+        # Le webhook n'est pas encore arrivé. On tente le fallback : interroger l'API CashPay directement.
+        cashpay_order_ref = request.session.get('cashpay_order_ref', '')
+        if cashpay_order_ref:
+            try:
+                from .cashpay_service import CashPayService
+                cashpay = CashPayService()
+                api_data = cashpay.get_order_status(cashpay_order_ref)
+                api_state = api_data.get('state', '')
+                logger.info(
+                    f"CashPay API fallback pour commande #{order.id} "
+                    f"(ref={cashpay_order_ref}) : état={api_state}"
+                )
+                # Si l'API confirme le paiement, on met à jour la BDD
+                # (le webhook devrait arriver aussi, mais on ne l'attend pas)
+                if api_state == 'Paid':
+                    order.status = 'paid'
+                    order.payment_status = True
+                    order.save(update_fields=['status', 'payment_status'])
+                    send_order_paid_email(order)
+                    logger.info(
+                        f"Commande #{order.id} confirmée via API CashPay fallback (ref={cashpay_order_ref})"
+                    )
+            except Exception as api_err:
+                # Le fallback API a échoué (réseau, auth, etc.) : on continue sans planter
+                logger.warning(f"CashPay API fallback échoué pour #{order.id} : {api_err}")
+
+    # Rechargement depuis la BDD après le fallback éventuel
+    order.refresh_from_db()
+
+    # --- Décision finale basée sur la BDD ---
     if order.payment_status:
-        # Paiement confirmé par le webhook CashPay
+        # Paiement confirmé (webhook ou API fallback)
         # Nettoyage session/panier (idempotent)
         if request.session.session_key:
             StockReservation.objects.filter(session_key=request.session.session_key).delete()
         request.session.pop('cart', None)
+        request.session.pop('cashpay_bill_url', None)
+        request.session.pop('cashpay_order_ref', None)
 
         if is_ajax:
             return JsonResponse({
@@ -389,11 +462,11 @@ def cashpay_return(request, order_id):
         })
 
     elif order.status == 'pending':
-        # Le webhook n'est pas encore arrivé : paiement en cours de confirmation
+        # Toujours en attente
         if is_ajax:
             return JsonResponse({'paid': False})
-        # On affiche la page d'attente avec polling automatique
-        return render(request, 'orders/waiting_confirm.html', {'order': order})
+        # Rediriger vers la page relay si l'utilisateur arrive directement ici
+        return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order_id}))
 
     else:
         # Commande annulée, remboursée, ou statut inattendu

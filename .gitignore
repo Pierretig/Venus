@@ -22,7 +22,13 @@ media/
 staticfiles/
 venus-luna
 TODO.md
+CashPay_V3_Documentation.md
+arborescence.txt
+plan_de_developpement.txt
 API Cashpay V3.0.pdf
+*.txt
+*.md
+
 
 # Docker
 *.tar
