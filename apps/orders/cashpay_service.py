@@ -80,6 +80,7 @@ class CashPayService:
         callback_url: str,
         phone: str,
         type_notif=None,
+        redirect_url: str = None,
     ):
         """
         Crée une commande Link2Pay sur CashPay et retourne la réponse complète.
@@ -117,6 +118,11 @@ class CashPayService:
         }
         if type_notif:
             body["type_notif"] = type_notif
+        # redirect_url : CashPay redirige le navigateur vers cette URL après paiement.
+        # Paramètre confirmé par test API direct (champ présent dans la réponse quand fourni).
+        # NE PAS confondre avec callback_url (webhook server-to-server).
+        if redirect_url:
+            body["redirect_url"] = redirect_url
 
         headers = {
             "Authorization": f"Bearer {access_token}",

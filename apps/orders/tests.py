@@ -365,3 +365,26 @@ class CashpayReturnViewTests(TestCase):
         url = reverse('orders:cashpay_return', kwargs={'order_id': 99999})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
+
+    # TEST : Accès avec token signé (redirection cross-origin CashPay sans cookie session)
+    def test_cashpay_return_with_valid_signed_token_allows_guest_access(self):
+        """Un invité sans cookie de session peut accéder avec le token signé de redirect_url."""
+        from django.core import signing
+        # Créer un nouveau client vierge sans cookie
+        fresh_client = Client()
+        token = signing.dumps(self.order_paid.id, salt='cashpay-return')
+        url = reverse('orders:cashpay_return', kwargs={'order_id': self.order_paid.id}) + f"?token={token}"
+        response = fresh_client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'orders/payment_confirmed.html')
+
+    # TEST : Rejet si token signé invalide pour une autre commande
+    def test_cashpay_return_with_invalid_signed_token_denies_guest_access(self):
+        """Un token falsifié ou pour un autre order_id est refusé."""
+        from django.core import signing
+        fresh_client = Client()
+        invalid_token = signing.dumps(99999, salt='cashpay-return')
+        url = reverse('orders:cashpay_return', kwargs={'order_id': self.order_paid.id}) + f"?token={invalid_token}"
+        response = fresh_client.get(url)
+        # Redirige vers login ou 404 car non autorisé
+        self.assertIn(response.status_code, (302, 404))

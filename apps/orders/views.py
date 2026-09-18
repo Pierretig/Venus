@@ -45,12 +45,24 @@ def _can_access_order(request, order):
     Vérifie si l'utilisateur courant a le droit d'accéder à la commande :
     - Administrateurs (is_staff) : toujours autorisé.
     - Commande liée à un compte : uniquement si l'utilisateur est connecté et propriétaire.
+    - Token signé valide dans l'URL (retour CashPay cross-origin) : autorisé.
     - Commande passée en invité (order.user is None) : autorisé si l'ID correspond à la session active du client.
     """
     if request.user.is_authenticated and request.user.is_staff:
         return True
-    if order.user_id is not None:
-        return request.user.is_authenticated and request.user.id == order.user_id
+    if order.user_id is not None and request.user.is_authenticated and request.user.id == order.user_id:
+        return True
+    # Vérification par token signé (utilisé dans redirect_url pour garantir le retour même si la session est perdue)
+    token = request.GET.get('token')
+    if token:
+        try:
+            from django.core import signing
+            signed_id = signing.loads(token, salt='cashpay-return', max_age=86400)
+            if signed_id == order.id:
+                request.session['last_order_id'] = order.id
+                return True
+        except Exception:
+            pass
     # Commande invité : vérification de la session
     return request.session.get('last_order_id') == order.id
 
@@ -271,7 +283,14 @@ def checkout(request):
                     order.delete()
                     return redirect('orders:cart_detail')
 
-                callback_url = request.build_absolute_uri(reverse('orders:cashpay_webhook'))
+                callback_url = getattr(settings, 'CASHPAY_WEBHOOK_URL', None) or request.build_absolute_uri(reverse('orders:cashpay_webhook'))
+
+                # Token signé pour authentifier le retour CashPay de manière infaillible
+                from django.core import signing
+                token = signing.dumps(order.id, salt='cashpay-return')
+                redirect_url = request.build_absolute_uri(
+                    reverse('orders:cashpay_return', kwargs={'order_id': order.id})
+                ) + f"?token={token}"
 
                 # --- CashPay: Link2Pay ---
                 from .cashpay_service import CashPayService
@@ -294,6 +313,7 @@ def checkout(request):
                     callback_url=callback_url,
                     phone=phone_formatted,
                     type_notif=["SMS", "MAIL"],
+                    redirect_url=redirect_url,
                 )
 
                 # bill_url : URL de la facture CashPay
@@ -304,16 +324,19 @@ def checkout(request):
                 if not payment_url:
                     raise RuntimeError("CashPay n'a pas retourné de bill_url dans la réponse.")
 
-                Order.objects.filter(id=order.id).update(payment_url=payment_url)
+                Order.objects.filter(id=order.id).update(
+                    payment_url=payment_url,
+                    paygate_tx_id=cashpay_order_ref or None
+                )
                 send_order_pending_payment_email(order, payment_url)
 
-                # Stocker bill_url et order_reference CashPay en session pour la page relay
+                # Mémoriser en session pour la page relay si nécessaire
                 request.session['cashpay_bill_url'] = payment_url
                 request.session['cashpay_order_ref'] = cashpay_order_ref
 
-                # Rediriger vers la page relay (pas directement vers CashPay).
-                # La page relay affiche le bouton "Payer" et poll le statut en arrière-plan.
-                return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order.id}))
+                # Redirection directe du navigateur vers la passerelle CashPay
+                # Après paiement réussi, CashPay redirige automatiquement le navigateur vers redirect_url
+                return redirect(payment_url)
 
             except Exception as e:
                 logger.error(f"Erreur checkout : {e}", exc_info=True)
@@ -410,7 +433,7 @@ def cashpay_return(request, order_id):
     # --- SOURCE DE VÉRITÉ PRIMAIRE : base de données (mise à jour par le webhook) ---
     if not order.payment_status and order.status == 'pending':
         # Le webhook n'est pas encore arrivé. On tente le fallback : interroger l'API CashPay directement.
-        cashpay_order_ref = request.session.get('cashpay_order_ref', '')
+        cashpay_order_ref = request.session.get('cashpay_order_ref', '') or order.paygate_tx_id or ''
         if cashpay_order_ref:
             try:
                 from .cashpay_service import CashPayService
@@ -462,11 +485,10 @@ def cashpay_return(request, order_id):
         })
 
     elif order.status == 'pending':
-        # Toujours en attente
+        # Toujours en attente (le client attend la confirmation du paiement)
         if is_ajax:
             return JsonResponse({'paid': False})
-        # Rediriger vers la page relay si l'utilisateur arrive directement ici
-        return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order_id}))
+        return render(request, 'orders/waiting_confirm.html', {'order': order})
 
     else:
         # Commande annulée, remboursée, ou statut inattendu
