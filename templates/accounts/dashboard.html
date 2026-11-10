@@ -10,13 +10,17 @@
         --venus-jaune: #fbc02d;
     }
 
-    .dashboard-container { background-color: #fcfcfc; min-height: 100vh; }
-    
+    .dashboard-container {
+        background-color: #fcfcfc;
+        min-height: 100vh;
+    }
+
     /* Sidebar Profile Card */
     .profile-card-header {
         background: linear-gradient(135deg, var(--venus-vert) 0%, #155430 100%);
         border: none;
     }
+
     .avatar-wrapper {
         border: 4px solid var(--venus-or);
         border-radius: 50%;
@@ -27,25 +31,50 @@
         justify-content: center;
         background: white;
         margin: -50px auto 15px;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
     }
-    .avatar-wrapper i { color: var(--venus-vert); }
+
+    .avatar-wrapper i {
+        color: var(--venus-vert);
+    }
 
     /* List Group Customization */
-    .list-group-item { border: none; padding: 12px 20px; color: #444; font-weight: 500; }
-    .list-group-item i { width: 25px; color: var(--venus-vert); }
+    .list-group-item {
+        border: none;
+        padding: 12px 20px;
+        color: #444;
+        font-weight: 500;
+    }
+
+    .list-group-item i {
+        width: 25px;
+        color: var(--venus-vert);
+    }
+
     .list-group-item.active-venus {
         background-color: var(--venus-vert-light) !important;
         color: var(--venus-vert) !important;
         border-right: 4px solid var(--venus-vert);
     }
-    .list-group-item:hover:not(.active-venus) { background-color: #f8f9fa; color: var(--venus-vert); }
+
+    .list-group-item:hover:not(.active-venus) {
+        background-color: #f8f9fa;
+        color: var(--venus-vert);
+    }
 
     /* Stats Cards */
-    .stat-card { border-radius: 20px; transition: transform 0.3s ease; }
-    .stat-card:hover { transform: translateY(-5px); }
+    .stat-card {
+        border-radius: 20px;
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
     .icon-box-venus {
-        width: 50px; height: 50px;
+        width: 50px;
+        height: 50px;
         border-radius: 12px;
         display: flex;
         align-items: center;
@@ -54,10 +83,28 @@
     }
 
     /* Buttons */
-    .btn-venus { background-color: var(--venus-jaune); color: var(--venus-vert); font-weight: 700; border: none; }
-    .btn-venus:hover { background-color: var(--venus-vert); color: white; }
-    .btn-outline-venus { border: 2px solid var(--venus-vert); color: var(--venus-vert); font-weight: 600; }
-    .btn-outline-venus:hover { background-color: var(--venus-vert); color: white; }
+    .btn-venus {
+        background-color: var(--venus-jaune);
+        color: var(--venus-vert);
+        font-weight: 700;
+        border: none;
+    }
+
+    .btn-venus:hover {
+        background-color: var(--venus-vert);
+        color: white;
+    }
+
+    .btn-outline-venus {
+        border: 2px solid var(--venus-vert);
+        color: var(--venus-vert);
+        font-weight: 600;
+    }
+
+    .btn-outline-venus:hover {
+        background-color: var(--venus-vert);
+        color: white;
+    }
 </style>
 
 <div class="dashboard-container py-5">
@@ -71,21 +118,30 @@
                     </div>
                     <div class="card-body text-center pt-0">
                         <h5 class="fw-bold mb-0" style="color: var(--venus-vert);">{{ user.username|capfirst }}</h5>
-                        <span class="badge bg-light text-dark border mt-2 px-3 rounded-pill small">Client Privilège</span>
+                        <span class="badge bg-light text-dark border mt-2 px-3 rounded-pill small">Client
+                            Privilège</span>
                         <p class="text-muted x-small mt-3">Serein depuis {{ user.date_joined|date:"M Y" }}</p>
                     </div>
-                    
+
                     <div class="list-group list-group-flush pb-3">
-                        <a href="{% url 'accounts:client_dashboard' %}" class="list-group-item list-group-item-action active-venus d-flex align-items-center">
+                        <a href="{% url 'accounts:client_dashboard' %}"
+                            class="list-group-item list-group-item-action active-venus d-flex align-items-center">
                             <i class="fas fa-box-open me-2"></i> Mes Commandes
                         </a>
-                        <a href="{% url 'products:wishlist' %}" class="list-group-item list-group-item-action d-flex align-items-center">
+                        <a href="{% url 'courses:student_dashboard' %}"
+                            class="list-group-item list-group-item-action d-flex align-items-center">
+                            <i class="fas fa-graduation-cap me-2 text-success"></i> Mes Formations (LMS)
+                        </a>
+                        <a href="{% url 'products:wishlist' %}"
+                            class="list-group-item list-group-item-action d-flex align-items-center">
                             <i class="fas fa-heart me-2"></i> Ma Liste de souhaits
                         </a>
-                        <a href="{% url 'accounts:profile_edit' %}" class="list-group-item list-group-item-action d-flex align-items-center">
+                        <a href="{% url 'accounts:profile_edit' %}"
+                            class="list-group-item list-group-item-action d-flex align-items-center">
                             <i class="fas fa-fingerprint me-2"></i> Sécurité & Profil
                         </a>
-                        <a href="{% url 'accounts:change_password' %}" class="list-group-item list-group-item-action d-flex align-items-center">
+                        <a href="{% url 'accounts:change_password' %}"
+                            class="list-group-item list-group-item-action d-flex align-items-center">
                             <i class="fas fa-key me-2"></i> Modifier mon mot de passe
                         </a>
                         <form action="{% url 'accounts:logout' %}" method="post" class="px-3 mt-3">
@@ -105,12 +161,13 @@
                         Continuer mes achats <i class="fas fa-shopping-cart ms-2"></i>
                     </a>
                 </div>
-                
+
                 <div class="row g-3 mb-4">
                     <div class="col-md-4">
                         <div class="card stat-card border-0 shadow-sm p-3 bg-white">
                             <div class="d-flex align-items-center">
-                                <div class="icon-box-venus me-3" style="background: var(--venus-vert-light); color: var(--venus-vert);">
+                                <div class="icon-box-venus me-3"
+                                    style="background: var(--venus-vert-light); color: var(--venus-vert);">
                                     <i class="fas fa-box"></i>
                                 </div>
                                 <div>
@@ -128,7 +185,8 @@
                                 </div>
                                 <div>
                                     <h6 class="text-muted small mb-0">Points Fidélité</h6>
-                                    <span class="h4 fw-bold" style="color: var(--venus-or);">{{ orders.count|add:"5" }}</span>
+                                    <span class="h4 fw-bold" style="color: var(--venus-or);">{{ orders.count|add:"5"
+                                        }}</span>
                                 </div>
                             </div>
                         </div>
@@ -136,7 +194,8 @@
                 </div>
 
                 <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-                    <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+                    <div
+                        class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
                         <h5 class="mb-0 fw-bold" style="color: var(--venus-vert);">
                             <i class="fas fa-history me-2" style="color: var(--venus-or);"></i>Historique des commandes
                         </h5>
@@ -167,7 +226,8 @@
                                     </td>
                                     <td class="fw-bold" style="color: var(--venus-vert);">{{ order.total }} FCF</td>
                                     <td class="text-end pe-4">
-                                        <a href="{% url 'orders:order_confirm' order.id %}" class="btn btn-sm btn-outline-venus rounded-pill px-3">
+                                        <a href="{% url 'orders:order_confirm' order.id %}"
+                                            class="btn btn-sm btn-outline-venus rounded-pill px-3">
                                             Voir <i class="fas fa-eye ms-1 small"></i>
                                         </a>
                                     </td>
@@ -177,7 +237,8 @@
                                     <td colspan="5" class="text-center py-5">
                                         <i class="fas fa-moon fa-3x mb-3 opacity-25"></i>
                                         <p class="text-muted mb-0">Vous n'avez pas encore effectué des achats</p>
-                                        <a href="{% url 'products:list' %}" class="text-decoration-none mt-2 d-block" style="color: var(--venus-or);">Commencer mon voyage →</a>
+                                        <a href="{% url 'products:list' %}" class="text-decoration-none mt-2 d-block"
+                                            style="color: var(--venus-or);">Commencer mon voyage →</a>
                                     </td>
                                 </tr>
                                 {% endfor %}

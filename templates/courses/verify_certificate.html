@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Vérification de Certificat — Venus Luna{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --venus-vert: #1c683b;
+        --venus-or: #d4af37;
+    }
+
+    .verification-card {
+        background: white;
+        border-radius: 24px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        border: 2px solid rgba(212, 175, 55, 0.3);
+        max-width: 680px;
+        margin: 2rem auto;
+        overflow: hidden;
+    }
+
+    .verification-header {
+        background: linear-gradient(135deg, var(--venus-vert) 0%, #155430 100%);
+        padding: 2.5rem 2rem;
+        color: white;
+        text-align: center;
+    }
+</style>
+
+<div class="container py-4">
+    <div class="verification-card">
+        <div class="verification-header">
+            <i class="fas fa-certificate fa-3x text-warning mb-3"></i>
+            <h1 class="h3 fw-bold mb-1" style="font-family: 'Playfair Display', serif;">Registre Officiel des Certificats</h1>
+            <p class="small text-light opacity-90 mb-0">Vérification publique de conformité et d'authenticité pédagogique</p>
+        </div>
+
+        <div class="p-4 p-md-5">
+            {% if certificate and certificate.is_valid %}
+                <div class="alert alert-success d-flex align-items-center rounded-4 p-3 mb-4" role="alert">
+                    <i class="fas fa-check-circle fa-2x me-3 text-success"></i>
+                    <div>
+                        <div class="fw-bold">Certificat Authentique & Valide</div>
+                        <div class="small">Ce certificat a bien été délivré par l'Académie Venus Luna.</div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-borderless align-middle mb-0">
+                        <tbody>
+                            <tr class="border-bottom">
+                                <th class="text-muted small ps-0" style="width: 40%;">Identifiant Unique :</th>
+                                <td class="fw-bold text-dark font-monospace">{{ certificate.certificate_code }}</td>
+                            </tr>
+                            <tr class="border-bottom">
+                                <th class="text-muted small ps-0">Titulaire :</th>
+                                <td class="fw-bold text-dark">{{ certificate.enrollment.user.get_full_name|default:certificate.enrollment.user.username }}</td>
+                            </tr>
+                            <tr class="border-bottom">
+                                <th class="text-muted small ps-0">Formation Certifiée :</th>
+                                <td class="fw-bold text-success">{{ certificate.enrollment.course.title }}</td>
+                            </tr>
+                            <tr class="border-bottom">
+                                <th class="text-muted small ps-0">Organisme Formateur :</th>
+                                <td class="text-dark">Venus Luna Academy (Lomé, Togo)</td>
+                            </tr>
+                            <tr class="border-bottom">
+                                <th class="text-muted small ps-0">Date de Délivrance :</th>
+                                <td class="text-dark">{{ certificate.issued_at|date:"d F Y" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted small ps-0">Statut :</th>
+                                <td>
+                                    <span class="badge bg-success rounded-pill px-3 py-2 fw-bold">
+                                        <i class="fas fa-shield-alt me-1"></i> Certifié Conforme
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            {% elif certificate and not certificate.is_valid %}
+                <div class="alert alert-danger d-flex align-items-center rounded-4 p-3 mb-4" role="alert">
+                    <i class="fas fa-times-circle fa-2x me-3 text-danger"></i>
+                    <div>
+                        <div class="fw-bold">Certificat Révoqué</div>
+                        <div class="small">Ce certificat n'est plus reconnu comme valide par l'établissement.</div>
+                    </div>
+                </div>
+                <p class="text-muted small">Motif : {{ certificate.revocation_reason|default:"Révocation administrative." }}</p>
+
+            {% else %}
+                <div class="alert alert-warning d-flex align-items-center rounded-4 p-3 mb-4" role="alert">
+                    <i class="fas fa-exclamation-triangle fa-2x me-3 text-warning"></i>
+                    <div>
+                        <div class="fw-bold">Certificat Introuvable</div>
+                        <div class="small">Aucun certificat officiel n'est associé au code « {{ code }} ».</div>
+                    </div>
+                </div>
+                <p class="text-muted small">Vérifiez la saisie de votre code ou scannez à nouveau le QR code présent sur votre document.</p>
+            {% endif %}
+
+            <div class="text-center pt-4 border-top mt-4">
+                <a href="{% url 'courses:course_list' %}" class="btn btn-outline-success rounded-pill px-4">
+                    <i class="fas fa-arrow-left me-1"></i> Découvrir les formations Venus Luna
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

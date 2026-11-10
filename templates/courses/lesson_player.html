@@ -1,0 +1,386 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load courses_extras %}
+
+{% block title %}{{ lesson.title }} — {{ course.title }}{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --venus-vert: #1c683b;
+        --venus-vert-dark: #155430;
+        --venus-vert-light: #f0f7f4;
+        --venus-or: #d4af37;
+    }
+
+    .player-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    @media (min-width: 992px) {
+        .player-layout {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 2rem;
+            align-items: start;
+        }
+    }
+
+    .video-container {
+        position: relative;
+        padding-bottom: 56.25%;
+        /* 16:9 */
+        height: 0;
+        overflow: hidden;
+        border-radius: 18px;
+        background-color: #0b132b;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .video-container iframe,
+    .video-container video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+    }
+
+    .curriculum-sidebar {
+        background: white;
+        border-radius: 18px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+        border: 1px solid #edf2f7;
+    }
+
+    .sidebar-lesson-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.85rem 1.25rem;
+        border-bottom: 1px solid #f1f5f9;
+        text-decoration: none;
+        color: #334155;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+
+    .sidebar-lesson-item:hover {
+        background-color: var(--venus-vert-light);
+        color: var(--venus-vert);
+    }
+
+    .sidebar-lesson-item.active {
+        background-color: var(--venus-vert-light);
+        color: var(--venus-vert);
+        font-weight: 700;
+        border-left: 4px solid var(--venus-vert);
+    }
+
+    .btn-nav-lesson {
+        border-radius: 50px;
+        padding: 0.6rem 1.25rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: transform 0.2s ease;
+    }
+
+    .btn-nav-lesson:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-complete-lesson {
+        background: linear-gradient(135deg, var(--venus-vert), var(--venus-vert-dark));
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 0.65rem 1.75rem;
+        font-weight: 700;
+        transition: all 0.25s ease;
+    }
+
+    .btn-complete-lesson:hover {
+        background: linear-gradient(135deg, var(--venus-or), #b8972e);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .btn-completed-badge {
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 0.65rem 1.75rem;
+        font-weight: 700;
+    }
+
+    .quiz-box {
+        background: #ffffff;
+        border: 2px solid rgba(212, 175, 55, 0.35);
+        border-radius: 18px;
+        padding: 2rem;
+        margin-top: 2rem;
+        box-shadow: 0 8px 24px rgba(212, 175, 55, 0.08);
+    }
+</style>
+
+<div class="container py-2">
+    <!-- En-tête fil d'ariane & progression -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3 pb-3 border-bottom">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a href="{% url 'courses:course_list' %}"
+                            class="text-success text-decoration-none">Formations</a></li>
+                    <li class="breadcrumb-item"><a href="{{ course.get_absolute_url }}"
+                            class="text-success text-decoration-none">{{ course.title|truncatechars:30 }}</a></li>
+                    <li class="breadcrumb-item active text-muted" aria-current="page">{{ lesson.module.title }}</li>
+                </ol>
+            </nav>
+            <h2 class="h4 fw-bold mb-0 text-dark">{{ lesson.title }}</h2>
+        </div>
+
+        {% if enrollment %}
+        <div class="d-flex align-items-center gap-3">
+            <div class="text-end d-none d-sm-block">
+                <div class="small fw-bold text-dark">Progression du cours</div>
+                <div class="small text-muted">{{ progress_percentage }}% complété</div>
+            </div>
+            <div class="progress" style="width: 120px; height: 10px; border-radius: 10px;">
+                <div class="progress-bar bg-success" role="progressbar" style="width: {{ progress_percentage }}%;"
+                    aria-valuenow="{{ progress_percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Layout principal : Lecteur & Sidebar -->
+    <div class="player-layout">
+        <!-- Zone Contenu de la Leçon -->
+        <div class="main-lesson-content">
+            <!-- Lecteur Vidéo (si applicable) -->
+            {% if lesson.lesson_type == 'video' and lesson.video_url %}
+            <div class="video-container mb-4">
+                {% if 'youtube.com' in lesson.video_url or 'youtu.be' in lesson.video_url %}
+                {% with video_id=lesson.video_url %}
+                <iframe src="{{ lesson.video_url }}"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen></iframe>
+                {% endwith %}
+                {% elif 'vimeo.com' in lesson.video_url %}
+                <iframe src="{{ lesson.video_url }}" allow="autoplay; fullscreen; picture-in-picture"
+                    allowfullscreen></iframe>
+                {% else %}
+                <video controls controlsList="nodownload" preload="metadata"
+                    poster="{{ course.cover_image.url|default:'' }}">
+                    <source src="{{ lesson.video_url }}" type="video/mp4">
+                    Votre navigateur ne supporte pas la lecture de cette vidéo.
+                </video>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Barre d'actions et navigation leçons -->
+            <div class="card border-0 rounded-4 shadow-sm p-3 mb-4 bg-white">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div>
+                        {% if previous_lesson %}
+                        <a href="{{ previous_lesson.get_absolute_url }}"
+                            class="btn btn-outline-secondary btn-nav-lesson">
+                            <i class="fas fa-arrow-left"></i> Précédent
+                        </a>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        {% if enrollment %}
+                        {% if lesson_progress.is_completed %}
+                        <span class="btn-completed-badge d-inline-block">
+                            <i class="fas fa-check-circle me-1"></i> Leçon terminée
+                        </span>
+                        {% else %}
+                        <form method="post" action="{% url 'courses:mark_lesson_completed' lesson_id=lesson.id %}"
+                            class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-complete-lesson">
+                                <i class="fas fa-check me-1"></i> Marquer comme terminée
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        {% if next_lesson %}
+                        <a href="{{ next_lesson.get_absolute_url }}" class="btn btn-venus-action btn-nav-lesson">
+                            Suivant <i class="fas fa-arrow-right"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes de cours et description textuelle -->
+            {% if lesson.content or lesson.description %}
+            <div class="card border-0 rounded-4 shadow-sm p-4 mb-4 bg-white">
+                <h4 class="fw-bold mb-3" style="color: var(--venus-vert); font-family: 'Playfair Display', serif;">
+                    <i class="fas fa-book-open me-2 text-warning"></i>Notes & Contenu de la leçon
+                </h4>
+                <div class="lesson-text lh-lg text-secondary">
+                    {% if lesson.content %}
+                    {{ lesson.content|linebreaks }}
+                    {% else %}
+                    {{ lesson.description|linebreaks }}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Fichier ou Ressource téléchargeable -->
+            {% if lesson.attachment_file %}
+            <div class="card border-0 rounded-4 shadow-sm p-4 mb-4 bg-white border-start border-4 border-success">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="fas fa-file-pdf fa-2x text-danger"></i>
+                        <div>
+                            <h5 class="fw-bold mb-0 text-dark">{{ lesson.attachment_name|default:"Support de cours
+                                téléchargeable" }}</h5>
+                            <span class="text-muted small">Document réservé aux apprenants</span>
+                        </div>
+                    </div>
+                    <a href="{{ lesson.attachment_file.url }}" class="btn btn-outline-success rounded-pill px-4"
+                        download target="_blank">
+                        <i class="fas fa-download me-2"></i> Télécharger le document
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quiz d'évaluation (si présent sur cette leçon) -->
+            {% if quiz %}
+            <div class="quiz-box">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h3 class="fw-bold mb-0 text-dark" style="font-family: 'Playfair Display', serif;">
+                        <i class="fas fa-clipboard-check text-warning me-2"></i>{{ quiz.title }}
+                    </h3>
+                    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold">
+                        Score requis : {{ quiz.passing_score }}%
+                    </span>
+                </div>
+
+                {% if quiz.description %}
+                <p class="text-muted mb-4">{{ quiz.description }}</p>
+                {% endif %}
+
+                {% if quiz_attempt %}
+                <div
+                    class="alert {% if quiz_attempt.passed %}alert-success{% else %}alert-warning{% endif %} rounded-4 p-3 mb-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h5 class="alert-heading fw-bold mb-1">
+                                {% if quiz_attempt.passed %}
+                                <i class="fas fa-check-circle me-1"></i> Quiz validé avec succès !
+                                {% else %}
+                                <i class="fas fa-exclamation-circle me-1"></i> Score insuffisant
+                                {% endif %}
+                            </h5>
+                            <div class="small">Dernier résultat : <strong>{{ quiz_attempt.score }}%</strong> (Tentative
+                                #{{ quiz_attempt.attempt_number }})</div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <form method="post" action="{% url 'courses:submit_quiz' quiz_id=quiz.id %}">
+                    {% csrf_token %}
+                    {% for question in quiz.questions.all %}
+                    <div class="mb-4 p-3 bg-light rounded-4">
+                        <h5 class="fw-bold text-dark mb-3">
+                            <span class="text-success me-1">Q{{ forloop.counter }}.</span> {{ question.question_text }}
+                        </h5>
+
+                        <div class="ps-2">
+                            {% for option in question.options.all %}
+                            <div class="form-check mb-2">
+                                {% if question.question_type == 'single' %}
+                                <input class="form-check-input" type="radio" name="question_{{ question.id }}"
+                                    id="opt_{{ option.id }}" value="{{ option.id }}" required>
+                                {% else %}
+                                <input class="form-check-input" type="checkbox" name="question_{{ question.id }}"
+                                    id="opt_{{ option.id }}" value="{{ option.id }}">
+                                {% endif %}
+                                <label class="form-check-label text-secondary" for="opt_{{ option.id }}">
+                                    {{ option.option_text }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        {% if quiz_attempt and question.explanation %}
+                        <div class="mt-2 text-muted small bg-white p-2 rounded-3 border-start border-3 border-info">
+                            <i class="fas fa-info-circle text-info me-1"></i> {{ question.explanation }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+
+                    <button type="submit" class="btn btn-venus-action px-5 py-2">
+                        <i class="fas fa-paper-plane me-2"></i> Valider mes réponses
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar droite : Programme complet du cours -->
+        <div class="curriculum-sidebar">
+            <div class="p-3 bg-success text-white">
+                <h5 class="fw-bold mb-0" style="font-family: 'Playfair Display', serif;">Contenu du cours</h5>
+                <small class="opacity-90">{{ course.title|truncatechars:35 }}</small>
+            </div>
+
+            <div class="accordion accordion-flush" id="playerSidebarAccordion">
+                {% for module in modules %}
+                <div class="accordion-item border-0">
+                    <h2 class="accordion-header" id="sideHeading{{ module.id }}">
+                        <button
+                            class="accordion-button {% if module.id != lesson.module.id %}collapsed{% endif %} py-2 px-3 bg-light fw-bold small"
+                            type="button" data-bs-toggle="collapse" data-bs-target="#sideCollapse{{ module.id }}">
+                            Module {{ forloop.counter }} : {{ module.title }}
+                        </button>
+                    </h2>
+                    <div id="sideCollapse{{ module.id }}"
+                        class="accordion-collapse collapse {% if module.id == lesson.module.id %}show{% endif %}"
+                        data-bs-parent="#playerSidebarAccordion">
+                        <div class="accordion-body p-0">
+                            {% for m_lesson in module.lessons.all %}
+                            {% if m_lesson.is_published %}
+                            <a href="{{ m_lesson.get_absolute_url }}"
+                                class="sidebar-lesson-item {% if m_lesson.id == lesson.id %}active{% endif %}">
+                                {% if m_lesson.id in completed_lesson_ids %}
+                                <i class="fas fa-check-circle text-success"></i>
+                                {% else %}
+                                <i class="far fa-circle text-muted"></i>
+                                {% endif %}
+                                <div class="flex-grow-1 text-truncate">
+                                    {{ m_lesson.title }}
+                                </div>
+                                <span class="small text-muted">{{ m_lesson.duration_minutes }}m</span>
+                            </a>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

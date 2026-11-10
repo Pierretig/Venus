@@ -34,6 +34,7 @@ ALLOWED_SERVE_IMAGE_FIELDS = {
     ('core', 'sitesettings', 'favicon'),
     ('accounts', 'profile', 'avatar'),
     ('blog', 'post', 'image'),
+    ('courses', 'course', 'cover_image'),
 }
 
 

@@ -33,6 +33,8 @@ class SecurityHeadersMiddleware:
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com",
                 "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
                 "connect-src 'self' https://api.semoa-payments.ovh https://res.cloudinary.com",
+                "media-src 'self' https://res.cloudinary.com https://*.cloudinary.com blob: data:",
+                "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://*.cloudinary.com",
                 "frame-ancestors 'none'",
                 "base-uri 'self'",
                 "form-action 'self'",

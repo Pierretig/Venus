@@ -1,0 +1,419 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load courses_extras %}
+
+{% block title %}{{ course.title }} — Académie Venus Luna{% endblock %}
+{% block meta_description %}{{ course.short_description|default:course.description|truncatewords:25 }}{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --venus-vert: #1c683b;
+        --venus-vert-dark: #155430;
+        --venus-vert-light: #f0f7f4;
+        --venus-or: #d4af37;
+    }
+
+    .course-header {
+        background: linear-gradient(135deg, var(--venus-vert) 0%, var(--venus-vert-dark) 100%);
+        border-radius: 24px;
+        padding: 3rem 2.5rem;
+        color: white;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 10px 30px rgba(28, 104, 59, 0.15);
+    }
+
+    .curriculum-accordion .accordion-item {
+        border: none;
+        margin-bottom: 0.75rem;
+        border-radius: 14px !important;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    }
+
+    .curriculum-accordion .accordion-button {
+        background-color: white;
+        font-weight: 600;
+        color: #1a202c;
+        padding: 1.2rem 1.5rem;
+    }
+
+    .curriculum-accordion .accordion-button:not(.collapsed) {
+        background-color: var(--venus-vert-light);
+        color: var(--venus-vert);
+        box-shadow: none;
+    }
+
+    .curriculum-accordion .accordion-button:focus {
+        box-shadow: none;
+        border-color: transparent;
+    }
+
+    .lesson-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.85rem 1.25rem;
+        border-bottom: 1px solid #edf2f7;
+        transition: background 0.2s ease;
+        text-decoration: none;
+        color: #2d3748;
+    }
+
+    .lesson-row:last-child {
+        border-bottom: none;
+    }
+
+    .lesson-row:hover {
+        background-color: #f7fafc;
+        color: var(--venus-vert);
+    }
+
+    .pricing-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        background: white;
+        position: sticky;
+        top: 110px;
+        overflow: hidden;
+    }
+
+    .pricing-header {
+        background: var(--venus-vert-light);
+        padding: 1.5rem;
+        text-align: center;
+        border-bottom: 1px solid rgba(28, 104, 59, 0.1);
+    }
+
+    .btn-buy-course {
+        background: linear-gradient(135deg, var(--venus-or), #b8972e);
+        color: white;
+        font-weight: 700;
+        border: none;
+        padding: 0.85rem;
+        border-radius: 50px;
+        width: 100%;
+        font-size: 1.05rem;
+        box-shadow: 0 6px 20px rgba(212, 175, 55, 0.35);
+        transition: all 0.25s ease;
+    }
+
+    .btn-buy-course:hover {
+        background: linear-gradient(135deg, #b8972e, var(--venus-or));
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    .btn-free-enroll {
+        background: linear-gradient(135deg, var(--venus-vert), var(--venus-vert-dark));
+        color: white;
+        font-weight: 700;
+        border: none;
+        padding: 0.85rem;
+        border-radius: 50px;
+        width: 100%;
+        font-size: 1.05rem;
+        box-shadow: 0 6px 20px rgba(28, 104, 59, 0.3);
+        transition: all 0.25s ease;
+    }
+
+    .btn-free-enroll:hover {
+        background: linear-gradient(135deg, var(--venus-vert-dark), var(--venus-vert));
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    .badge-preview {
+        background-color: #e2e8f0;
+        color: #4a5568;
+        font-size: 0.75rem;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+</style>
+
+<div class="container py-3">
+    <!-- Header de la formation -->
+    <div class="course-header">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="{% url 'courses:course_list' %}"
+                                class="text-warning text-decoration-none">Formations</a></li>
+                        <li class="breadcrumb-item active text-light" aria-current="page">{{
+                            course.category.name|default:"Spiritualité" }}</li>
+                    </ol>
+                </nav>
+
+                <h1 class="display-6 fw-bold mb-3" style="font-family: 'Playfair Display', serif;">
+                    {{ course.title }}
+                </h1>
+                <p class="lead text-light opacity-90 mb-4">
+                    {{ course.short_description|default:course.description|truncatewords:30 }}
+                </p>
+
+                <div class="d-flex flex-wrap gap-4 text-light small">
+                    <div><i class="fas fa-signal text-warning me-2"></i>{{ course.get_level_display }}</div>
+                    <div><i class="far fa-clock text-warning me-2"></i>{{ course.estimated_duration_hours }}h de cours
+                    </div>
+                    <div><i class="fas fa-layer-group text-warning me-2"></i>{{ modules.count }} module{{
+                        modules.count|pluralize }}</div>
+                    <div><i class="fas fa-play-circle text-warning me-2"></i>{{ total_lessons }} leçon{{
+                        total_lessons|pluralize }}</div>
+                    {% if course.certificate_enabled %}
+                    <div><i class="fas fa-certificate text-warning me-2"></i>Certificat inclus</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenu Principal et Sidebar d'Achat -->
+    <div class="row g-4">
+        <!-- Colonne Gauche : Programme et détails pédagogiques -->
+        <div class="col-lg-8">
+            <!-- Objectifs Pédagogiques -->
+            {% if objectives_list %}
+            <div class="card border-0 rounded-4 shadow-sm p-4 mb-4 bg-white">
+                <h4 class="fw-bold mb-3" style="color: var(--venus-vert); font-family: 'Playfair Display', serif;">
+                    <i class="fas fa-bullseye me-2 text-warning"></i>Ce que vous allez apprendre
+                </h4>
+                <div class="row g-2">
+                    {% for obj in objectives_list %}
+                    <div class="col-md-6 d-flex align-items-start">
+                        <i class="fas fa-check-circle text-success me-2 mt-1"></i>
+                        <span>{{ obj }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Description Complète -->
+            <div class="card border-0 rounded-4 shadow-sm p-4 mb-4 bg-white">
+                <h4 class="fw-bold mb-3" style="color: var(--venus-vert); font-family: 'Playfair Display', serif;">
+                    <i class="fas fa-align-left me-2 text-warning"></i>Présentation de la formation
+                </h4>
+                <div class="course-description lh-lg text-secondary">
+                    {{ course.description|linebreaks }}
+                </div>
+            </div>
+
+            <!-- Programme détaillé des Modules & Leçons -->
+            <div class="card border-0 rounded-4 shadow-sm p-4 mb-4 bg-white">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h4 class="fw-bold mb-0" style="color: var(--venus-vert); font-family: 'Playfair Display', serif;">
+                        <i class="fas fa-list-ol me-2 text-warning"></i>Programme d'apprentissage
+                    </h4>
+                    <span class="text-muted small">{{ modules.count }} modules • {{ total_lessons }} leçons</span>
+                </div>
+
+                {% if modules %}
+                <div class="accordion curriculum-accordion" id="accordionCurriculum">
+                    {% for module in modules %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading{{ module.id }}">
+                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                                type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ module.id }}">
+                                <span class="badge bg-light text-success me-3">Module {{ forloop.counter }}</span>
+                                <span class="fw-bold">{{ module.title }}</span>
+                            </button>
+                        </h2>
+                        <div id="collapse{{ module.id }}"
+                            class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                            data-bs-parent="#accordionCurriculum">
+                            <div class="accordion-body p-0">
+                                {% if module.description %}
+                                <div class="px-4 py-2 bg-light text-muted small border-bottom">
+                                    {{ module.description }}
+                                </div>
+                                {% endif %}
+                                <div class="list-group list-group-flush">
+                                    {% for lesson in module.lessons.all %}
+                                    {% if lesson.is_published %}
+                                    {% can_access lesson user as user_can_access %}
+                                    <div class="lesson-row">
+                                        <div class="d-flex align-items-center">
+                                            {% if lesson.lesson_type == 'video' %}
+                                            <i class="fas fa-play-circle text-success me-3"></i>
+                                            {% elif lesson.lesson_type == 'quiz' %}
+                                            <i class="fas fa-question-circle text-warning me-3"></i>
+                                            {% elif lesson.lesson_type == 'pdf' %}
+                                            <i class="fas fa-file-pdf text-danger me-3"></i>
+                                            {% else %}
+                                            <i class="fas fa-book-open text-primary me-3"></i>
+                                            {% endif %}
+
+                                            <div>
+                                                <div class="fw-semibold">{{ lesson.title }}</div>
+                                                <div class="text-muted small">
+                                                    <i class="far fa-clock me-1"></i>{{ lesson.duration_minutes }} min
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="d-flex align-items-center gap-2">
+                                            {% if lesson.is_free_preview and not user_enrollment %}
+                                            <span class="badge-preview">Aperçu gratuit</span>
+                                            {% endif %}
+
+                                            {% if user_can_access %}
+                                            <a href="{{ lesson.get_absolute_url }}"
+                                                class="btn btn-sm btn-outline-success rounded-pill px-3">
+                                                Suivre <i class="fas fa-arrow-right ms-1"></i>
+                                            </a>
+                                            {% else %}
+                                            <i class="fas fa-lock text-muted"
+                                                title="Verrouillé - Inscription requise"></i>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% empty %}
+                                    <div class="p-3 text-muted small">Aucune leçon publiée dans ce module.</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">Le programme détaillé sera publié prochainement.</p>
+                {% endif %}
+            </div>
+
+            <!-- Prérequis -->
+            {% if prerequisites_list %}
+            <div class="card border-0 rounded-4 shadow-sm p-4 mb-4 bg-white">
+                <h4 class="fw-bold mb-3" style="color: var(--venus-vert); font-family: 'Playfair Display', serif;">
+                    <i class="fas fa-clipboard-check me-2 text-warning"></i>Prérequis
+                </h4>
+                <ul class="mb-0 text-secondary">
+                    {% for prereq in prerequisites_list %}
+                    <li class="mb-2">{{ prereq }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Formateur -->
+            {% if course.instructor %}
+            <div class="card border-0 rounded-4 shadow-sm p-4 mb-4 bg-white">
+                <h4 class="fw-bold mb-3" style="color: var(--venus-vert); font-family: 'Playfair Display', serif;">
+                    <i class="fas fa-chalkboard-teacher me-2 text-warning"></i>Votre formateur
+                </h4>
+                <div class="d-flex align-items-center gap-3">
+                    <div
+                        style="width: 60px; height: 60px; border-radius: 50%; background: var(--venus-vert-light); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--venus-vert);">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-0 text-dark">{{
+                            course.instructor.get_full_name|default:course.instructor.username }}</h5>
+                        <p class="text-muted small mb-0">Enseignant & Praticien Venus Luna</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Colonne Droite : Box de Tarification & Inscription -->
+        <div class="col-lg-4">
+            <div class="card pricing-card">
+                <!-- Visuel de couverture -->
+                {% if course.cover_image %}
+                <img src="{{ course.cover_image.url }}" alt="{{ course.title }}"
+                    style="width: 100%; height: 210px; object-fit: cover;">
+                {% endif %}
+
+                <div class="pricing-header">
+                    {% if user_enrollment %}
+                    <span class="badge bg-success px-3 py-2 rounded-pill fw-bold mb-2">
+                        <i class="fas fa-check-circle me-1"></i> Vous êtes inscrit(e)
+                    </span>
+                    <div class="mt-2 text-muted small">Progression : {{ user_enrollment.get_progress_percentage }}%
+                    </div>
+                    {% elif course.is_free or course.price == 0 %}
+                    <div class="h2 fw-bold text-success mb-0">GRATUIT</div>
+                    <div class="text-muted small">Accès illimité sans carte bancaire</div>
+                    {% else %}
+                    <div class="d-flex align-items-baseline justify-content-center gap-2">
+                        <span class="display-6 fw-bold text-dark">{{ course.price }}</span>
+                        <span class="fw-bold text-muted">F CFA</span>
+                    </div>
+                    {% if course.old_price %}
+                    <div class="text-decoration-line-through text-muted small">{{ course.old_price }} F CFA</div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+
+                <div class="p-4">
+                    <!-- Bouton d'action principal -->
+                    {% if user_enrollment %}
+                    {% with resume_lesson=user_enrollment.get_resume_lesson %}
+                    {% if resume_lesson %}
+                    <a href="{{ resume_lesson.get_absolute_url }}" class="btn btn-free-enroll mb-3 text-center d-block">
+                        <i class="fas fa-play me-2"></i> Continuer le cours
+                    </a>
+                    {% else %}
+                    <a href="{% url 'courses:student_dashboard' %}"
+                        class="btn btn-free-enroll mb-3 text-center d-block">
+                        <i class="fas fa-graduation-cap me-2"></i> Voir mon espace
+                    </a>
+                    {% endif %}
+                    {% endwith %}
+                    {% elif course.is_free or course.price == 0 %}
+                    {% if user.is_authenticated %}
+                    <form method="post" action="{% url 'courses:enroll_free' slug=course.slug %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-free-enroll mb-3">
+                            <i class="fas fa-user-plus me-2"></i> S'inscrire gratuitement
+                        </button>
+                    </form>
+                    {% else %}
+                    <a href="{% url 'accounts:login' %}?next={{ request.path }}"
+                        class="btn btn-free-enroll mb-3 text-center d-block">
+                        <i class="fas fa-sign-in-alt me-2"></i> Se connecter pour s'inscrire
+                    </a>
+                    {% endif %}
+                    {% else %}
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'courses:buy_course' slug=course.slug %}"
+                        class="btn btn-buy-course mb-3 text-center d-block">
+                        <i class="fas fa-lock-open me-2"></i> Acheter avec CashPay
+                    </a>
+                    {% else %}
+                    <a href="{% url 'accounts:login' %}?next={{ request.path }}"
+                        class="btn btn-buy-course mb-3 text-center d-block">
+                        <i class="fas fa-sign-in-alt me-2"></i> Se connecter pour acheter
+                    </a>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- Garanties et Inclusions -->
+                    <div class="border-top pt-3">
+                        <div class="fw-bold small text-muted mb-3 text-uppercase">Cette formation inclut :</div>
+                        <ul class="list-unstyled small text-secondary mb-0">
+                            <li class="mb-2"><i class="fas fa-video text-success me-2"></i>{{ total_lessons }} leçons
+                                complètes</li>
+                            <li class="mb-2"><i class="fas fa-infinity text-success me-2"></i>Accès à vie 24h/24</li>
+                            <li class="mb-2"><i class="fas fa-mobile-alt text-success me-2"></i>Compatible smartphone &
+                                PC</li>
+                            {% if course.certificate_enabled %}
+                            <li class="mb-2"><i class="fas fa-certificate text-warning me-2"></i>Certificat de réussite
+                                officiel</li>
+                            {% endif %}
+                            <li class="mb-2"><i class="fas fa-shield-alt text-success me-2"></i>Paiement sécurisé via
+                                CashPay</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

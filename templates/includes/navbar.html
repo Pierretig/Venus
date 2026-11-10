@@ -7,7 +7,8 @@
       <span class="d-none d-md-inline fw-bold text-white">VENUS-LUNA</span>
     </a>
 
-    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavMain" aria-controls="navbarNavMain" aria-expanded="false" aria-label="Ouvrir le menu">
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavMain"
+      aria-controls="navbarNavMain" aria-expanded="false" aria-label="Ouvrir le menu">
       <i class="fas fa-bars text-white"></i>
     </button>
 
@@ -19,6 +20,7 @@
       <ul class="navbar-nav mx-auto align-items-lg-center gap-lg-1">
         <li class="nav-item"><a class="nav-link" href="{% url 'core:home' %}">Accueil</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'products:list' %}">Boutique</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'courses:course_list' %}">Formations</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'blog:list' %}">Blog</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'core:contact' %}">Contact</a></li>
 
@@ -31,37 +33,42 @@
         </a>
 
         {% if user.is_authenticated and user.is_staff %}
-          <a href="{% url 'admin_custom:dashboard' %}" class="admin-link d-flex align-items-center gap-2">
-            <i class="fas fa-shield-alt"></i><span>Admin</span>
-          </a>
+        <a href="{% url 'admin_custom:dashboard' %}" class="admin-link d-flex align-items-center gap-2">
+          <i class="fas fa-shield-alt"></i><span>Admin</span>
+        </a>
         {% endif %}
 
         {% if user.is_authenticated %}
-          <div class="dropdown">
-            <a class="user-dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">
-              {% if user.profile.avatar %}
-                <img src="{% protected_image user.profile 'avatar' %}" class="user-avatar protected-image" alt="Profil">
-              {% else %}
-                <i class="fas fa-user-circle"></i>
-              {% endif %}
-              <span class="d-none d-md-inline">Profil</span>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end mt-2">
-              <li><a class="dropdown-item py-2" href="{% url 'accounts:client_dashboard' %}"><i class="fas fa-user me-2"></i>Dashboard</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li>
-                <form action="{% url 'accounts:logout' %}" method="post" class="px-3">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-link text-danger p-0 w-100 text-start fw-bold">
-                    <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
-                  </button>
-                </form>
-              </li>
-            </ul>
-          </div>
+        <div class="dropdown">
+          <a class="user-dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">
+            {% if user.profile.avatar %}
+            <img src="{% protected_image user.profile 'avatar' %}" class="user-avatar protected-image" alt="Profil">
+            {% else %}
+            <i class="fas fa-user-circle"></i>
+            {% endif %}
+            <span class="d-none d-md-inline">Profil</span>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end mt-2">
+            <li><a class="dropdown-item py-2" href="{% url 'accounts:client_dashboard' %}"><i
+                  class="fas fa-user me-2"></i>Dashboard</a></li>
+            <li><a class="dropdown-item py-2" href="{% url 'courses:student_dashboard' %}"><i
+                  class="fas fa-graduation-cap me-2 text-success"></i>Mes Formations</a></li>
+            <li>
+              <hr class="dropdown-divider">
+            </li>
+            <li>
+              <form action="{% url 'accounts:logout' %}" method="post" class="px-3">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-link text-danger p-0 w-100 text-start fw-bold">
+                  <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
         {% else %}
-          <a href="{% url 'accounts:login' %}" class="login-link">Connexion</a>
-          <a href="{% url 'accounts:register' %}" class="btn-register px-3 py-2">S'inscrire</a>
+        <a href="{% url 'accounts:login' %}" class="login-link">Connexion</a>
+        <a href="{% url 'accounts:register' %}" class="btn-register px-3 py-2">S'inscrire</a>
         {% endif %}
       </div>
     </div>

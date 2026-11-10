@@ -167,6 +167,7 @@ INSTALLED_APPS = [
     'apps.blog',
     'apps.contact',
     'apps.core',
+    'apps.courses',
     'admin_custom',
     "jazzmin",
 ]
