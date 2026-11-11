@@ -47,3 +47,4 @@ gunicorn_error.log
 
 # Fichiers de production
 *.lock
+MAJ_Formations.md

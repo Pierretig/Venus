@@ -1,4 +1,8 @@
-from django.contrib import admin
+import logging
+from django import forms
+from django.contrib import admin, messages
+from django.http import HttpResponseRedirect
+from django.core.files.uploadedfile import UploadedFile
 from django.utils.html import format_html, mark_safe
 from django.utils import timezone
 from .models import (
@@ -7,6 +11,25 @@ from .models import (
     Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt,
     Certificate,
 )
+from .image_utils import validate_course_cover_image, optimize_course_cover_image
+
+logger = logging.getLogger(__name__)
+
+
+class CourseAdminForm(forms.ModelForm):
+    """Formulaire d'administration pour Course avec validation et optimisation de l'image."""
+    class Meta:
+        model = Course
+        fields = '__all__'
+
+    def clean_cover_image(self):
+        cover_image = self.cleaned_data.get('cover_image')
+        if cover_image and isinstance(cover_image, UploadedFile):
+            # 1. Validation de conformité (format, intégrité, taille maximale de sécurité)
+            validate_course_cover_image(cover_image)
+            # 2. Optimisation immédiate (redimensionnement max 1920x1080, WebP, qualité 80-85, cible < 500 Ko)
+            cover_image = optimize_course_cover_image(cover_image)
+        return cover_image
 
 
 @admin.register(CourseCategory)
@@ -40,6 +63,7 @@ class LessonInline(admin.TabularInline):
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
+    form = CourseAdminForm
     list_display = (
         'title',
         'category',
@@ -124,6 +148,32 @@ class CourseAdmin(admin.ModelAdmin):
         if request.user.groups.filter(name='Formateurs').exists():
             return qs.filter(instructor=request.user)
         return qs
+
+    def save_model(self, request, obj, form, change):
+        """Enregistre le modèle en interceptant les erreurs de téléversement Cloudinary."""
+        try:
+            super().save_model(request, obj, form, change)
+        except Exception as exc:
+            logger.exception("Échec du téléversement Cloudinary lors de la sauvegarde de la formation: %s", exc)
+            if change:
+                # S'assurer que l'image existante n'est pas corrompue en restaurant la valeur en base
+                old_instance = Course.objects.filter(pk=obj.pk).first()
+                if old_instance:
+                    obj.cover_image = old_instance.cover_image
+            raise exc
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        """Capture les exceptions inattendues pour éviter un crash 500 et afficher une alerte élégante."""
+        try:
+            return super().changeform_view(request, object_id, form_url, extra_context)
+        except Exception as exc:
+            logger.error("Exception interceptée dans CourseAdmin.changeform_view : %s", exc)
+            self.message_user(
+                request,
+                f"Une erreur est survenue lors de l'enregistrement ou de l'envoi de l'image vers Cloudinary : {exc}",
+                level=messages.ERROR
+            )
+            return HttpResponseRedirect(request.path)
 
 
 @admin.register(CourseModule)

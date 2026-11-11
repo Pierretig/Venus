@@ -6,7 +6,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.files.uploadedfile import UploadedFile
 from cloudinary.models import CloudinaryField
+from .image_utils import validate_course_cover_image, optimize_course_cover_image
 
 
 class CourseCategory(models.Model):
@@ -101,6 +103,11 @@ class Course(models.Model):
     def __str__(self):
         return self.title
 
+    def clean(self):
+        super().clean()
+        if self.cover_image and isinstance(self.cover_image, UploadedFile):
+            validate_course_cover_image(self.cover_image)
+
     def save(self, *args, **kwargs):
         if not self.slug:
             base = slugify(self.title)[:200]
@@ -116,6 +123,10 @@ class Course(models.Model):
 
         if self.status == self.Status.PUBLISHED and not self.published_at:
             self.published_at = timezone.now()
+
+        # Optimisation automatique de l'image de couverture avant envoi vers Cloudinary
+        if self.cover_image and isinstance(self.cover_image, UploadedFile):
+            self.cover_image = optimize_course_cover_image(self.cover_image)
 
         super().save(*args, **kwargs)
 

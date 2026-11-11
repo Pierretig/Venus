@@ -1,7 +1,12 @@
+import io
 from decimal import Decimal
+from unittest.mock import patch
+from PIL import Image
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.contrib.auth.models import User, Group, AnonymousUser
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.orders.models import Order, OrderItem
@@ -17,6 +22,10 @@ from apps.courses.services import (
     record_lesson_progress,
     evaluate_quiz_submission,
     issue_certificate_for_enrollment,
+)
+from apps.courses.image_utils import (
+    validate_course_cover_image,
+    optimize_course_cover_image,
 )
 
 
@@ -330,4 +339,184 @@ class LMSTestCase(TestCase):
         response_alice = self.client.get(url)
         self.assertEqual(response_alice.status_code, 200)
         self.assertEqual(response_alice['Content-Type'], 'application/pdf')
+
+
+class CourseImageOptimizationTestCase(TestCase):
+    """Tests de validation et d'optimisation des images de couverture de formation."""
+
+    def setUp(self):
+        self.instructor = User.objects.create_user(
+            username="instructor_test",
+            email="instructor@test.com",
+            password="password123"
+        )
+        self.category = CourseCategory.objects.create(
+            name="Lithothérapie",
+            slug="lithotherapie-test"
+        )
+
+    def _create_test_image_file(self, filename, size=(800, 600), color=(180, 50, 50), fmt='JPEG', mode='RGB'):
+        img = Image.new(mode, size, color=color)
+        buf = io.BytesIO()
+        img.save(buf, format=fmt)
+        return SimpleUploadedFile(filename, buf.getvalue(), content_type=f'image/{fmt.lower()}')
+
+    # 1. Image JPEG standard
+    def test_optimize_jpeg_image(self):
+        raw_file = self._create_test_image_file('test_cover.jpg', size=(800, 600), fmt='JPEG')
+        optimized = optimize_course_cover_image(raw_file)
+
+        self.assertIsInstance(optimized, SimpleUploadedFile)
+        self.assertTrue(optimized.name.endswith('.webp'))
+        self.assertEqual(optimized.content_type, 'image/webp')
+
+        # Vérifier les dimensions avec Pillow
+        with Image.open(optimized) as img:
+            self.assertEqual(img.format, 'WEBP')
+            # L'image faisait 800x600, elle ne doit pas avoir été agrandie
+            self.assertEqual(img.size, (800, 600))
+        self.assertLess(len(optimized.read()), 500 * 1024)
+
+    # 2. Grande image PNG avec transparence (> 2000px)
+    def test_optimize_large_png_with_transparency(self):
+        raw_file = self._create_test_image_file(
+            'transparent_banner.png',
+            size=(2500, 1400),
+            color=(50, 100, 150, 128),
+            fmt='PNG',
+            mode='RGBA'
+        )
+        optimized = optimize_course_cover_image(raw_file)
+
+        self.assertIsInstance(optimized, SimpleUploadedFile)
+        self.assertTrue(optimized.name.endswith('.webp'))
+
+        with Image.open(optimized) as img:
+            self.assertEqual(img.format, 'WEBP')
+            # Downscaling vers max 1920x1080 en préservant le ratio
+            self.assertLessEqual(img.width, 1920)
+            self.assertLessEqual(img.height, 1080)
+            # Préservation du canal alpha
+            self.assertEqual(img.mode, 'RGBA')
+        self.assertLess(len(optimized.read()), 500 * 1024)
+
+    # 3. Image simulant un fichier lourd > 10 Mo (cas de l'erreur Cloudinary initiale)
+    def test_optimize_huge_image_exceeding_10mb(self):
+        # Créer une image de haute résolution 4000x3000
+        img = Image.new('RGB', (4000, 3000), color=(120, 150, 200))
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=95)
+        # Compléter avec des métadonnées / octets pour simuler un fichier de 12.8 Mo
+        raw_bytes = buf.getvalue()
+        padding = b'\x00' * (12800256 - len(raw_bytes))
+        fake_heavy_file = SimpleUploadedFile(
+            'heavy_photo.jpg',
+            raw_bytes + padding,
+            content_type='image/jpeg'
+        )
+        self.assertGreater(fake_heavy_file.size, 10 * 1024 * 1024)
+
+        # Optimisation
+        optimized = optimize_course_cover_image(fake_heavy_file)
+
+        # Doit être drastiquement réduit sous 500 Ko et bien en-dessous de 10 Mo
+        optimized_bytes = optimized.read()
+        self.assertLess(len(optimized_bytes), 500 * 1024)
+        self.assertLess(len(optimized_bytes), 10485760)
+
+        with Image.open(io.BytesIO(optimized_bytes)) as result_img:
+            self.assertLessEqual(result_img.width, 1920)
+            self.assertLessEqual(result_img.height, 1080)
+            self.assertEqual(result_img.format, 'WEBP')
+
+    # 4. Image WebP native
+    def test_optimize_native_webp_image(self):
+        raw_file = self._create_test_image_file('native.webp', size=(1200, 800), fmt='WEBP')
+        optimized = optimize_course_cover_image(raw_file)
+
+        self.assertIsInstance(optimized, SimpleUploadedFile)
+        self.assertTrue(optimized.name.endswith('.webp'))
+        with Image.open(optimized) as img:
+            self.assertEqual(img.format, 'WEBP')
+            self.assertEqual(img.size, (1200, 800))
+
+    # 5. Rejet d'un fichier faux (faux jpg, texte)
+    def test_reject_corrupted_or_non_image_file(self):
+        fake_file = SimpleUploadedFile('fake_image.jpg', b'ceci n est pas du tout une image valide', content_type='image/jpeg')
+        with self.assertRaises(ValidationError) as ctx:
+            validate_course_cover_image(fake_file)
+        self.assertIn("n'est pas une image valide", str(ctx.exception))
+
+    # 6. Rejet d'une extension non supportée (ex: gif ou svg)
+    def test_reject_unsupported_extension(self):
+        gif_file = SimpleUploadedFile('animated.gif', b'GIF89a...', content_type='image/gif')
+        with self.assertRaises(ValidationError) as ctx:
+            validate_course_cover_image(gif_file)
+        self.assertIn("non autorisée", str(ctx.exception))
+
+    # 7. Rejet d'un fichier dépassant 30 Mo
+    def test_reject_file_over_30mb(self):
+        huge_file = SimpleUploadedFile('monster.jpg', b'0', content_type='image/jpeg')
+        huge_file.size = 35 * 1024 * 1024
+        with self.assertRaises(ValidationError) as ctx:
+            validate_course_cover_image(huge_file)
+        self.assertIn("trop volumineuse", str(ctx.exception))
+
+    # 8. Validation dans le formulaire CourseAdminForm
+    def test_admin_form_validation(self):
+        from apps.courses.admin import CourseAdminForm
+
+        # Cas invalide
+        invalid_file = SimpleUploadedFile('bad.jpg', b'corrupted_data', content_type='image/jpeg')
+        form = CourseAdminForm(
+            data={
+                'title': 'Formation Test',
+                'description': 'Description détaillée',
+                'category': self.category.id,
+                'instructor': self.instructor.id,
+                'level': Course.Level.BEGINNER,
+                'price': 10000,
+                'status': Course.Status.DRAFT,
+            },
+            files={'cover_image': invalid_file}
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('cover_image', form.errors)
+
+        # Cas valide avec image normale
+        valid_file = self._create_test_image_file('good.jpg', size=(600, 400))
+        form_valid = CourseAdminForm(
+            data={
+                'title': 'Formation Valide',
+                'description': 'Description détaillée',
+                'category': self.category.id,
+                'instructor': self.instructor.id,
+                'level': Course.Level.BEGINNER,
+                'estimated_duration_hours': 2.5,
+                'price': 10000,
+                'status': Course.Status.DRAFT,
+                'certificate_passing_score': 80,
+            },
+            files={'cover_image': valid_file}
+        )
+        self.assertTrue(form_valid.is_valid(), f"Form errors: {form_valid.errors}")
+        cleaned_cover = form_valid.cleaned_data['cover_image']
+        self.assertTrue(cleaned_cover.name.endswith('.webp'))
+
+    # 9. Préservation de l'image existante si aucune nouvelle image n'est envoyée
+    def test_existing_image_not_altered_when_editing(self):
+        course = Course(
+            title="Formation avec Image",
+            description="Description",
+            category=self.category,
+            instructor=self.instructor,
+            cover_image="courses/existing_public_id"
+        )
+        # Simuler un save sans modifier cover_image (c'est une chaîne, pas un UploadedFile)
+        with patch.object(Course, 'save', autospec=True) as mock_save:
+            # Vérifier que validate_course_cover_image ignore les chaînes/ressources déjà sauvées
+            validate_course_cover_image(course.cover_image)
+            optimized = optimize_course_cover_image(course.cover_image)
+            self.assertEqual(optimized, "courses/existing_public_id")
+
 
