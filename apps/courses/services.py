@@ -98,7 +98,13 @@ def record_lesson_progress(user, lesson: Lesson, is_completed: bool = False, pos
     ).first()
 
     if not enrollment:
-        raise PermissionError("L'utilisateur n'est pas inscrit à cette formation.")
+        course = lesson.module.course
+        if course.is_free or course.price == 0:
+            enrollment, _ = enroll_student_in_course(user, course, source=Enrollment.Source.FREE)
+        elif user.is_staff or user.is_superuser or course.instructor_id == user.id:
+            enrollment, _ = enroll_student_in_course(user, course, source=Enrollment.Source.MANUAL_ADMIN)
+        else:
+            raise PermissionError("L'utilisateur n'est pas inscrit à cette formation.")
 
     progress, created = LessonProgress.objects.get_or_create(
         enrollment=enrollment,

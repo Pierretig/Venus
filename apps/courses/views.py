@@ -430,12 +430,44 @@ def submit_quiz(request, quiz_id):
     quiz = get_object_or_404(Quiz.objects.select_related('lesson__module__course'), id=quiz_id)
     course = quiz.lesson.module.course
 
-    enrollment = get_object_or_404(
-        Enrollment,
+    # Recherche d'une inscription active ou complétée
+    enrollment = Enrollment.objects.filter(
         user=request.user,
         course=course,
         status__in=[Enrollment.Status.ACTIVE, Enrollment.Status.COMPLETED]
-    )
+    ).first()
+
+    # Gestion des utilisateurs non encore inscrits
+    if not enrollment:
+        # 1. Formation gratuite : inscription automatique directe et sécurisée
+        if course.is_free or course.price == 0:
+            enrollment, _ = enroll_student_in_course(
+                request.user,
+                course,
+                source=Enrollment.Source.FREE
+            )
+            logger.info(
+                f"Inscription gratuite créée lors de la soumission du quiz pour {request.user.username} sur « {course.title} »"
+            )
+
+        # 2. Staff / Superuser ou formateur du cours : inscription administrative de test
+        elif request.user.is_staff or request.user.is_superuser or course.instructor_id == request.user.id:
+            enrollment, _ = enroll_student_in_course(
+                request.user,
+                course,
+                source=Enrollment.Source.MANUAL_ADMIN
+            )
+            logger.info(
+                f"Inscription administrative de test créée pour {request.user.username} sur « {course.title} »"
+            )
+
+        # 3. Utilisateur non inscrit sur formation payante : refus sécurisé et redirection
+        else:
+            messages.warning(
+                request,
+                f"Vous devez acquérir la formation « {course.title} » pour pouvoir participer à ce quiz d'évaluation."
+            )
+            return redirect('courses:buy_course', slug=course.slug)
 
     # Vérification de la limite de tentatives si configurée
     if quiz.max_attempts > 0:

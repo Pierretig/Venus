@@ -297,6 +297,16 @@
                 </div>
                 {% endif %}
 
+                {% if not enrollment and not course.is_free and not user.is_staff and not user.is_superuser and course.instructor_id != user.id %}
+                <div class="alert alert-info rounded-4 p-4 text-center my-4">
+                    <i class="fas fa-lock fa-2x text-warning mb-2"></i>
+                    <h5 class="fw-bold text-dark">Ce quiz d'évaluation fait partie du cursus certifiant</h5>
+                    <p class="text-muted small mb-3">Pour soumettre vos réponses, valider ce module et obtenir votre certificat de réussite officiel, vous devez acquérir la formation complète.</p>
+                    <a href="{% url 'courses:buy_course' slug=course.slug %}" class="btn btn-warning rounded-pill px-4 fw-bold text-dark">
+                        <i class="fas fa-shopping-cart me-2"></i> Acquérir cette formation
+                    </a>
+                </div>
+                {% else %}
                 <form method="post" action="{% url 'courses:submit_quiz' quiz_id=quiz.id %}">
                     {% csrf_token %}
                     {% for question in quiz.questions.all %}
@@ -333,7 +343,13 @@
                     <button type="submit" class="btn btn-venus-action px-5 py-2">
                         <i class="fas fa-paper-plane me-2"></i> Valider mes réponses
                     </button>
+                    {% if not enrollment and course.is_free %}
+                    <small class="text-muted d-block mt-2">
+                        <i class="fas fa-info-circle text-success me-1"></i> Formation gratuite : votre inscription et vos résultats seront enregistrés dès la validation.
+                    </small>
+                    {% endif %}
                 </form>
+                {% endif %}
             </div>
             {% endif %}
         </div>
