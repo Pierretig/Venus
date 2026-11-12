@@ -26,6 +26,7 @@ urlpatterns = [
     path('orders/', include('apps.orders.urls', namespace='orders')),
     path('blog/', include('apps.blog.urls', namespace='blog')),
     path('contact/', include('apps.contact.urls', namespace='contact')),
+    path('formations/', include('apps.courses.urls', namespace='courses')),
     
     # 3. CUSTOM ADMIN DASHBOARD
     path('dashboard-admin/', include('admin_custom.urls')),

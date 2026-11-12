@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load courses_extras %}
+
+{% block title %}Mon Espace Apprenant — Venus Luna{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --venus-vert: #1c683b;
+        --venus-vert-light: #f0f7f4;
+        --venus-or: #d4af37;
+    }
+
+    .stat-card-course {
+        border-radius: 20px;
+        transition: transform 0.25s ease;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+        background: white;
+    }
+
+    .stat-card-course:hover {
+        transform: translateY(-4px);
+    }
+
+    .course-progress-card {
+        border: none;
+        border-radius: 18px;
+        overflow: hidden;
+        background: white;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+        transition: transform 0.25s ease;
+    }
+
+    .course-progress-card:hover {
+        transform: translateY(-4px);
+    }
+
+    .certificate-card {
+        background: linear-gradient(135deg, #fdfcf7 0%, #f7f5ef 100%);
+        border: 2px solid rgba(212, 175, 55, 0.4);
+        border-radius: 18px;
+        padding: 1.5rem;
+        box-shadow: 0 6px 20px rgba(212, 175, 55, 0.1);
+        transition: transform 0.25s ease;
+    }
+
+    .certificate-card:hover {
+        transform: translateY(-3px);
+    }
+</style>
+
+<div class="container py-4">
+    <!-- En-tête -->
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1" style="color: var(--venus-vert); font-family: 'Playfair Display', serif;">
+                <i class="fas fa-graduation-cap text-warning me-2"></i>Mon Sanctuaire Pédagogique
+            </h1>
+            <p class="text-muted small mb-0">Bienvenue, {{ user.get_full_name|default:user.username }} ! Suivez vos
+                apprentissages et vos accomplissements.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'courses:course_list' %}" class="btn btn-outline-success rounded-pill px-4">
+                <i class="fas fa-compass me-1"></i> Explorer le catalogue
+            </a>
+            <a href="{% url 'accounts:client_dashboard' %}" class="btn btn-light rounded-pill px-3 border">
+                <i class="fas fa-store me-1"></i> Espace Boutique
+            </a>
+        </div>
+    </div>
+
+    <!-- 4 Cartes Statistiques Clés -->
+    <div class="row g-3 mb-5">
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card-course p-3">
+                <div class="d-flex align-items-center">
+                    <div class="p-3 rounded-4 me-3 text-success" style="background: var(--venus-vert-light);">
+                        <i class="fas fa-book-reader fa-2x"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Formations suivies</div>
+                        <div class="h3 fw-bold mb-0 text-dark">{{ total_enrolled }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card-course p-3">
+                <div class="d-flex align-items-center">
+                    <div class="p-3 rounded-4 me-3 text-warning" style="background: #fff9e6;">
+                        <i class="fas fa-spinner fa-2x"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">En cours</div>
+                        <div class="h3 fw-bold mb-0 text-dark">{{ active_count }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card-course p-3">
+                <div class="d-flex align-items-center">
+                    <div class="p-3 rounded-4 me-3 text-success" style="background: #e6f9ed;">
+                        <i class="fas fa-check-double fa-2x"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Terminées</div>
+                        <div class="h3 fw-bold mb-0 text-dark">{{ completed_count }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card-course p-3">
+                <div class="d-flex align-items-center">
+                    <div class="p-3 rounded-4 me-3 text-primary" style="background: #eff6ff;">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Progression moyenne</div>
+                        <div class="h3 fw-bold mb-0 text-dark">{{ avg_progress }}%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Onglets Formations en cours & Terminées -->
+    <ul class="nav nav-pills mb-4 gap-2" id="pills-tab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active rounded-pill px-4 fw-bold" id="pills-active-tab" data-bs-toggle="pill"
+                data-bs-target="#pills-active" type="button" role="tab">
+                <i class="fas fa-play-circle me-1"></i> En cours ({{ active_count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-pill px-4 fw-bold" id="pills-completed-tab" data-bs-toggle="pill"
+                data-bs-target="#pills-completed" type="button" role="tab">
+                <i class="fas fa-check-circle me-1"></i> Terminées ({{ completed_count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-pill px-4 fw-bold" id="pills-certs-tab" data-bs-toggle="pill"
+                data-bs-target="#pills-certs" type="button" role="tab">
+                <i class="fas fa-award me-1"></i> Mes Certificats ({{ certificates.count }})
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="pills-tabContent">
+        <!-- Tab 1 : Formations en cours -->
+        <div class="tab-pane fade show active" id="pills-active" role="tabpanel">
+            {% if active_enrollments %}
+            <div class="row g-4">
+                {% for enrollment in active_enrollments %}
+                {% with progress_pct=enrollment.get_progress_percentage resume_lesson=enrollment.get_resume_lesson %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="course-progress-card d-flex flex-column h-100">
+                        <div style="height: 160px; position: relative; overflow: hidden; background: #e2e8f0;">
+                            {% if enrollment.course.cover_image %}
+                            <img src="{{ enrollment.course.cover_image.url }}" alt="{{ enrollment.course.title }}"
+                                style="width: 100%; height: 100%; object-fit: cover;">
+                            {% else %}
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-light">
+                                <i class="fas fa-graduation-cap fa-3x text-muted opacity-50"></i>
+                            </div>
+                            {% endif %}
+                            <span class="badge bg-dark position-absolute top-0 start-0 m-2 rounded-pill small">
+                                {{ enrollment.course.category.name|default:"Spiritualité" }}
+                            </span>
+                        </div>
+
+                        <div class="p-4 d-flex flex-column flex-grow-1">
+                            <h5 class="fw-bold mb-2 text-dark">{{ enrollment.course.title }}</h5>
+                            <div class="text-muted small mb-3">
+                                <i class="fas fa-history me-1"></i>Dernière activité : {{
+                                enrollment.last_activity_at|date:"d M Y" }}
+                            </div>
+
+                            <div class="mt-auto">
+                                <div class="d-flex justify-content-between small text-muted mb-1">
+                                    <span>Progression</span>
+                                    <span class="fw-bold text-dark">{{ progress_pct }}%</span>
+                                </div>
+                                <div class="progress mb-3" style="height: 8px; border-radius: 10px;">
+                                    <div class="progress-bar bg-success" style="width: {{ progress_pct }}%;"></div>
+                                </div>
+
+                                {% if resume_lesson %}
+                                <a href="{{ resume_lesson.get_absolute_url }}"
+                                    class="btn btn-success w-100 rounded-pill fw-bold">
+                                    <i class="fas fa-play me-2"></i> Reprendre le cours
+                                </a>
+                                {% else %}
+                                <a href="{{ enrollment.course.get_absolute_url }}"
+                                    class="btn btn-outline-success w-100 rounded-pill">
+                                    Accéder
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endwith %}
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5 bg-white rounded-4 shadow-sm p-4">
+                <i class="fas fa-book-open fa-3x text-muted mb-3 opacity-50"></i>
+                <h4 class="fw-bold">Aucune formation en cours</h4>
+                <p class="text-muted">Découvrez notre sélection de formations certifiantes et débutez votre parcours
+                    spirituel dès aujourd'hui.</p>
+                <a href="{% url 'courses:course_list' %}" class="btn btn-success rounded-pill px-4 mt-2">Explorer le
+                    catalogue</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Tab 2 : Formations terminées -->
+        <div class="tab-pane fade" id="pills-completed" role="tabpanel">
+            {% if completed_enrollments %}
+            <div class="row g-4">
+                {% for enrollment in completed_enrollments %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="course-progress-card d-flex flex-column h-100 border border-success">
+                        <div class="p-4 d-flex flex-column flex-grow-1">
+                            <span class="badge bg-success align-self-start mb-2 px-3 py-2 rounded-pill">
+                                <i class="fas fa-check-circle me-1"></i> Formation Terminée
+                            </span>
+                            <h5 class="fw-bold text-dark mb-2">{{ enrollment.course.title }}</h5>
+                            <p class="text-muted small mb-4">
+                                Complétée le {{ enrollment.completed_at|date:"d F Y" }}
+                            </p>
+
+                            <div class="mt-auto d-flex flex-column gap-2">
+                                <a href="{{ enrollment.course.get_absolute_url }}"
+                                    class="btn btn-outline-secondary rounded-pill btn-sm">
+                                    <i class="fas fa-redo me-1"></i> Réviser les leçons
+                                </a>
+                                {% if enrollment.certificate %}
+                                <a href="{% url 'courses:download_certificate' certificate_code=enrollment.certificate.certificate_code %}"
+                                    class="btn btn-warning rounded-pill btn-sm fw-bold text-dark">
+                                    <i class="fas fa-award me-1"></i> Télécharger mon certificat (PDF)
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5 bg-white rounded-4 shadow-sm p-4">
+                <i class="fas fa-award fa-3x text-muted mb-3 opacity-50"></i>
+                <h4 class="fw-bold">Pas encore de formation terminée</h4>
+                <p class="text-muted">Poursuivez vos leçons en cours et validez les quiz pour obtenir vos certificats
+                    d'accomplissement.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Tab 3 : Mes Certificats -->
+        <div class="tab-pane fade" id="pills-certs" role="tabpanel">
+            {% if certificates %}
+            <div class="row g-4">
+                {% for cert in certificates %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="certificate-card d-flex flex-column h-100">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold">
+                                <i class="fas fa-certificate me-1"></i> Certificat Officiel
+                            </span>
+                            <small class="text-muted">{{ cert.issued_at|date:"d/m/Y" }}</small>
+                        </div>
+
+                        <h5 class="fw-bold text-dark mb-1">{{ cert.enrollment.course.title }}</h5>
+                        <p class="text-muted small mb-3">Délivré à {{ user.get_full_name|default:user.username }}</p>
+
+                        <div class="mt-auto pt-3 border-top d-flex align-items-center justify-content-between">
+                            <span class="badge bg-light text-dark border font-monospace small">
+                                {{ cert.certificate_code }}
+                            </span>
+                            <a href="{% url 'courses:download_certificate' certificate_code=cert.certificate_code %}"
+                                class="btn btn-sm btn-success rounded-pill px-3">
+                                <i class="fas fa-download me-1"></i> PDF
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5 bg-white rounded-4 shadow-sm p-4">
+                <i class="fas fa-certificate fa-3x text-muted mb-3 opacity-50"></i>
+                <h4 class="fw-bold">Aucun certificat pour le moment</h4>
+                <p class="text-muted">Complétez l'intégralité d'une formation certifiante pour débloquer votre diplôme
+                    officiel.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

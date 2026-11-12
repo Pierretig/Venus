@@ -1,6 +1,7 @@
 import logging
 
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.db.models import Sum, Count, Q, F
@@ -257,27 +258,24 @@ def submit_review(request, product_id):
 
     product = get_object_or_404(Product, id=product_id, is_active=True)
 
+    if not request.user.is_authenticated:
+        messages.info(request, "Veuillez vous connecter pour laisser un avis.")
+        return redirect(f"{reverse('accounts:login')}?next={product.get_absolute_url()}")
+
     site_settings = SiteSettings.get_solo()
     reviews_only_buyers = site_settings.reviews_only_buyers if site_settings else False
 
     # Double sécurité pour les utilisateurs connectés : un avis unique par produit
-    if request.user.is_authenticated:
-        if Review.objects.filter(product=product, user=request.user).exists():
-            messages.error(request, "Vous avez déjà rédigé un avis pour ce produit.")
-            return redirect(product.get_absolute_url())
+    if Review.objects.filter(product=product, user=request.user).exists():
+        messages.error(request, "Vous avez déjà rédigé un avis pour ce produit.")
+        return redirect(product.get_absolute_url())
 
-        is_buyer = check_verified_purchase(request.user, product)
+    is_buyer = check_verified_purchase(request.user, product)
 
-        # Si dépôt réservé aux acheteurs vérifiés (connectés uniquement)
-        if reviews_only_buyers and not is_buyer:
-            messages.error(request, "Désolé, le dépôt d'avis pour ce produit est réservé aux personnes l'ayant acheté.")
-            return redirect(product.get_absolute_url())
-    else:
-        # Visiteur anonyme : impossible de vérifier l'achat
-        is_buyer = False
-        if reviews_only_buyers:
-            messages.error(request, "Le dépôt d'avis pour ce produit est réservé aux acheteurs. Veuillez vous connecter.")
-            return redirect(product.get_absolute_url())
+    # Si dépôt réservé aux acheteurs vérifiés
+    if reviews_only_buyers and not is_buyer:
+        messages.error(request, "Désolé, le dépôt d'avis pour ce produit est réservé aux personnes l'ayant acheté.")
+        return redirect(product.get_absolute_url())
 
     form = ReviewForm(request.POST)
     if form.is_valid():

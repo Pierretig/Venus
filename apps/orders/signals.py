@@ -74,12 +74,35 @@ def handle_order_automation(sender, instance, created, **kwargs):
             if instance.receipt:
                 instance.save(update_fields=['receipt'])
 
+            # D. Activation automatique et sécurisée des inscriptions aux formations achetées
+            if instance.user:
+                try:
+                    from apps.courses.models import Enrollment
+                    for item in instance.items.all():
+                        if item.course:
+                            enrollment, was_created = Enrollment.objects.get_or_create(
+                                user=instance.user,
+                                course=item.course,
+                                defaults={
+                                    'status': Enrollment.Status.ACTIVE,
+                                    'source': Enrollment.Source.CASHPAY,
+                                    'order': instance,
+                                }
+                            )
+                            if not was_created and enrollment.status != Enrollment.Status.ACTIVE:
+                                enrollment.status = Enrollment.Status.ACTIVE
+                                enrollment.order = instance
+                                enrollment.save(update_fields=['status', 'order'])
+                            logger.info(f"SUCCESS: Inscription activée pour {instance.user.username} sur {item.course.title} (commande #{instance.id})")
+                except Exception as enroll_err:
+                    logger.error(f"Erreur lors de l'activation de la formation pour la commande #{instance.id}: {enroll_err}")
+
             logger.info(f"SUCCESS: Stock déduit et PDF généré pour la commande #{instance.id}")
 
         except Exception as e:
             logger.error(f"ERROR: Echec de l'automation pour la commande #{instance.id}: {e}")
 
-    # 2. LOGIQUE : ANNULATION OU REMBOURSEMENT (Ré-incrémentation du stock)
+    # 2. LOGIQUE : ANNULATION OU REMBOURSEMENT (Ré-incrémentation du stock physique)
     elif instance.status in ('cancelled', 'refunded') and instance.stock_updated:
         try:
             movement_type = StockMovement.MovementType.CANCEL if instance.status == 'cancelled' else StockMovement.MovementType.REFUND
@@ -99,7 +122,24 @@ def handle_order_automation(sender, instance, created, **kwargs):
                         )
 
             Order.objects.filter(id=instance.id).update(stock_updated=False)
+
             logger.info(f"{instance.get_status_display().upper()}: Commande #{instance.id}, stock rendu.")
 
         except Exception as e:
             logger.error(f"ERROR: Echec du retour de stock pour #{instance.id}: {e}")
+
+    # 3. LOGIQUE : ANNULATION / REMBOURSEMENT — Désactivation des accès aux formations
+    #    (indépendante du stock_updated car les formations numériques n'ont pas de stock physique)
+    if instance.status in ('cancelled', 'refunded') and instance.user:
+        try:
+            from apps.courses.models import Enrollment
+            for item in instance.items.all():
+                if item.course:
+                    Enrollment.objects.filter(
+                        user=instance.user,
+                        course=item.course,
+                        order=instance,
+                    ).update(status=Enrollment.Status.CANCELLED)
+                    logger.info(f"Inscription désactivée suite à annulation/remboursement pour {instance.user.username} sur {item.course.title}")
+        except Exception as enroll_cancel_err:
+            logger.error(f"Erreur lors de la désactivation de formation #{instance.id}: {enroll_cancel_err}")

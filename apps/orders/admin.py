@@ -8,7 +8,7 @@ from .models import Order, OrderItem, ShippingAddress, ShippingZone
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     readonly_fields = ('line_total_display',)
-    fields = ('product', 'name', 'price', 'quantity', 'line_total_display')
+    fields = ('product', 'course', 'name', 'price', 'quantity', 'line_total_display')
     extra = 0
 
     def line_total_display(self, obj):

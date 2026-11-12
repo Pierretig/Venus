@@ -1,49 +1,132 @@
-# Environnement test local
-local_test/db.sqlite3
-local_test/__pycache__/
-local_test/local_test.egg-info/
-db.sqlite3
-django.log
+# ==============================================================================
+# VENUS LUNA - SÉCURITÉ DU DÉPÔT GIT (.gitignore)
+# Protection contre la divulgation de secrets, bases de données et fichiers privés
+# ==============================================================================
 
-# Environnements
+# ------------------------------------------------------------------------------
+# 1. FICHIERS D'ENVIRONNEMENT ET SECRETS (CRITIQUE)
+# ------------------------------------------------------------------------------
 .env
+.env.*
+*.env
+!.env.example
+secrets/
+*.secret
+*.key
+*.pem
+*.crt
+*.pfx
+*.p12
+*.cer
+*.der
+
+# Paramètres locaux et configurations de développement avec clés/DB locales
+config/settings_local.py
+*settings_local*.py
+local_settings.py
+settings_local.py
+config/settings_test.py
+test_settings.py
+local_dev/
+
+# ------------------------------------------------------------------------------
+# 2. BASES DE DONNÉES LOCALES & DUMPS (DONNÉES CONFIDENTIELLES)
+# ------------------------------------------------------------------------------
+*.sqlite3
+*.sqlite
+*.db
+db.sqlite3
+db_local.sqlite3
+local_test/
+*.dump
+*.sql
+*.backup
+
+# ------------------------------------------------------------------------------
+# 3. ENVIRONNEMENTS VIRTUELS PYTHON
+# ------------------------------------------------------------------------------
 env/
 venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+test_env/
 
-# Python cache/logs
+# ------------------------------------------------------------------------------
+# 4. BYTECODE, CACHES ET COMPILATION PYTHON
+# ------------------------------------------------------------------------------
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 *.pyo
-*.log
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+*.egg
 
-# Système / uploads
-.DS_Store
+# ------------------------------------------------------------------------------
+# 5. FICHIERS MÉDIAS, TÉLÉVERSEMENTS ET CERTIFICATS UTILISATEURS
+# ------------------------------------------------------------------------------
 media/
-staticfiles/
-venus-luna
-TODO.md
-CashPay_V3_Documentation.md
-arborescence.txt
-plan_de_developpement.txt
-API Cashpay V3.0.pdf
-*.txt
-*.md
+media_local/
+media_root/
+uploads/
+certificates/
+courses/attachments/
+recu_*.pdf
+certificat_*.pdf
 
+# ------------------------------------------------------------------------------
+# 6. FICHIERS STATIQUES COLLECTÉS (Générés automatiquement via collectstatic)
+# ------------------------------------------------------------------------------
+staticfiles/
+static_root/
+
+# ------------------------------------------------------------------------------
+# 7. LOGS ET FICHIERS TEMPORAIRES DE RUNTIME
+# ------------------------------------------------------------------------------
+*.log
+django.log
+gunicorn_*.log
+*.pid
+
+# ------------------------------------------------------------------------------
+# 8. SYSTÈMES D'EXPLOITATION ET ÉDITEURS (IDE)
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+*.bak
+
+# ------------------------------------------------------------------------------
+# 9. SPÉCIFICATIONS TECHNIQUES PRIVÉES ET NOTES INTERNES DE DÉVELOPPEMENT
+# ------------------------------------------------------------------------------
+API Cashpay V3.0.pdf
+CashPay_V3_Documentation.md
+MAJ_Formations.md
+TODO.md
+plan_de_developpement.txt
+arborescence.txt
+venus-luna
 
 # Docker
 *.tar
-
-# Logs de production
-*.log
-django.log
-
-# Fichiers de production
-*.lock
-
-# Logs de production
-django.log
-gunicorn_access.log
-gunicorn_error.log
-
-# Fichiers de production
-*.lock

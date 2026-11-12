@@ -64,6 +64,7 @@ class Order(models.Model):
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
     product = models.ForeignKey('products.Product', null=True, blank=True, on_delete=models.SET_NULL)
+    course = models.ForeignKey('courses.Course', null=True, blank=True, on_delete=models.SET_NULL, related_name='order_items', verbose_name="Formation associée")
     name = models.CharField("Nom du produit", max_length=255)
     price = models.DecimalField("Prix unitaire", max_digits=10, decimal_places=0, null=True, blank=True)
     quantity = models.PositiveIntegerField("Quantité", default=1)
