@@ -103,18 +103,20 @@ LOGGING = {
     },
 }
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,venus-luna.com,www.venus-luna.com').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,venus-luna.com,www.venus-luna.com,formations.venus-luna.com').split(',')
 ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS if h.strip()]
-# Toujours inclure 127.0.0.1 et localhost pour les sondes HEALTHCHECK internes du conteneur Docker
-for local_host in ('127.0.0.1', 'localhost'):
-    if local_host not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(local_host)
+# S'assure que les hôtes requis sont toujours en ALLOWED_HOSTS
+required_hosts = ('127.0.0.1', 'localhost', 'venus-luna.com', 'www.venus-luna.com', 'formations.venus-luna.com')
+for host in required_hosts:
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 
 
 # --- CORRECTION CSRF PRODUCTION ---
 CSRF_TRUSTED_ORIGINS = [
     "https://venus-luna.com",
-    "https://www.venus-luna.com"
+    "https://www.venus-luna.com",
+    "https://formations.venus-luna.com"
 ]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -138,14 +140,18 @@ if not DEBUG:
 else:
     SECURE_SSL_REDIRECT = False
     
+CSRF_COOKIE_DOMAIN = None
 CSRF_COOKIE_SECURE = not DEBUG
-SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SAMESITE = "Lax"
 
-# --- CONFIGURATION PAYPLUS AFRICA ---
-PAYPLUS_API_KEY = os.getenv('PAYPLUS_API_KEY')
-PAYPLUS_MERCHANT_ID = os.getenv('PAYPLUS_MERCHANT_ID')
+SESSION_COOKIE_NAME = "venus_luna_sessionid"
+SESSION_COOKIE_DOMAIN = ".venus-luna.com"
+SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+
 SITE_URL = os.getenv('SITE_URL', 'https://venus-luna.com')
-PAYPLUS_WEBHOOK_URL = f"{SITE_URL}/orders/webhook/payplus/"
+
 
 # --- CONFIGURATION WATERMARK CLOUDINARY ---
 WATERMARK_TEXT = os.getenv('WATERMARK_TEXT', 'Venus-Luna')
@@ -177,6 +183,7 @@ MIDDLEWARE = [
     'apps.core.middleware.SecurityHeadersMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'apps.core.middleware.HostUrlconfMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',

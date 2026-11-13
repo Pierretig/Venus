@@ -42,3 +42,34 @@ class SecurityHeadersMiddleware:
             response.headers.setdefault('Content-Security-Policy', '; '.join(csp_directives))
 
         return response
+
+# ---------------------------------------------------------------------------
+# HostUrlconfMiddleware – moved here from apps/core/middleware/host_urlconf_middleware.py
+# ---------------------------------------------------------------------------
+
+"""Middleware to switch URLconf based on hostname.
+
+The LMS is served from the sub‑domain ``formations.venus‑luna.com``. For any
+request whose host (case‑insensitive, without port) matches that value we set
+``request.urlconf`` to ``config.subdomain_urls`` so that Django resolves the
+LMS‑specific routes. All other hosts keep the default ``ROOT_URLCONF``.
+"""
+
+from django.utils.deprecation import MiddlewareMixin
+
+
+class HostUrlconfMiddleware(MiddlewareMixin):
+    """Select the URL configuration according to the request host.
+
+    * ``formations.venus-luna.com`` → ``config.subdomain_urls``
+    * any other hostname → unchanged (uses ``ROOT_URLCONF``)
+    """
+
+    LMS_HOST = "formations.venus-luna.com"  # canonical host for the LMS
+
+    def process_request(self, request):
+        # ``request.get_host()`` returns ``host[:port]`` with the original case.
+        host = request.get_host().split(":")[0].lower()
+        if host == self.LMS_HOST.lower():
+            request.urlconf = "config.subdomain_urls"
+        # else: leave request.urlconf untouched
