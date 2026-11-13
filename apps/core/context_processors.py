@@ -17,6 +17,7 @@ def global_data(request):
     banners = Banner.objects.filter(is_active=True).order_by('order')[:5]
     social_links = SocialLink.objects.all()
     root_categories = Category.objects.filter(parent=None).order_by('order', 'name')
+    lms_url = getattr(settings, 'LMS_URL', 'https://formations.venus-luna.com').rstrip('/')
     return {
         "site_settings": site_settings,
         "banners": banners,
@@ -24,5 +25,6 @@ def global_data(request):
         "debug": settings.DEBUG,
         "root_categories": root_categories,
         "cart_items": request.cart_items if hasattr(request, 'cart_items') else [],
+        "lms_url": lms_url,
     }
 # ...existing code...

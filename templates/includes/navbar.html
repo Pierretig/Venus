@@ -20,7 +20,7 @@
       <ul class="navbar-nav mx-auto align-items-lg-center gap-lg-1">
         <li class="nav-item"><a class="nav-link" href="{% url 'core:home' %}">Accueil</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'products:list' %}">Boutique</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'courses:course_list' %}">Formations</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ lms_url }}/">Formations</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'blog:list' %}">Blog</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'core:contact' %}">Contact</a></li>
 
@@ -51,7 +51,7 @@
           <ul class="dropdown-menu dropdown-menu-end mt-2">
             <li><a class="dropdown-item py-2" href="{% url 'accounts:client_dashboard' %}"><i
                   class="fas fa-user me-2"></i>Dashboard</a></li>
-            <li><a class="dropdown-item py-2" href="{% url 'courses:student_dashboard' %}"><i
+            <li><a class="dropdown-item py-2" href="{{ lms_url }}/mon-espace/"><i
                   class="fas fa-graduation-cap me-2 text-success"></i>Mes Formations</a></li>
             <li>
               <hr class="dropdown-divider">

@@ -151,6 +151,7 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 
 SITE_URL = os.getenv('SITE_URL', 'https://venus-luna.com')
+LMS_URL = os.getenv('LMS_URL', 'https://formations.venus-luna.com')
 
 
 # --- CONFIGURATION WATERMARK CLOUDINARY ---
