@@ -303,3 +303,41 @@ class AccountsSecurityHardeningTests(TestCase):
         dashboard_response = client.get(reverse('accounts:client_dashboard'))
         self.assertEqual(dashboard_response.status_code, 200)
 
+    @override_settings(SECURE_SSL_REDIRECT=False)
+    def test_client_dashboard_fidelity_points_display(self):
+        """Vérifie le calcul et le rendu effectif des points de fidélité sur le dashboard."""
+        from apps.orders.models import Order
+        client = Client()
+        user = User.objects.create_user(
+            username='user_fidelity_test',
+            email='fidelity@venus-luna.com',
+            password='Password123!'
+        )
+        client.force_login(user)
+        dashboard_url = reverse('accounts:client_dashboard')
+
+        # Cas 1 : 0 commande -> 5 points de fidélité de base (0 + 5)
+        response = client.get(dashboard_url, HTTP_HOST='venus-luna.com')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        # Ne doit JAMAIS afficher la balise brute
+        self.assertNotIn('orders.count|add', content)
+        self.assertIn('Points Fidélité', content)
+        # Total commandes = 0
+        self.assertIn('<span class="h4 fw-bold" style="color: var(--venus-vert);">0</span>', content)
+        # Points fidélité = 5
+        self.assertIn('<span class="h4 fw-bold" style="color: var(--venus-or);">5</span>', content)
+
+        # Cas 2 : 2 commandes créées -> 7 points de fidélité (2 + 5)
+        Order.objects.create(user=user, total=10000, email='fidelity@venus-luna.com')
+        Order.objects.create(user=user, total=20000, email='fidelity@venus-luna.com')
+
+        response = client.get(dashboard_url, HTTP_HOST='venus-luna.com')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertNotIn('orders.count|add', content)
+        # Total commandes = 2
+        self.assertIn('<span class="h4 fw-bold" style="color: var(--venus-vert);">2</span>', content)
+        # Points fidélité = 7
+        self.assertIn('<span class="h4 fw-bold" style="color: var(--venus-or);">7</span>', content)
+
