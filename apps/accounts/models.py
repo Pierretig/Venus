@@ -9,6 +9,7 @@ class Profile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
     phone = models.CharField("Téléphone", max_length=20, blank=True)
     address = models.TextField("Adresse", blank=True)
+    city = models.CharField("Ville", max_length=150, blank=True, default='')
     avatar = CloudinaryField('avatar', blank=True, null=True)
     bio = models.TextField("Biographie", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

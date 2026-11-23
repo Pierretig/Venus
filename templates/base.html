@@ -1,60 +1,68 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}VENUS LUNA- Boutique esoterique{% endblock %}</title>
-    
+
     <!-- SEO Meta Tags -->
-    <meta name="description" content="{% block meta_description %}Boutique spirituelle à Lomé spécialisée en cristaux, encens et outils de purification.{% endblock %}">
-    <meta name="keywords" content="boutique spirituelle, boutique esoterique, lithothérapie togo, cristaux lomé, encens, spiritualité, ">
+    <meta name="description"
+        content="{% block meta_description %}Boutique spirituelle à Lomé spécialisée en cristaux, encens et outils de purification.{% endblock %}">
+    <meta name="keywords"
+        content="boutique spirituelle, boutique esoterique, lithothérapie togo, cristaux lomé, encens, spiritualité, ">
     <meta name="author" content="Venus-luna">
     <meta name="robots" content="index, follow">
-    
+
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.build_absolute_uri }}">
     <meta property="og:title" content="{% block og_title %}VENUS LUNA - Lithothérapie & Bien-être{% endblock %}">
-    <meta property="og:description" content="Boutique mystique à Lomé spécialisée en cristaux, encens et outils de purification.">
+    <meta property="og:description"
+        content="Boutique mystique à Lomé spécialisée en cristaux, encens et outils de purification.">
     <meta property="og:image" content="https://venus-luna.com{% static 'img/venus-luna5.jpg' %}">
     <meta property="og:locale" content="fr_TG">
     <meta property="og:site_name" content="Venus Luna">
-    
+
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="{{ request.build_absolute_uri }}">
-    <meta property="twitter:title" content="{% block twitter_title %}VENUS LUNA - Lithothérapie & Bien-être{% endblock %}">
-    <meta property="twitter:description" content="Boutique mystique à Lomé spécialisée en cristaux, encens et outils de purification.">
+    <meta property="twitter:title"
+        content="{% block twitter_title %}VENUS LUNA - Lithothérapie & Bien-être{% endblock %}">
+    <meta property="twitter:description"
+        content="Boutique mystique à Lomé spécialisée en cristaux, encens et outils de purification.">
     <meta property="twitter:image" content="https://venus-luna.com{% static 'img/venus-luna5.jpg' %}">
     <meta name="google-site-verification" content="D4VCig_rRiFLUY-UNGwhe6tlv7rP2LijXTH6IRjXeZM" />
     <meta name="msvalidate.01" content="055899401B55D3629ECF2017DA5F2F24" />
-    
+
     <!-- Canonical URL -->
     <link rel="canonical" href="{% block canonical_url %}{{ request.build_absolute_uri }}{% endblock %}">
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{% static 'img/venus-luna5.jpg' %}">
-    
+
     <!-- Styles -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Playfair+Display:wght@700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/main_v2.css' %}">
 
     <! google analytics -->
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HYP68N55BF"></script>
-    <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-HYP68N55BF"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag() { dataLayer.push(arguments); }
+            gtag('js', new Date());
 
-    gtag('config', 'G-HYP68N55BF');
-    </script>
-    
-    <!-- Schema.org JSON-LD pour SEO local -->
-    <script type="application/ld+json">
+            gtag('config', 'G-HYP68N55BF');
+        </script>
+
+        <!-- Schema.org JSON-LD pour SEO local -->
+        <script type="application/ld+json">
     {
         "@context": "https://schema.org",
         "@type": "LocalBusiness",
@@ -80,57 +88,73 @@
         ]
     }
     </script>
-    <link rel="icon" type="image/png" href="{% static 'img/venus-luna5.jpg' %}">
-    {% if debug == False %}
-        <script defer src="https://analytics.venus-luna.com/script.js" data-website-id="40b1a356-6189-4b91-892e-b2e8f3b68c85">
-        
-        </script>
-        <script defer src="https://analytics.venus-luna.com/script.js" data-website-id="135a6b6a-7ecf-486d-8638-e76f27e511f8">
-            
-        </script>
-    {% endif %}
-    
-    {% block extra_head %}{% endblock %}
+        <link rel="icon" type="image/png" href="{% static 'img/venus-luna5.jpg' %}">
+        {% if debug == False %}
+        <script defer src="https://analytics.venus-luna.com/script.js"
+            data-website-id="40b1a356-6189-4b91-892e-b2e8f3b68c85">
+
+            </script>
+        <script defer src="https://analytics.venus-luna.com/script.js"
+            data-website-id="135a6b6a-7ecf-486d-8638-e76f27e511f8">
+
+            </script>
+        {% endif %}
+
+        {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-soft"> {% include 'includes/navbar.html' %}
 
-    <main class="main-content py-4">
-        {% include 'includes/messages.html' %}
-        <div class="container-fluid px-3">
-            {% block content %}{% endblock %}
-        </div>
-    </main>
-    
-    {% include 'includes/footer.html' %}
-    {% include 'includes/whatsapp_button.html' %}
+    <body class="bg-soft">
+        {% block navbar %}
+        {% include 'includes/navbar.html' %}
+        {% endblock navbar %}
 
-    <aside id="terms-consent" class="terms-consent" hidden aria-label="Consentement aux documents légaux">
-        <div class="terms-consent-header">
-            <div class="terms-icon"><i class="fas fa-scroll"></i></div>
-            <h6>Documents légaux</h6>
-        </div>
-        <div class="terms-consent-body">
-            <p>Avant de poursuivre votre visite, veuillez consulter nos documents :</p>
-            <div class="terms-consent-links">
-                <a href="{% url 'core:cgv' %}">
-                    <i class="fas fa-file-contract"></i>
-                    Conditions d'utilisation (CGV)
-                </a>
-                <a href="{% url 'core:privacy' %}">
-                    <i class="fas fa-shield-alt"></i>
-                    Politique de confidentialité
-                </a>
-            </div>
-            <p style="margin-top: 0.75rem; font-size: 0.77rem; color: rgba(255,255,255,0.45);">En continuant, vous acceptez nos conditions générales et notre politique de confidentialité.</p>
-        </div>
-        <div class="terms-consent-footer">
-            <button type="button" id="terms-accept">J'accepte &amp; continue</button>
-        </div>
-    </aside>
+            <main class="{% block main_class %}main-content py-4{% endblock main_class %}">
+                {% include 'includes/messages.html' %}
+                    <div
+                        class="{% block main_container_class %}container-fluid px-3{% endblock main_container_class %}">
+                        {% block content %}{% endblock %}
+                    </div>
+            </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{% static 'js/main.js' %}"></script>
-    <script src="{% static 'js/animations.js' %}"></script>
+            {% block footer %}
+            {% include 'includes/footer.html' %}
+            {% endblock footer %}
 
-</body>
+            {% block whatsapp_button %}
+            {% include 'includes/whatsapp_button.html' %}
+            {% endblock whatsapp_button %}
+
+            {% block terms_consent %}
+            <aside id="terms-consent" class="terms-consent" hidden aria-label="Consentement aux documents légaux">
+                <div class="terms-consent-header">
+                    <div class="terms-icon"><i class="fas fa-scroll"></i></div>
+                    <h6>Documents légaux</h6>
+                </div>
+                <div class="terms-consent-body">
+                    <p>Avant de poursuivre votre visite, veuillez consulter nos documents :</p>
+                    <div class="terms-consent-links">
+                        <a href="{% url 'core:cgv' %}">
+                            <i class="fas fa-file-contract"></i>
+                            Conditions d'utilisation (CGV)
+                        </a>
+                        <a href="{% url 'core:privacy' %}">
+                            <i class="fas fa-shield-alt"></i>
+                            Politique de confidentialité
+                        </a>
+                    </div>
+                    <p style="margin-top: 0.75rem; font-size: 0.77rem; color: rgba(255,255,255,0.45);">En continuant,
+                        vous acceptez nos conditions générales et notre politique de confidentialité.</p>
+                </div>
+                <div class="terms-consent-footer">
+                    <button type="button" id="terms-accept">J'accepte &amp; continue</button>
+                </div>
+            </aside>
+            {% endblock terms_consent %}
+
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+            <script src="{% static 'js/main.js' %}"></script>
+            <script src="{% static 'js/animations.js' %}"></script>
+
+    </body>
+
 </html>

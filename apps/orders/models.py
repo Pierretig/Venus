@@ -13,6 +13,11 @@ ORDER_STATUS = (
 )
 
 class Order(models.Model):
+    # Existing fields remain unchanged
+    # -------------------------------------------------
+    # Outbox events will be stored in a separate model (see OutboxEvent)
+    # -------------------------------------------------
+
     user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
     email = models.EmailField("Email client", blank=True)
     status = models.CharField("Statut", max_length=20, choices=ORDER_STATUS, default='pending')
@@ -96,12 +101,62 @@ class ShippingAddress(models.Model):
 
 class ShippingZone(models.Model):
     name = models.CharField("Quartier / Zone", max_length=100)
+
     price = models.DecimalField("Frais de livraison", max_digits=10, decimal_places=0)
     delivery_time = models.CharField("Délai estimé", max_length=100, default="24h")
-
     class Meta:
         verbose_name = "Zone de livraison"
         verbose_name_plural = "Zones de livraison"
-    
+        indexes = [
+            models.Index(fields=["price"], name="idx_shippingzone_price"),
+        ]
+
     def __str__(self):
         return f"{self.name} ({self.price} F)"
+
+# -----------------------------------------------------------------------------
+# Outbox event model for reliable asynchronous processing
+# -----------------------------------------------------------------------------
+
+class OutboxEvent(models.Model):
+    class EventType(models.TextChoices):
+        PDF_RECEIPT = "PDF_RECEIPT", "PDF Receipt"
+        COURSE_ENROLLMENT = "COURSE_ENROLLMENT", "Course Enrollment"
+        PAYMENT_EMAIL = "PAYMENT_EMAIL", "Payment Email"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        PROCESSING = "PROCESSING", "Processing"
+        SUCCESS = "SUCCESS", "Success"
+        FAILED = "FAILED", "Failed"
+
+    order = models.ForeignKey('Order', related_name='outbox_events', on_delete=models.CASCADE)
+    event_type = models.CharField(max_length=30, choices=EventType.choices)
+    # Optional link to a course for enrollment events
+    course = models.ForeignKey('courses.Course', null=True, blank=True, on_delete=models.SET_NULL)
+    payload = models.JSONField(default=dict, blank=True)
+    idempotency_key = models.CharField(max_length=255)
+
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
+    attempts = models.PositiveIntegerField(default=0)
+    available_at = models.DateTimeField(default=timezone.now)
+    processing_at = models.DateTimeField(null=True, blank=True)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["status", "available_at"], name="idx_outbox_status_available"),
+            models.Index(fields=["locked_until"], name="idx_outbox_locked_until"),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=["idempotency_key"], name="uniq_outbox_idempotency_key"),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"OutboxEvent {self.id} – {self.get_event_type_display()} ({self.status})"
+

@@ -60,6 +60,43 @@ class OrderAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at', 'subtotal', 'total', 'stock_updated', 'payment_url')
     list_editable = ('status',)
     inlines = (OrderItemInline, ShippingAddressInline)
+    actions = ['reprocess_stock_for_paid_orders']
+
+    @admin.action(description="Retraiter le stock des commandes payées incomplètes")
+    def reprocess_stock_for_paid_orders(self, request, queryset):
+        import logging
+        from .payment_processing import process_order_stock_and_fulfillment
+        from django.db import transaction
+        log = logging.getLogger(__name__)
+        success_count = 0
+        error_count = 0
+        for order in queryset.filter(status='paid', stock_updated=False):
+            try:
+                with transaction.atomic():
+                    locked = Order.objects.select_for_update().get(id=order.id)
+                    if not locked.stock_updated:
+                        process_order_stock_and_fulfillment(locked)
+                        update_fields = ['stock_updated']
+                        if locked.receipt:
+                            update_fields.append('receipt')
+                        if locked.notes and '[ÉCHEC TRAITEMENT STOCK]' in locked.notes:
+                            cleaned_lines = [
+                                line for line in locked.notes.splitlines()
+                                if not line.startswith('[ÉCHEC TRAITEMENT STOCK]')
+                            ]
+                            cleaned_lines.append("[STOCK RÉGULARISÉ AVEC SUCCÈS]")
+                            locked.notes = "\n".join(cleaned_lines).strip()
+                            update_fields.append('notes')
+                        locked.save(update_fields=update_fields)
+                        success_count += 1
+            except Exception as e:
+                error_count += 1
+                log.error("Reprocess stock failed for order #%s: %s", order.id, e)
+
+        if success_count:
+            self.message_user(request, f"Stock mis à jour avec succès pour {success_count} commande(s).")
+        if error_count:
+            self.message_user(request, f"Échec pour {error_count} commande(s) (stock toujours insuffisant).", level='ERROR')
 
     # --- MÉTHODES D'AFFICHAGE ---
 
@@ -72,6 +109,11 @@ class OrderAdmin(admin.ModelAdmin):
             'cancelled': '#dc3545',
             'refunded': '#6f42c1',
         }
+        if obj.status == 'paid' and not obj.stock_updated:
+            return format_html(
+                '<span style="background: #e67e22; color: white; padding: 3px 10px; border-radius: 12px; font-weight: bold; font-size: 11px;">{}</span>',
+                "PAYÉ (STOCK INCOMPLET)"
+            )
         return format_html(
             '<span style="background: {}; color: white; padding: 3px 10px; border-radius: 12px; font-weight: bold; font-size: 11px;">{}</span>',
             colors.get(obj.status, '#6c757d'),
@@ -95,7 +137,7 @@ class OrderAdmin(admin.ModelAdmin):
         if obj.stock_updated:
             return mark_safe('<span title="Stock déduit" style="cursor:help;">✅</span>')
         if obj.status == 'paid':
-            return mark_safe('<span title="Stock non déduit !" style="cursor:help;">⚠️</span>')
+            return mark_safe('<span title="Stock non déduit !" style="color: #e67e22; font-weight: bold; cursor:help;">⚠️ Incomplet</span>')
         return "-"
     status_stock.short_description = "Stk"
 

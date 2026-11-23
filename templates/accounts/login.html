@@ -1,6 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block navbar %}{% endblock navbar %}
+{% block footer %}{% endblock footer %}
+{% block whatsapp_button %}{% endblock whatsapp_button %}
+{% block terms_consent %}{% endblock terms_consent %}
+{% block main_class %}auth-main-layout{% endblock main_class %}
+{% block main_container_class %}container-fluid p-0{% endblock main_container_class %}
+
 {% block content %}
 <style>
     :root {
@@ -9,35 +16,84 @@
         --venus-jaune: #fbc02d;
     }
 
+    /* Layout sans navbar */
+    .auth-main-layout {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        min-height: 100vh;
+    }
+
     /* Fond spirituel pour la page de login */
     .login-section {
-        background: linear-gradient(rgba(28, 104, 59, 0.8), rgba(21, 84, 48, 0.9)),
-                    url("{% static 'img/bg-spirit.jpg' %}"); /* Ajoute une image zen en fond */
+        background: linear-gradient(rgba(28, 104, 59, 0.82), rgba(21, 84, 48, 0.92)),
+        url("{% static 'img/bg-spirit.jpg' %}");
         background-size: cover;
         background-position: center;
-        min-height: 90vh;
+        min-height: 100vh;
+        padding: 2.5rem 1rem;
+    }
+
+    .auth-brand-logo {
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid var(--venus-or);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease;
+    }
+
+    .auth-brand-link:hover .auth-brand-logo {
+        transform: scale(1.05);
+    }
+
+    .auth-home-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.82rem;
+        text-decoration: none;
+        padding: 6px 14px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        transition: 0.3s all;
+        margin-top: 10px;
+    }
+
+    .auth-home-pill:hover {
+        color: var(--venus-jaune);
+        background: rgba(255, 255, 255, 0.16);
+        border-color: var(--venus-or);
     }
 
     .glass-card {
         background: rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
         border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 30px;
+        border-radius: 26px;
     }
 
     .post-title {
         color: white;
-        font-family: 'Playfair Display', serif; /* Ou ta police élégante */
-        letter-spacing: 2px;
+        font-family: 'Playfair Display', serif;
+        letter-spacing: 1.5px;
     }
 
-    /* Style des inputs dans le verre */
+    /* Style des inputs */
     .auth-form input {
-        background: rgba(255, 255, 255, 0.9) !important;
+        background: rgba(255, 255, 255, 0.95) !important;
         border-radius: 12px !important;
         border: none !important;
         padding: 12px 15px !important;
         margin-bottom: 5px;
+    }
+
+    .auth-form input:focus {
+        box-shadow: 0 0 10px rgba(251, 192, 45, 0.35) !important;
+        outline: none;
     }
 
     .text-gold {
@@ -64,35 +120,101 @@
         transform: translateY(-2px);
     }
 
-    .x-small { font-size: 0.75rem; }
+    .x-small {
+        font-size: 0.75rem;
+    }
+
+    /* Champ mot de passe avec bouton afficher/masquer */
+    .password-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .password-input-wrapper input {
+        padding-right: 44px !important;
+    }
+
+    .password-toggle-btn {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: transparent;
+        border: none;
+        padding: 6px;
+        cursor: pointer;
+        color: var(--venus-vert);
+        opacity: 0.7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        z-index: 5;
+    }
+
+    .password-toggle-btn:hover {
+        opacity: 1;
+        transform: translateY(-50%) scale(1.1);
+    }
+
+    .password-toggle-btn:focus-visible {
+        outline: 2px solid var(--venus-jaune);
+        border-radius: 4px;
+        opacity: 1;
+    }
 </style>
 
-<section class="login-section d-flex align-items-center">
+<section class="login-section d-flex align-items-center justify-content-center">
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-md-5">
-                <div class="glass-card text-center p-5 shadow-lg">
-                    <div class="mb-4">
-                        <i class="fas fa-moon fa-3x text-white opacity-75"></i>
+            <div class="col-11 col-sm-9 col-md-7 col-lg-5 col-xl-4">
+                <!-- Logo & retour boutique discret -->
+                <div class="text-center mb-3">
+                    <a href="{% url 'core:home' %}" class="auth-brand-link d-inline-block"
+                        title="Retourner à la boutique">
+                        <img src="{% static 'img/venus-luna3.jpg' %}" alt="Logo Venus Luna"
+                            class="auth-brand-logo mb-2">
+                    </a>
+                    <div>
+                        <a href="{% url 'core:home' %}" class="auth-home-pill">
+                            <i class="fas fa-arrow-left"></i>
+                            <span>Retour à la boutique</span>
+                        </a>
                     </div>
-                    
-                    <h2 class="post-title mb-2" style="font-size: 2.2rem;">Se Connecter</h2>
-                    <p class="text-green-50 mb-4">Entrez dans votre sanctuaire personnel.</p>
-                    
+                </div>
+
+                <div class="glass-card text-center p-4 p-md-5 shadow-lg">
+                    <h2 class="post-title mb-2" style="font-size: 2rem;">Se Connecter</h2>
+                    <p class="text-white-50 mb-4 small">Entrez dans votre sanctuaire personnel.</p>
+
                     <form method="post" class="auth-form text-start">
                         {% csrf_token %}
                         {% for field in form %}
-                            <div class="mb-3">
-                                <label class="text-gold x-small mb-1">{{ field.label }}</label>
+                        <div class="mb-3">
+                            <label class="text-gold x-small mb-1" for="{{ field.id_for_label }}">{{ field.label
+                                }}</label>
+                            {% if field.field.widget.input_type == "password" %}
+                            <div class="password-input-wrapper">
                                 {{ field }}
-                                {% if field.errors %}
-                                    <div class="text-warning x-small mt-1">
-                                        <i class="fas fa-exclamation-triangle me-1"></i>{{ field.errors|first }}
-                                    </div>
-                                {% endif %}
+                                <button type="button" class="password-toggle-btn js-password-toggle"
+                                    aria-label="Afficher le mot de passe" aria-pressed="false"
+                                    data-target-id="{{ field.id_for_label }}" tabindex="0">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
+                                </button>
                             </div>
+                            {% else %}
+                            {{ field }}
+                            {% endif %}
+                            {% if field.errors %}
+                            <div class="text-warning x-small mt-1">
+                                <i class="fas fa-exclamation-triangle me-1"></i>{{ field.errors|first }}
+                            </div>
+                            {% endif %}
+                        </div>
                         {% endfor %}
-                        
+
                         <button type="submit" class="btn-gold w-100 py-3 mt-3">
                             Ouvrir la session <i class="fas fa-sign-in-alt ms-2"></i>
                         </button>
@@ -103,10 +225,11 @@
                             Mot de passe oublié ?
                         </a>
                     </div>
-                    
+
                     <div class="mt-4 border-top border-white border-opacity-10 pt-4">
-                        <p class="text-white-50 small">Nouveau sur l'Éveil ? 
-                            <a href="{% url 'accounts:register' %}" class="text-gold text-decoration-none">Créer un compte</a>
+                        <p class="text-white-50 small mb-0">Nouveau sur l'Éveil ?
+                            <a href="{% url 'accounts:register' %}" class="text-gold text-decoration-none fw-bold">Créer
+                                un compte</a>
                         </p>
                     </div>
                 </div>
@@ -114,4 +237,37 @@
         </div>
     </div>
 </section>
-{% endblock %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.js-password-toggle').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var targetId = this.getAttribute('data-target-id');
+                var input = document.getElementById(targetId);
+                if (!input) return;
+
+                var icon = this.querySelector('i');
+                var isPassword = input.type === 'password';
+
+                if (isPassword) {
+                    input.type = 'text';
+                    this.setAttribute('aria-pressed', 'true');
+                    this.setAttribute('aria-label', 'Masquer le mot de passe');
+                    if (icon) {
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    }
+                } else {
+                    input.type = 'password';
+                    this.setAttribute('aria-pressed', 'false');
+                    this.setAttribute('aria-label', 'Afficher le mot de passe');
+                    if (icon) {
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endblock content %}

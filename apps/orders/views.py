@@ -215,6 +215,42 @@ def cart_remove(request, product_id):
 # PROCESSUS DE COMMANDE (CHECKOUT & CASHPAY)
 # =====================================================
 
+def _get_checkout_initial(user):
+    """
+    Préremplit les champs de commande pour un client connecté :
+      - full_name : prénom + nom depuis User (repli sur username si vide)
+      - email     : adresse e-mail du compte
+      - phone     : téléphone depuis Profile.phone (si existant)
+      - address   : adresse depuis Profile.address (si existant)
+      - city      : ville depuis Profile.city (repli sur 'Lomé' si vide)
+      - country   : 'Togo'
+    Pour un invité (non connecté) ou sans profil, retourne les valeurs par défaut
+    sans lever d'exception.
+    """
+    if not user.is_authenticated:
+        return {}
+
+    full_name = f"{user.first_name} {user.last_name}".strip() or user.username or ''
+
+    initial = {
+        'full_name': full_name,
+        'email': user.email or '',
+        'city': 'Lomé',
+        'country': 'Togo',
+    }
+
+    if hasattr(user, 'profile'):
+        profile = user.profile
+        if profile.phone:
+            initial['phone'] = profile.phone
+        if profile.address:
+            initial['address'] = profile.address
+        if profile.city:
+            initial['city'] = profile.city
+
+    return initial
+
+
 @ratelimit(rate='10/m', key='ip', block=True, redirect_url='orders:cart_detail', error_message="Trop de tentatives de commande. Veuillez patienter une minute.")
 def checkout(request):
     items, total = get_cart_data(request)
@@ -345,7 +381,8 @@ def checkout(request):
                     "Veuillez réessayer dans quelques instants ou contacter notre service client."
                 )
     else:
-        form = CheckoutForm()
+        initial = _get_checkout_initial(request.user)
+        form = CheckoutForm(initial=initial) if initial else CheckoutForm()
 
     return render(request, 'orders/checkout.html', {
         'form': form, 'cart_items': items, 'total': total, 'zones': zones
@@ -448,10 +485,11 @@ def cashpay_payment_status(request, order_id):
                     f"(ref={cashpay_order_ref}) : état={api_state}"
                 )
                 if api_state == 'Paid':
-                    order.status = 'paid'
-                    order.payment_status = True
-                    order.save(update_fields=['status', 'payment_status'])
-                    send_order_paid_email(order)
+                    from .payment_processing import confirm_order_payment
+                    confirm_order_payment(
+                        order_id=order.id,
+                        transaction_ref=cashpay_order_ref,
+                    )
                     return JsonResponse({
                         'status': 'paid',
                         'redirect_url': return_url
@@ -525,13 +563,14 @@ def cashpay_return(request, order_id):
                     f"CashPay API fallback pour commande #{order.id} "
                     f"(ref={cashpay_order_ref}) : état={api_state}"
                 )
-                # Si l'API confirme le paiement, on met à jour la BDD
+                # Si l'API confirme le paiement, on confirme via le service centralisé
                 # (le webhook devrait arriver aussi, mais on ne l'attend pas)
                 if api_state == 'Paid':
-                    order.status = 'paid'
-                    order.payment_status = True
-                    order.save(update_fields=['status', 'payment_status'])
-                    send_order_paid_email(order)
+                    from .payment_processing import confirm_order_payment
+                    confirm_order_payment(
+                        order_id=order.id,
+                        transaction_ref=cashpay_order_ref,
+                    )
                     logger.info(
                         f"Commande #{order.id} confirmée via API CashPay fallback (ref={cashpay_order_ref})"
                     )
@@ -639,9 +678,11 @@ def cashpay_webhook(request):
 
         # Vérification du montant payé si transmis dans le payload
         payload_amount = decoded_payload.get('amount')
+        currency = decoded_payload.get('currency')
         if payload_amount is not None:
             try:
-                if int(Decimal(str(payload_amount))) < int(order.total):
+                parsed_amount = Decimal(str(payload_amount).strip())
+                if parsed_amount < order.total:
                     logger.error(
                         f"CashPay webhook: Montant insuffisant pour la commande #{order.id}. "
                         f"Reçu: {payload_amount}, Attendu: {order.total}"
@@ -649,13 +690,29 @@ def cashpay_webhook(request):
                     return HttpResponse("Montant incohérent", status=400)
             except Exception as amount_err:
                 logger.warning(f"CashPay webhook: Erreur lors de la comparaison de montant : {amount_err}")
+                return HttpResponse("Format de montant invalide", status=400)
 
         # CashPay bill states: Paid / Partial / Excess / Pending...
-        if state == 'Paid' and not order.payment_status:
-            order.status = 'paid'
-            order.payment_status = True
-            order.save(update_fields=['status', 'payment_status'])
-            send_order_paid_email(order)
+        if state == 'Paid':
+            from .payment_processing import (
+                confirm_order_payment, InvalidPaymentAmountError, PaymentProcessingError
+            )
+            try:
+                confirm_order_payment(
+                    order_id=order.id,
+                    transaction_ref=order_reference or merchant_reference,
+                    amount_received=payload_amount,
+                    currency=currency,
+                )
+            except InvalidPaymentAmountError as err:
+                logger.error(f"CashPay webhook rejeté pour #{order.id}: {err}")
+                return HttpResponse("Montant incohérent", status=400)
+            except PaymentProcessingError as err:
+                logger.error(f"CashPay webhook rejeté pour #{order.id}: {err}")
+                return HttpResponse(f"Erreur de traitement: {err}", status=400)
+            except ValueError as err:
+                logger.error(f"CashPay webhook rejeté pour #{order.id}: {err}")
+                return HttpResponse("Données de paiement invalides", status=400)
 
         return JsonResponse({'received': True})
 

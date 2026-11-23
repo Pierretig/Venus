@@ -2,24 +2,54 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import authenticate
+from django.db import transaction
+from apps.core.validators import validate_togo_phone
 from .models import Profile
 
 
 # ---------------------------------------------------------------------------
-# Formulaire d'inscription — email obligatoire pour les nouveaux comptes
+# Formulaire d'inscription enrichi
 # ---------------------------------------------------------------------------
 
 class RegisterForm(UserCreationForm):
     """
-    Hérite de UserCreationForm et ajoute un champ email obligatoire.
+    Hérite de UserCreationForm et collecte :
+      - Prénom, Nom (User.first_name / last_name) — obligatoires
+      - Nom d'utilisateur (User.username) — obligatoire
+      - Adresse e-mail (User.email) — obligatoire, unique parmi les comptes ayant un email
+      - Téléphone (Profile.phone) — obligatoire, validé format togolais
+      - Adresse (Profile.address) — facultatif
+      - Ville (Profile.city) — facultatif
+      - Mot de passe + confirmation — obligatoires (hérités de UserCreationForm)
 
-    Règles :
-    - email obligatoire pour les nouveaux comptes
-    - validation de format (EmailField natif)
-    - unicité : refusée uniquement si un autre compte possède DÉJÀ cet email
-      (les anciens comptes sans email conservent email="" et ne bloquent pas)
-    - les anciens comptes sans email ne sont PAS impactés
+    Rétrocompatibilité :
+      - Les anciens comptes avec email="" ne sont pas bloqués par la vérification d'unicité.
+      - Le signal post_save crée automatiquement le Profile ; save() le récupère ensuite.
     """
+
+    # --- Champs User supplémentaires ---
+    first_name = forms.CharField(
+        label="Prénom",
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Votre prénom',
+            'class': 'form-control',
+            'autocomplete': 'given-name',
+        }),
+        error_messages={'required': "Veuillez saisir votre prénom."},
+    )
+    last_name = forms.CharField(
+        label="Nom",
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Votre nom de famille',
+            'class': 'form-control',
+            'autocomplete': 'family-name',
+        }),
+        error_messages={'required': "Veuillez saisir votre nom."},
+    )
     email = forms.EmailField(
         label="Adresse e-mail",
         required=True,
@@ -34,10 +64,58 @@ class RegisterForm(UserCreationForm):
         },
     )
 
+    # --- Champs Profile ---
+    phone = forms.CharField(
+        label="Téléphone (WhatsApp)",
+        max_length=20,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'placeholder': '90 01 02 03 ou 228 90 01 02 03',
+            'class': 'form-control',
+            'autocomplete': 'tel',
+        }),
+        error_messages={'required': "Veuillez saisir votre numéro de téléphone."},
+    )
+    address = forms.CharField(
+        label="Adresse / Quartier (facultatif)",
+        required=False,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Quartier, précisions livraison…',
+            'class': 'form-control',
+            'autocomplete': 'street-address',
+        }),
+    )
+    city = forms.CharField(
+        label="Ville (facultatif)",
+        max_length=150,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Lomé',
+            'class': 'form-control',
+            'autocomplete': 'address-level2',
+        }),
+    )
+
     class Meta(UserCreationForm.Meta):
         model = User
-        # username vient de UserCreationForm.Meta, on ajoute email entre username et passwords
-        fields = ('username', 'email')
+        # Ordre des champs déclarés sur le modèle
+        fields = ('first_name', 'last_name', 'username', 'email')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Ordre ergonomique des champs : coordonnées avant les mots de passe
+        desired_order = [
+            'first_name',
+            'last_name',
+            'username',
+            'email',
+            'phone',
+            'address',
+            'city',
+            'password1',
+            'password2',
+        ]
+        self.fields = {k: self.fields[k] for k in desired_order if k in self.fields}
 
     def clean_email(self):
         email = self.cleaned_data.get('email', '').strip().lower()
@@ -45,16 +123,28 @@ class RegisterForm(UserCreationForm):
             raise forms.ValidationError("Veuillez saisir votre adresse e-mail.")
         # Unicité : on vérifie seulement parmi les utilisateurs ayant déjà un email non vide.
         # Les anciens comptes avec email="" ne rentrent pas dans cette vérification.
-        if User.objects.filter(email__iexact=email).exclude(email="").exists():
+        if User.objects.filter(email__iexact=email).exclude(email='').exists():
             raise forms.ValidationError("Cette adresse e-mail est déjà utilisée par un autre compte.")
         return email
 
+    def clean_phone(self):
+        return validate_togo_phone(self.cleaned_data.get('phone', ''))
+
+    @transaction.atomic
     def save(self, commit=True):
         user = super().save(commit=False)
-        # Normalisation de l'email (minuscules)
+        # Champs User
+        user.first_name = self.cleaned_data.get('first_name', '').strip()
+        user.last_name = self.cleaned_data.get('last_name', '').strip()
         user.email = self.cleaned_data['email'].strip().lower()
         if commit:
-            user.save()
+            user.save()  # Le signal post_save crée automatiquement Profile
+            # Mise à jour du profil (signal l'a déjà créé via get_or_create)
+            profile = user.profile
+            profile.phone = self.cleaned_data.get('phone', '')
+            profile.address = self.cleaned_data.get('address', '')
+            profile.city = self.cleaned_data.get('city', '')
+            profile.save()
         return user
 
 
@@ -133,6 +223,12 @@ class UserProfileForm(forms.ModelForm):
         required=False,
         widget=forms.Textarea(attrs={'rows': 3, 'class': 'form-control'})
     )
+    city = forms.CharField(
+        label="Ville",
+        max_length=150,
+        required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Lomé', 'class': 'form-control'})
+    )
     avatar = forms.ImageField(
         label="Photo de profil (Avatar)",
         required=False,
@@ -147,6 +243,12 @@ class UserProfileForm(forms.ModelForm):
             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'readonly': 'readonly', 'class': 'form-control'}),
         }
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone', '').strip()
+        if phone:
+            return validate_togo_phone(phone)
+        return ''
 
     def clean_avatar(self):
         avatar = self.cleaned_data.get('avatar')
@@ -175,6 +277,7 @@ class UserProfileForm(forms.ModelForm):
         if self.instance and hasattr(self.instance, 'profile'):
             self.fields['phone'].initial = self.instance.profile.phone
             self.fields['address'].initial = self.instance.profile.address
+            self.fields['city'].initial = self.instance.profile.city
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -184,6 +287,7 @@ class UserProfileForm(forms.ModelForm):
                 profile = user.profile
                 profile.phone = self.cleaned_data.get('phone')
                 profile.address = self.cleaned_data.get('address')
+                profile.city = self.cleaned_data.get('city', '')
                 # L'image n'est mise a jour que si un nouveau fichier est fourni
                 if self.cleaned_data.get('avatar'):
                     profile.avatar = self.cleaned_data.get('avatar')

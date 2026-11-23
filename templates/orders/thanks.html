@@ -26,7 +26,7 @@
         border: 1px solid rgba(212, 175, 55, 0.2);
         border-radius: 40px;
         padding: 60px 40px;
-        box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+        box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
         position: relative;
         z-index: 2;
     }
@@ -53,9 +53,20 @@
     }
 
     @keyframes pulseSuccess {
-        0% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.05); opacity: 0.8; }
-        100% { transform: scale(1); opacity: 1; }
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        50% {
+            transform: scale(1.05);
+            opacity: 0.8;
+        }
+
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
     }
 
     .info-box {
@@ -105,20 +116,21 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-10 text-center">
-                
+
                 <div class="glass-success-card">
                     <div class="bkapay-badge">
-                        <i class="fas fa-shield-alt me-1"></i> Paiement BKAPAY Sécurisé
+                        <i class="fas fa-shield-alt me-1"></i> Paiement CashPay Sécurisé
                     </div>
 
                     <div class="mb-4">
                         <i class="fas fa-check-circle success-icon-animated"></i>
                     </div>
 
-                    <h1 class="display-4 fw-bold mb-3" style="font-family: 'Playfair Display', serif;">Transaction Réussie</h1>
-                    
+                    <h1 class="display-4 fw-bold mb-3" style="font-family: 'Playfair Display', serif;">Transaction
+                        Réussie</h1>
+
                     <p class="lead text-white-50 mb-5 mx-auto" style="max-width: 650px;">
-                        Merci, {{ order.shipping_address.full_name }}. Votre paiement a été traité. 
+                        Merci, {{ order.shipping_address.full_name }}. Votre paiement a été traité.
                         Vos précieux articles sont désormais entre les mains de nos artisans.
                     </p>
 
@@ -129,7 +141,8 @@
                                     <i class="fas fa-magic me-2"></i> Préparation en cours
                                 </h5>
                                 <p class="small text-white-50 mb-0">
-                                    Chaque produit est vérifié et purifié avant expédition. Vous recevrez un e-mail dès que votre colis quittera notre sanctuaire à Lomé.
+                                    Chaque produit est vérifié et purifié avant expédition. Vous recevrez un e-mail dès
+                                    que votre colis quittera notre sanctuaire à Lomé.
                                 </p>
                             </div>
                         </div>
@@ -139,7 +152,8 @@
                                     <i class="fas fa-phone-alt me-2"></i> Livraison à domicile
                                 </h5>
                                 <p class="small text-white-50 mb-0">
-                                    Notre livreur vous contactera sur le <strong>{{ order.shipping_address.phone }}</strong> pour convenir de l'heure exacte de passage.
+                                    Notre livreur vous contactera sur le <strong>{{ order.shipping_address.phone
+                                        }}</strong> pour convenir de l'heure exacte de passage.
                                 </p>
                             </div>
                         </div>
@@ -157,7 +171,8 @@
 
                 <p class="mt-5 small text-white-50">
                     Besoin de modifier une information ? Contactez-nous vite sur WhatsApp : <br>
-                    <a href="https://wa.me/22893343403" class="text-gold fw-bold text-decoration-none">+228 93 34 34 03</a>
+                    <a href="https://wa.me/22893343403" class="text-gold fw-bold text-decoration-none">+228 93 34 34
+                        03</a>
                 </p>
 
             </div>

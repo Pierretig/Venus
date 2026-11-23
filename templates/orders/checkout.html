@@ -33,7 +33,9 @@
         margin-bottom: 8px;
     }
 
-    .checkout-form input, .checkout-form select, .checkout-form textarea {
+    .checkout-form input,
+    .checkout-form select,
+    .checkout-form textarea {
         background: rgba(0, 0, 0, 0.4) !important;
         color: white !important;
         border: 1px solid rgba(212, 175, 55, 0.2) !important;
@@ -42,7 +44,8 @@
         transition: 0.3s all;
     }
 
-    .checkout-form input:focus, .checkout-form select:focus {
+    .checkout-form input:focus,
+    .checkout-form select:focus {
         border-color: var(--venus-jaune) !important;
         box-shadow: 0 0 15px rgba(251, 192, 45, 0.15) !important;
         background: rgba(0, 0, 0, 0.6) !important;
@@ -105,20 +108,22 @@
                     <h3 class="h5 mb-4 text-white d-flex align-items-center">
                         <i class="fas fa-map-marker-alt text-gold me-3"></i> Destination de livraison
                     </h3>
-                    
+
                     <form method="post" class="checkout-form" id="checkout-form">
                         {% csrf_token %}
                         <div class="row g-4">
                             {% for field in form %}
-                            <div class="{% if field.name == 'full_name' or field.name == 'email' or field.name == 'address' %}col-12{% else %}col-md-6{% endif %}">
+                            <div
+                                class="{% if field.name == 'full_name' or field.name == 'email' or field.name == 'address' %}col-12{% else %}col-md-6{% endif %}">
                                 <label class="form-label-gold">{{ field.label }}</label>
                                 {{ field }}
                                 {% if field.errors %}
-                                    <div class="text-danger x-small mt-1"><i class="fas fa-exclamation-circle me-1"></i> {{ field.errors|first }}</div>
+                                <div class="text-danger x-small mt-1"><i class="fas fa-exclamation-circle me-1"></i> {{
+                                    field.errors|first }}</div>
                                 {% endif %}
                             </div>
                             {% endfor %}
-                            
+
                             <div class="col-12 mt-4">
                                 <label class="form-label-gold">Zone de livraison (Lomé & Environs)</label>
                                 <select class="form-select" id="zone-select" name="shipping_zone" required>
@@ -134,9 +139,11 @@
                             <div class="d-flex align-items-center mb-2">
                                 <i class="fas fa-shield-check text-gold me-2"></i>
                                 <span class="small fw-bold text-white">PAIEMENT SÉCURISÉ VIA BKAPAY</span>
+                                <span class="small fw-bold text-white">PAIEMENT SÉCURISÉ VIA CASHPAY</span>
                             </div>
                             <p class="x-small text-white-50 mb-0">
-                                Règlement instantané par **TMoney** ou **Moov Money**. Votre commande sera validée immédiatement après confirmation du transfert.
+                                Règlement instantané par **TMoney** ou **Moov Money**. Votre commande sera validée
+                                immédiatement après confirmation du transfert.
                             </p>
                         </div>
 
@@ -153,13 +160,16 @@
                         <div class="summary-header text-center">
                             <h4 class="mb-0 h6 text-gold ls-2">VOTRE SÉLECTION</h4>
                         </div>
-                        
+
                         <div class="p-4" style="max-height: 400px; overflow-y: auto;">
                             {% for item in items %}
                             <div class="d-flex align-items-center mb-3">
                                 <div class="position-relative">
-<img src="{% if item.product.images.first %}{% protected_image item.product.images.first 'image' %}{% else %}{% static 'img/default.jpg' %}{% endif %}" class="order-item-img protected-image">
-                                    <span class="badge rounded-pill position-absolute top-0 start-100 translate-middle bg-gold text-dark border border-dark border-2" style="font-size: 0.65rem;">
+                                    <img src="{% if item.product.images.first %}{% protected_image item.product.images.first 'image' %}{% else %}{% static 'img/default.jpg' %}{% endif %}"
+                                        class="order-item-img protected-image">
+                                    <span
+                                        class="badge rounded-pill position-absolute top-0 start-100 translate-middle bg-gold text-dark border border-dark border-2"
+                                        style="font-size: 0.65rem;">
                                         {{ item.quantity }}
                                     </span>
                                 </div>
@@ -183,20 +193,22 @@
                                 <span class="text-white-50 small">Livraison</span>
                                 <span class="fw-bold text-gold" id="shipping-cost">0 F</span>
                             </div>
-                            
+
                             <hr class="border-white border-opacity-10 my-3">
-                            
+
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="h5 mb-0 fw-bold text-white">TOTAL</span>
                                 <div class="text-end">
-                                    <span class="h3 fw-bold text-gold mb-0"><span id="grand-total">{{ total }}</span> F</span>
+                                    <span class="h3 fw-bold text-gold mb-0"><span id="grand-total">{{ total }}</span>
+                                        F</span>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="text-center mt-4">
-                        <p class="x-small text-white-50"><i class="fas fa-info-circle me-1"></i> Des questions ? Contactez-nous sur WhatsApp au +228 93 34 34 03</p>
+                        <p class="x-small text-white-50"><i class="fas fa-info-circle me-1"></i> Des questions ?
+                            Contactez-nous sur WhatsApp au +228 93 34 34 03</p>
                     </div>
                 </div>
             </div>
@@ -205,16 +217,16 @@
 </section>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const zoneSelect = document.getElementById('zone-select');
         const shippingDisplay = document.getElementById('shipping-cost');
         const totalDisplay = document.getElementById('grand-total');
         const btnTotal = document.getElementById('btn-total');
-        
+
         // Nettoyage du sous-total pour le calcul
         const subtotal = parseInt("{{ total }}".replace(/\D/g, '')) || 0;
 
-        zoneSelect.addEventListener('change', function() {
+        zoneSelect.addEventListener('change', function () {
             const shipPrice = parseInt(this.value) || 0;
             const finalTotal = subtotal + shipPrice;
 
@@ -222,7 +234,7 @@
             shippingDisplay.innerText = shipPrice.toLocaleString() + " F";
             totalDisplay.innerText = finalTotal.toLocaleString();
             btnTotal.innerText = finalTotal.toLocaleString();
-            
+
             // Petit effet visuel sur le prix total
             totalDisplay.classList.add('text-white');
             setTimeout(() => totalDisplay.classList.remove('text-white'), 200);
