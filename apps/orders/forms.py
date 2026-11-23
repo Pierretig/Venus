@@ -1,5 +1,5 @@
-import re
 from django import forms
+from apps.core.validators import validate_togo_phone
 
 class CheckoutForm(forms.Form):
     full_name = forms.CharField(
@@ -50,27 +50,5 @@ class CheckoutForm(forms.Form):
         return self.cleaned_data.get('full_name').title()
 
     def clean_phone(self):
-        """Nettoie et valide le numéro Togolais pour l'API"""
-        phone = self.cleaned_data.get('phone')
-        # On enlève tout ce qui n'est pas un chiffre
-        digits = re.sub(r'\D', '', phone)
-
-        # Si l'utilisateur a saisi 228XXXXXXXX
-        if digits.startswith('228'):
-            short_phone = digits[3:]
-            full_phone = digits
-        else:
-            short_phone = digits
-            full_phone = f"228{digits}"
-
-        # Validation de la longueur (8 chiffres après le 228)
-        if len(short_phone) != 8:
-            raise forms.ValidationError("Le numéro doit comporter 8 chiffres (ex: 90010203).")
-
-        # Préfixes valides Togo (Moov & TMoney)
-        # 90-93, 96-99 (TogoCellulaire) / 70, 79 (Moov)
-        valid_prefixes = ('90', '91', '92', '93', '96', '97', '98', '99', '79', '70', '71', '72', '78')
-        if not short_phone.startswith(valid_prefixes):
-            raise forms.ValidationError("Ce numéro ne semble pas appartenir à un opérateur Togolais valide.")
-
-        return full_phone
+        """Nettoie et valide le numéro Togolais pour l'API via le validateur centralisé."""
+        return validate_togo_phone(self.cleaned_data.get('phone'))

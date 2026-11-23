@@ -19,6 +19,7 @@ urlpatterns = [
 
     # Quiz
     path('quiz/<int:quiz_id>/soumettre/', views.submit_quiz, name='submit_quiz'),
+    path('quiz/tentative/<int:attempt_id>/', views.quiz_attempt_detail, name='quiz_attempt_detail'),
 
     # Certificats
     path('certificat/<str:certificate_code>/telecharger/', views.download_certificate, name='download_certificate'),

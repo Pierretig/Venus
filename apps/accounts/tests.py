@@ -341,3 +341,96 @@ class AccountsSecurityHardeningTests(TestCase):
         # Points fidélité = 7
         self.assertIn('<span class="h4 fw-bold" style="color: var(--venus-or);">7</span>', content)
 
+
+class TogoPhoneAccountFormTests(TestCase):
+    """
+    Tests de la validation et normalisation centralisée du téléphone dans
+    RegisterForm et UserProfileForm.
+    """
+
+    def test_register_form_valid_phone_normalized(self):
+        """RegisterForm valide et normalise le numéro togolais."""
+        from apps.accounts.forms import RegisterForm
+        form = RegisterForm(data={
+            'first_name': 'Koffi',
+            'last_name': 'Mensah',
+            'username': 'koffi_phone_test',
+            'email': 'koffi.phone@example.com',
+            'phone': '+228 90 12 34 56',
+            'password1': 'TestPass@2024!',
+            'password2': 'TestPass@2024!',
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['phone'], '22890123456')
+
+    def test_register_form_invalid_phone_rejected(self):
+        """RegisterForm rejette un numéro togolais invalide."""
+        from apps.accounts.forms import RegisterForm
+        form = RegisterForm(data={
+            'first_name': 'Koffi',
+            'last_name': 'Mensah',
+            'username': 'koffi_phone_bad',
+            'email': 'koffi.bad@example.com',
+            'phone': '12345678',
+            'password1': 'TestPass@2024!',
+            'password2': 'TestPass@2024!',
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn('phone', form.errors)
+    def test_user_profile_form_optional_empty_phone_accepted(self):
+        """UserProfileForm autorise un numéro vide car le champ est facultatif."""
+        from apps.accounts.forms import UserProfileForm
+        user = User.objects.create_user(
+            username='user_empty_phone',
+            email='empty.phone@example.com',
+            password='Password123!'
+        )
+        form = UserProfileForm(data={
+            'first_name': 'Test',
+            'last_name': 'User',
+            'email': user.email,
+            'phone': '',
+            'address': 'Quartier',
+            'city': 'Lomé',
+        }, instance=user)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['phone'], '')
+
+    def test_user_profile_form_valid_phone_normalized(self):
+        """UserProfileForm normalise un numéro valide renseigné."""
+        from apps.accounts.forms import UserProfileForm
+        user = User.objects.create_user(
+            username='user_valid_phone',
+            email='valid.phone@example.com',
+            password='Password123!'
+        )
+        form = UserProfileForm(data={
+            'first_name': 'Test',
+            'last_name': 'User',
+            'email': user.email,
+            'phone': '91-22-33-44',
+            'address': 'Quartier',
+            'city': 'Lomé',
+        }, instance=user)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['phone'], '22891223344')
+
+    def test_user_profile_form_invalid_phone_rejected(self):
+        """UserProfileForm rejette un préfixe togolais invalide si renseigné."""
+        from apps.accounts.forms import UserProfileForm
+        user = User.objects.create_user(
+            username='user_bad_phone',
+            email='bad.phone@example.com',
+            password='Password123!'
+        )
+        form = UserProfileForm(data={
+            'first_name': 'Test',
+            'last_name': 'User',
+            'email': user.email,
+            'phone': '80112233',
+            'address': 'Quartier',
+            'city': 'Lomé',
+        }, instance=user)
+        self.assertFalse(form.is_valid())
+        self.assertIn('phone', form.errors)
+

@@ -45,7 +45,7 @@ def is_lesson_completed_by(lesson, user):
         return False
     return LessonProgress.objects.filter(
         enrollment__user=user,
-        lesson=lesson,
+        lesson_id=lesson.id,
         is_completed=True,
     ).exists()
 

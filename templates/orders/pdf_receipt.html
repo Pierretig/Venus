@@ -1,23 +1,27 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <style>
-        @page { 
-            size: A4; 
-            margin: 0; /* On gère les marges en interne pour le cadre */
+        @page {
+            size: A4;
+            margin: 0;
+            /* On gère les marges en interne pour le cadre */
         }
-        body { 
-            font-family: 'Helvetica', 'Arial', sans-serif; 
-            color: #1c683b; 
-            line-height: 1.5; 
+
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #1c683b;
+            line-height: 1.5;
             margin: 0;
             background-color: #ffffff;
         }
-        
+
         /* Cadre de prestige sur toute la page */
         .page-border {
-            border: 15px solid #155430; /* Vert nuit Venus */
+            border: 15px solid #155430;
+            /* Vert nuit Venus */
             height: 100%;
             margin: 0;
             padding: 40px;
@@ -25,56 +29,116 @@
         }
 
         .inner-border {
-            border: 1px solid #d4af37; /* Liseré doré */
+            border: 1px solid #d4af37;
+            /* Liseré doré */
             height: 100%;
             padding: 30px;
             position: relative;
         }
 
-        .header { text-align: center; margin-bottom: 40px; }
-        .shop-name { 
-            font-size: 32px; 
-            color: #155430; 
-            font-weight: bold; 
-            letter-spacing: 5px; 
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .shop-name {
+            font-size: 32px;
+            color: #155430;
+            font-weight: bold;
+            letter-spacing: 5px;
             text-transform: uppercase;
             margin-bottom: 5px;
         }
+
         .gold-divider {
             height: 2px;
             width: 100px;
             background-color: #d4af37;
             margin: 10px auto;
         }
-        .receipt-title { font-size: 12px; text-transform: uppercase; color: #888; letter-spacing: 2px; }
-        
-        .details-container { margin-bottom: 40px; width: 100%; }
-        .details-table { width: 100%; border: none; }
-        .details-table td { vertical-align: top; border: none; padding: 0; }
 
-        .client-info { font-size: 13px; color: #444; }
-        .order-info { text-align: right; font-size: 13px; }
-        .label { color: #d4af37; font-weight: bold; text-transform: uppercase; font-size: 10px; display: block; margin-bottom: 3px; }
+        .receipt-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #888;
+            letter-spacing: 2px;
+        }
 
-        table.items-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        table.items-table th { 
-            border-bottom: 2px solid #d4af37; 
-            padding: 12px; 
-            text-align: left; 
-            font-size: 11px; 
-            text-transform: uppercase; 
+        .details-container {
+            margin-bottom: 40px;
+            width: 100%;
+        }
+
+        .details-table {
+            width: 100%;
+            border: none;
+        }
+
+        .details-table td {
+            vertical-align: top;
+            border: none;
+            padding: 0;
+        }
+
+        .client-info {
+            font-size: 13px;
+            color: #444;
+        }
+
+        .order-info {
+            text-align: right;
+            font-size: 13px;
+        }
+
+        .label {
+            color: #d4af37;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 10px;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        table.items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table.items-table th {
+            border-bottom: 2px solid #d4af37;
+            padding: 12px;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
             color: #155430;
             background-color: #fcfaf5;
         }
-        table.items-table td { border-bottom: 1px solid #eee; padding: 15px 12px; font-size: 13px; }
-        
-        .summary-wrapper { margin-top: 30px; }
-        .summary-table { width: 220px; margin-left: auto; }
-        .summary-table td { padding: 6px 0; font-size: 13px; }
-        .total-row { 
-            font-size: 18px; 
-            color: #155430; 
-            font-weight: bold; 
+
+        table.items-table td {
+            border-bottom: 1px solid #eee;
+            padding: 15px 12px;
+            font-size: 13px;
+        }
+
+        .summary-wrapper {
+            margin-top: 30px;
+        }
+
+        .summary-table {
+            width: 220px;
+            margin-left: auto;
+        }
+
+        .summary-table td {
+            padding: 6px 0;
+            font-size: 13px;
+        }
+
+        .total-row {
+            font-size: 18px;
+            color: #155430;
+            font-weight: bold;
             border-top: 2px solid #d4af37;
         }
 
@@ -93,21 +157,22 @@
             font-size: 24px;
         }
 
-        .footer { 
+        .footer {
             position: absolute;
             bottom: 30px;
             left: 30px;
             right: 30px;
-            text-align: center; 
-            font-size: 10px; 
-            color: #999; 
+            text-align: center;
+            font-size: 10px;
+            color: #999;
         }
     </style>
 </head>
+
 <body>
     <div class="page-border">
         <div class="inner-border">
-            
+
             <div class="status-stamp">PAIEMENT VALIDÉ</div>
 
             <div class="header">
@@ -120,7 +185,8 @@
                 <tr>
                     <td class="client-info">
                         <span class="label">Destinataire</span>
-                        <strong style="font-size: 16px; color: #155430;">{{ order.shipping_address.full_name }}</strong><br>
+                        <strong style="font-size: 16px; color: #155430;">{{ order.shipping_address.full_name
+                            }}</strong><br>
                         {{ order.shipping_address.phone }}<br>
                         {{ order.shipping_address.address }}<br>
                         {{ order.shipping_address.city }}, Togo
@@ -129,7 +195,7 @@
                         <span class="label">Détails de commande</span>
                         <strong>Référence :</strong> #{{ order.id }}<br>
                         <strong>Date :</strong> {{ order.created_at|date:"d F Y" }}<br>
-                        <strong>Méthode :</strong> Mobile Money (BKAPAY)
+                        <strong>Méthode :</strong> Mobile Money (CashPay)
                     </td>
                 </tr>
             </table>
@@ -185,5 +251,5 @@
         </div>
     </div>
 </body>
-</html>
 
+</html>

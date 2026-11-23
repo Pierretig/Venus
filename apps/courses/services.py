@@ -1,9 +1,10 @@
 import io
 import logging
 from decimal import Decimal
-from typing import Tuple, Dict, Any, List
+from typing import Tuple, Dict, Any, Optional
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.urls import reverse
@@ -18,101 +19,146 @@ from .models import (
     Course, Lesson, Enrollment, LessonProgress,
     Quiz, QuizAttempt, Certificate,
 )
+from .access import AccessGrantError, grant_non_purchase_access
 
 logger = logging.getLogger(__name__)
 
+QUIZ_SCORING_RULE = "all_or_nothing_per_question_v1"
+ATTEMPT_SNAPSHOT_SCHEMA_VERSION = 1
+_ACCESS_STATUSES = [Enrollment.Status.ACTIVE, Enrollment.Status.COMPLETED]
 
-def can_user_access_lesson(user, lesson: Lesson) -> bool:
-    """
-    Contrôle d'accès strict à une leçon :
-    - Aperçu gratuit (is_free_preview=True) : accessible à tous (y compris anonymes).
-    - Administrateurs / Staff : accès total.
-    - Formateur responsable du cours : accès total.
-    - Apprenant : uniquement si authentifié avec inscription active (Enrollment.Status.ACTIVE ou COMPLETED).
-    """
-    if not lesson.is_published or not lesson.module.is_published:
-        if not (user.is_authenticated and user.is_staff):
-            return False
 
-    if lesson.is_free_preview:
-        return True
+# ==============================================================================
+# RÉSOLUTION DU CONTENU VERSIONNÉ
+# ==============================================================================
 
-    if not user.is_authenticated:
+def is_privileged(user, course) -> bool:
+    """Staff, superutilisateur ou formateur responsable de la formation."""
+    if not (user and user.is_authenticated):
         return False
+    return bool(user.is_staff or user.is_superuser or course.instructor_id == user.id)
 
-    if user.is_staff or user.is_superuser:
+
+def get_active_enrollment(user, course) -> Optional[Enrollment]:
+    if not (user and user.is_authenticated):
+        return None
+    return (
+        Enrollment.objects.select_related('revision', 'course__published_revision')
+        .filter(user=user, course=course, status__in=_ACCESS_STATUSES)
+        .first()
+    )
+
+
+def resolve_content(user, course, enrollment=None, preview=False):
+    """
+    Détermine le contenu pédagogique servi à un utilisateur :
+    - apprenant inscrit : révision de son inscription (historique : révision publiée courante) ;
+    - formateur / staff demandant un aperçu, ou sans révision publiée : copie de travail ;
+    - sinon : révision publiée (None si la formation n'a aucune révision publiée).
+    """
+    if enrollment is None:
+        enrollment = get_active_enrollment(user, course)
+    if preview and is_privileged(user, course):
+        return course.get_working_copy_content()
+    if enrollment is not None:
+        content = enrollment.get_content()
+        if content is not None:
+            return content
+    content = course.get_published_content()
+    if content is None and is_privileged(user, course):
+        return course.get_working_copy_content()
+    return content
+
+
+def _lesson_course(lesson):
+    return lesson.module.course
+
+
+def can_user_access_lesson(user, lesson) -> bool:
+    """
+    Contrôle d'accès strict à une leçon (modèle vivant ou vue de snapshot) :
+    - Administrateurs / Staff / formateur responsable : accès total.
+    - Aperçu gratuit de la révision servie : accessible à tous (y compris anonymes).
+    - Apprenant : inscription active ET leçon présente dans la révision qu'il suit.
+    """
+    course = _lesson_course(lesson)
+    if is_privileged(user, course):
         return True
 
-    if lesson.module.course.instructor_id == user.id:
+    enrollment = get_active_enrollment(user, course)
+    content = enrollment.get_content() if enrollment else course.get_published_content()
+    if content is None:
+        return False
+    lesson_view = content.get_lesson(lesson.id)
+    if lesson_view is None:
+        return False
+    if lesson_view.is_free_preview and (enrollment is not None or course.status == Course.Status.PUBLISHED):
         return True
+    return enrollment is not None
 
-    return Enrollment.objects.filter(
-        user=user,
-        course=lesson.module.course,
-        status__in=[Enrollment.Status.ACTIVE, Enrollment.Status.COMPLETED],
-    ).exists()
 
+# ==============================================================================
+# INSCRIPTIONS
+# ==============================================================================
 
 def enroll_student_in_course(user, course: Course, source: str = 'free', order=None) -> Tuple[Enrollment, bool]:
     """
-    Inscrit un apprenant à une formation de façon idempotente et sécurisée.
-    Garantit qu'une formation payante ne peut être débloquée sans paiement ou décision admin.
+    Inscrit un apprenant à une formation de façon idempotente (accès gratuit ou manuel).
+    Les accès payants sont créés exclusivement par la confirmation de commande.
+    Lève AccessGrantError si la formation n'a pas de révision publiée.
     """
     if not user.is_authenticated:
         raise ValueError("L'utilisateur doit être connecté pour s'inscrire à une formation.")
 
+    if source == Enrollment.Source.CASHPAY:
+        raise PermissionError("Un accès payant ne peut être attribué que par une commande confirmée.")
+
     if not course.is_free and source == 'free' and not user.is_staff:
         raise PermissionError("Cette formation est payante et nécessite une commande validée.")
 
-    enrollment, created = Enrollment.objects.get_or_create(
-        user=user,
-        course=course,
-        defaults={
-            'status': Enrollment.Status.ACTIVE,
-            'source': source,
-            'order': order,
-            'last_activity_at': timezone.now(),
-        }
-    )
-
-    if not created and enrollment.status != Enrollment.Status.ACTIVE:
-        enrollment.status = Enrollment.Status.ACTIVE
-        if order:
-            enrollment.order = order
-        enrollment.source = source
-        enrollment.last_activity_at = timezone.now()
-        enrollment.save(update_fields=['status', 'order', 'source', 'last_activity_at'])
-
+    enrollment, created, _grant = grant_non_purchase_access(user, course, source)
     return enrollment, created
 
 
-def record_lesson_progress(user, lesson: Lesson, is_completed: bool = False, position_seconds: int = 0) -> Tuple[LessonProgress, bool]:
-    """
-    Enregistre ou met à jour la progression d'un apprenant sur une leçon.
-    Met à jour la dernière leçon consultée et vérifie l'éligibilité à la certification.
-    """
-    enrollment = Enrollment.objects.filter(
-        user=user,
-        course=lesson.module.course,
-        status__in=[Enrollment.Status.ACTIVE, Enrollment.Status.COMPLETED],
-    ).first()
+def _ensure_enrollment_for_learning(user, course) -> Enrollment:
+    enrollment = get_active_enrollment(user, course)
+    if enrollment:
+        return enrollment
+    if course.is_free or course.price == 0:
+        enrollment, _ = enroll_student_in_course(user, course, source=Enrollment.Source.FREE)
+    elif user.is_staff or user.is_superuser or course.instructor_id == user.id:
+        enrollment, _ = enroll_student_in_course(user, course, source=Enrollment.Source.MANUAL_ADMIN)
+    else:
+        raise PermissionError("L'utilisateur n'est pas inscrit à cette formation.")
+    return get_active_enrollment(user, course)
 
-    if not enrollment:
-        course = lesson.module.course
-        if course.is_free or course.price == 0:
-            enrollment, _ = enroll_student_in_course(user, course, source=Enrollment.Source.FREE)
-        elif user.is_staff or user.is_superuser or course.instructor_id == user.id:
-            enrollment, _ = enroll_student_in_course(user, course, source=Enrollment.Source.MANUAL_ADMIN)
-        else:
-            raise PermissionError("L'utilisateur n'est pas inscrit à cette formation.")
 
+# ==============================================================================
+# PROGRESSION
+# ==============================================================================
+
+def record_lesson_progress(user, lesson, is_completed: bool = False, position_seconds: int = 0) -> Tuple[LessonProgress, bool]:
+    """
+    Enregistre ou met à jour la progression d'un apprenant sur une leçon de la révision
+    qu'il suit. La révision concernée est enregistrée avec la progression.
+    """
+    course = _lesson_course(lesson)
+    enrollment = _ensure_enrollment_for_learning(user, course)
+    content = enrollment.get_content()
+    if content is None or content.get_lesson(lesson.id) is None:
+        raise PermissionError("Cette leçon ne fait pas partie de la révision suivie par l'apprenant.")
+    if not Lesson.objects.filter(pk=lesson.id).exists():
+        raise PermissionError("Cette leçon a été supprimée de la copie de travail : progression non enregistrable.")
+
+    revision = content.revision
     progress, created = LessonProgress.objects.get_or_create(
         enrollment=enrollment,
-        lesson=lesson,
+        lesson_id=lesson.id,
         defaults={
             'is_completed': is_completed,
             'completed_at': timezone.now() if is_completed else None,
             'last_position_seconds': position_seconds,
+            'revision': revision,
         }
     )
 
@@ -124,12 +170,13 @@ def record_lesson_progress(user, lesson: Lesson, is_completed: bool = False, pos
     if is_completed and not progress.is_completed:
         progress.is_completed = True
         progress.completed_at = timezone.now()
-        update_fields.extend(['is_completed', 'completed_at'])
+        progress.revision = revision
+        update_fields.extend(['is_completed', 'completed_at', 'revision'])
 
-    progress.save(update_fields=update_fields)
+    if not created:
+        progress.save(update_fields=update_fields)
 
-    # Mise à jour de l'inscription
-    enrollment.last_accessed_lesson = lesson
+    enrollment.last_accessed_lesson_id = lesson.id
     enrollment.last_activity_at = timezone.now()
     enrollment.save(update_fields=['last_accessed_lesson', 'last_activity_at'])
 
@@ -141,61 +188,120 @@ def record_lesson_progress(user, lesson: Lesson, is_completed: bool = False, pos
     return progress, created
 
 
-def evaluate_quiz_submission(enrollment: Enrollment, quiz: Quiz, user_answers: Dict[str, Any]) -> QuizAttempt:
-    """
-    Évalue les réponses d'un apprenant à un quiz :
-    - Validation 100% côté serveur (aucune bonne réponse transmise au frontend).
-    - Calcul du pourcentage de réussite.
-    - Enregistrement de la tentative.
-    - Si réussi, marque automatiquement la leçon associée comme complétée.
-    """
-    questions = quiz.questions.prefetch_related('options').all()
-    total_points = sum(q.points for q in questions)
-    earned_points = 0
+# ==============================================================================
+# QUIZ
+# ==============================================================================
 
-    for question in questions:
-        q_id_str = str(question.id)
-        submitted = user_answers.get(q_id_str)
-        if not submitted:
+def _parse_selection(question, submitted):
+    """Normalise la sélection de l'apprenant en identifiants d'options de la question."""
+    valid_ids = {o.id for o in question.options}
+    if submitted in (None, "", []):
+        return []
+    values = submitted if isinstance(submitted, (list, tuple)) else [submitted]
+    if question.question_type == 'single':
+        values = values[:1]
+    selected = []
+    for value in values:
+        try:
+            option_id = int(str(value).strip())
+        except (ValueError, TypeError):
             continue
+        if option_id in valid_ids and option_id not in selected:
+            selected.append(option_id)
+    return selected
 
-        correct_option_ids = set(question.options.filter(is_correct=True).values_list('id', flat=True))
 
-        if question.question_type == question.QuestionType.SINGLE:
-            try:
-                selected_id = int(submitted)
-                if selected_id in correct_option_ids:
-                    earned_points += question.points
-            except (ValueError, TypeError):
-                pass
-        else:
-            # Choix multiple
-            try:
-                selected_ids = set(int(x) for x in submitted if str(x).isdigit())
-                if selected_ids == correct_option_ids and len(correct_option_ids) > 0:
-                    earned_points += question.points
-            except (ValueError, TypeError):
-                pass
+def grade_quiz(quiz_view, user_answers: Dict[str, Any]):
+    """
+    Note une soumission contre le quiz d'une révision figée et retourne le contexte
+    complet de la tentative (questions, options, sélections, bonnes réponses, points).
+    Règle : une question rapporte ses points si la sélection est exactement l'ensemble
+    des bonnes réponses (choix unique : l'option choisie est correcte).
+    """
+    questions = []
+    total_points = 0
+    earned_points = 0
+    for question in quiz_view.questions:
+        selected = _parse_selection(question, user_answers.get(str(question.id)))
+        correct = sorted(question.correct_option_ids())
+        is_correct = bool(correct) and set(selected) == set(correct)
+        earned = question.points if is_correct else 0
+        total_points += question.points
+        earned_points += earned
+        questions.append({
+            'id': question.id,
+            'question_text': question.question_text,
+            'question_type': question.question_type,
+            'points': question.points,
+            'explanation': question.explanation,
+            'options': [
+                {'id': o.id, 'option_text': o.option_text, 'is_correct': o.is_correct}
+                for o in question.options
+            ],
+            'selected_option_ids': selected,
+            'correct_option_ids': correct,
+            'is_correct': is_correct,
+            'earned_points': earned,
+        })
 
     score = Decimal("0.00")
     if total_points > 0:
         score = Decimal(str(round((earned_points / total_points) * 100, 2)))
+    passed = score >= quiz_view.passing_score
+    context = {
+        'schema_version': ATTEMPT_SNAPSHOT_SCHEMA_VERSION,
+        'scoring_rule': QUIZ_SCORING_RULE,
+        'quiz': {
+            'id': quiz_view.id,
+            'title': quiz_view.title,
+            'passing_score': quiz_view.passing_score,
+        },
+        'questions': questions,
+        'total_points': total_points,
+        'earned_points': earned_points,
+        'score': str(score),
+        'passed': passed,
+    }
+    return score, passed, context
 
-    passed = (score >= quiz.passing_score)
 
-    attempts_count = enrollment.quiz_attempts.filter(quiz=quiz).count()
-    attempt = QuizAttempt.objects.create(
-        enrollment=enrollment,
-        quiz=quiz,
-        score=score,
-        passed=passed,
-        attempt_number=attempts_count + 1,
-    )
+def evaluate_quiz_submission(enrollment: Enrollment, quiz, user_answers: Dict[str, Any]) -> QuizAttempt:
+    """
+    Évalue les réponses d'un apprenant 100 % côté serveur contre le quiz de la révision
+    qu'il suit, et enregistre une tentative autoportante (contexte figé) : une nouvelle
+    révision ou une modification ultérieure des bonnes réponses ne modifie jamais ce résultat.
+    """
+    content = enrollment.get_content()
+    quiz_view = content.get_quiz(quiz.id) if content is not None else None
+    if quiz_view is None:
+        raise PermissionError("Ce quiz ne fait pas partie de la révision suivie par l'apprenant.")
+    if not Quiz.objects.filter(pk=quiz_view.id).exists():
+        raise PermissionError("Ce quiz a été supprimé de la copie de travail : tentative non enregistrable.")
+
+    score, passed, context = grade_quiz(quiz_view, user_answers)
+
+    with transaction.atomic():
+        attempts_count = enrollment.quiz_attempts.filter(quiz_id=quiz_view.id).count()
+        attempt = QuizAttempt.objects.create(
+            enrollment=enrollment,
+            quiz_id=quiz_view.id,
+            score=score,
+            passed=passed,
+            attempt_number=attempts_count + 1,
+            revision=content.revision,
+            attempt_snapshot=context,
+        )
 
     if passed:
-        record_lesson_progress(enrollment.user, quiz.lesson, is_completed=True)
+        record_lesson_progress(enrollment.user, quiz_view.lesson, is_completed=True)
 
     return attempt
+
+
+# ==============================================================================
+# CERTIFICATS
+# ==============================================================================
+
 
 
 def issue_certificate_for_enrollment(enrollment: Enrollment) -> Certificate:

@@ -1,6 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block navbar %}{% endblock navbar %}
+{% block footer %}{% endblock footer %}
+{% block whatsapp_button %}{% endblock whatsapp_button %}
+{% block terms_consent %}{% endblock terms_consent %}
+{% block main_class %}auth-main-layout{% endblock main_class %}
+{% block main_container_class %}container-fluid p-0{% endblock main_container_class %}
+
 {% block content %}
 <style>
     :root {
@@ -10,23 +17,65 @@
         --venus-jaune: #fbc02d;
     }
 
+    /* Layout sans navbar */
+    .auth-main-layout {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        min-height: 100vh;
+    }
+
     /* Fond immersif */
     .register-section {
-        background: linear-gradient(rgba(10, 61, 45, 0.85), rgba(10, 61, 45, 0.95)), 
-                    url("{% static 'img/bg-register.jpg' %}"); /* Optionnel : image de fond zen */
+        background: linear-gradient(rgba(10, 61, 45, 0.88), rgba(10, 61, 45, 0.96)),
+        url("{% static 'img/bg-register.jpg' %}");
         background-size: cover;
         background-position: center;
         min-height: 100vh;
-        display: flex;
+        padding: 2.5rem 1rem;
+    }
+
+    .auth-brand-logo {
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid var(--venus-or);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease;
+    }
+
+    .auth-brand-link:hover .auth-brand-logo {
+        transform: scale(1.05);
+    }
+
+    .auth-home-pill {
+        display: inline-flex;
         align-items: center;
+        gap: 6px;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.82rem;
+        text-decoration: none;
+        padding: 6px 14px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        transition: 0.3s all;
+        margin-top: 10px;
+    }
+
+    .auth-home-pill:hover {
+        color: var(--venus-jaune);
+        background: rgba(255, 255, 255, 0.16);
+        border-color: var(--venus-or);
     }
 
     /* Carte en verre */
     .glass-card {
         background: rgba(255, 255, 255, 0.08);
         backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 30px;
+        border-radius: 26px;
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
     }
 
@@ -78,41 +127,113 @@
         transform: translateY(-3px);
     }
 
-    .x-small { font-size: 0.7rem; line-height: 1.2; }
+    .x-small {
+        font-size: 0.7rem;
+        line-height: 1.2;
+    }
+
+    /* Champ mot de passe avec bouton afficher/masquer */
+    .password-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .password-input-wrapper input {
+        padding-right: 44px !important;
+    }
+
+    .password-toggle-btn {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: transparent;
+        border: none;
+        padding: 6px;
+        cursor: pointer;
+        color: var(--venus-vert-dark);
+        opacity: 0.7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        z-index: 5;
+    }
+
+    .password-toggle-btn:hover {
+        opacity: 1;
+        transform: translateY(-50%) scale(1.1);
+    }
+
+    .password-toggle-btn:focus-visible {
+        outline: 2px solid var(--venus-jaune);
+        border-radius: 4px;
+        opacity: 1;
+    }
 </style>
 
-<section class="register-section py-5">
+<section class="register-section d-flex align-items-center justify-content-center">
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-md-7 col-lg-6">
-                <div class="glass-card p-4 p-md-5">
-                    
-                    <div class="text-center mb-4">
-                        <i class="fas fa-sparkles text-gold fa-2x mb-3"></i>
-                        <h2 class="post-title">Rejoindre la Communauté</h2>
-                        <p class="text-white-50 small">Créez votre compte pour suivre vos commandes à Lomé.</p>
+            <div class="col-11 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+
+                <!-- Logo & retour boutique discret -->
+                <div class="text-center mb-3">
+                    <a href="{% url 'core:home' %}" class="auth-brand-link d-inline-block"
+                        title="Retourner à la boutique">
+                        <img src="{% static 'img/venus-luna3.jpg' %}" alt="Logo Venus Luna"
+                            class="auth-brand-logo mb-2">
+                    </a>
+                    <div>
+                        <a href="{% url 'core:home' %}" class="auth-home-pill">
+                            <i class="fas fa-arrow-left"></i>
+                            <span>Retour à la boutique</span>
+                        </a>
                     </div>
-                    
+                </div>
+
+                <div class="glass-card p-4 p-md-5">
+
+                    <div class="text-center mb-4">
+                        <h2 class="post-title mb-2" style="font-size: 2rem;">Rejoindre la Communauté</h2>
+                        <p class="text-white-50 small mb-0">Créez votre compte pour suivre vos commandes à Lomé.
+                        </p>
+                    </div>
+
                     <form method="post" class="auth-form">
                         {% csrf_token %}
                         <div class="row">
                             {% for field in form %}
-                                <div class="col-12 mb-3">
-                                    <label class="text-gold x-small mb-1 ms-2">{{ field.label }}</label>
+                            <div class="col-12 mb-3">
+                                <label class="text-gold x-small mb-1 ms-2" for="{{ field.id_for_label }}">{{ field.label
+                                    }}</label>
+                                {% if field.field.widget.input_type == "password" %}
+                                <div class="password-input-wrapper">
                                     {{ field }}
-                                    
-                                    {% if field.help_text %}
-                                        <div class="text-white-50 x-small mt-1 ms-2" style="opacity: 0.7;">
-                                            {{ field.help_text|safe }}
-                                        </div>
-                                    {% endif %}
-                                    
-                                    {% if field.errors %}
-                                        <div class="text-warning x-small mt-1 ms-2">
-                                            <i class="fas fa-exclamation-circle me-1"></i>{{ field.errors|first }}
-                                        </div>
-                                    {% endif %}
+                                    <button type="button" class="password-toggle-btn js-password-toggle"
+                                        aria-label="Afficher le mot de passe" aria-pressed="false"
+                                        data-target-id="{{ field.id_for_label }}" tabindex="0">
+                                        <i class="fas fa-eye" aria-hidden="true"></i>
+                                    </button>
                                 </div>
+                                {% else %}
+                                {{ field }}
+                                {% endif %}
+
+                                {% if field.help_text %}
+                                <div class="text-white-50 x-small mt-1 ms-2" style="opacity: 0.7;">
+                                    {{ field.help_text|safe }}
+                                </div>
+                                {% endif %}
+
+                                {% if field.errors %}
+                                <div class="text-warning x-small mt-1 ms-2">
+                                    <i class="fas fa-exclamation-circle me-1"></i>{{ field.errors|first }}
+                                </div>
+                                {% endif %}
+                            </div>
                             {% endfor %}
                         </div>
 
@@ -122,8 +243,9 @@
                     </form>
 
                     <div class="mt-4 text-center border-top border-white border-opacity-10 pt-4">
-                        <p class="text-white-50 small">Déjà membre ? 
-                            <a href="{% url 'accounts:login' %}" class="text-gold text-decoration-none fw-bold">Se connecter</a>
+                        <p class="text-white-50 small mb-0">Déjà membre ?
+                            <a href="{% url 'accounts:login' %}" class="text-gold text-decoration-none fw-bold">Se
+                                connecter</a>
                         </p>
                     </div>
                 </div>
@@ -131,4 +253,37 @@
         </div>
     </div>
 </section>
-{% endblock %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.js-password-toggle').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var targetId = this.getAttribute('data-target-id');
+                var input = document.getElementById(targetId);
+                if (!input) return;
+
+                var icon = this.querySelector('i');
+                var isPassword = input.type === 'password';
+
+                if (isPassword) {
+                    input.type = 'text';
+                    this.setAttribute('aria-pressed', 'true');
+                    this.setAttribute('aria-label', 'Masquer le mot de passe');
+                    if (icon) {
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    }
+                } else {
+                    input.type = 'password';
+                    this.setAttribute('aria-pressed', 'false');
+                    this.setAttribute('aria-label', 'Afficher le mot de passe');
+                    if (icon) {
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endblock content %}
