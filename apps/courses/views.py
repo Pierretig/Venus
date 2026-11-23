@@ -562,6 +562,25 @@ def verify_certificate(request, code):
 
 
 
+def _can_reveal_quiz_answers(user, attempt):
+    """
+    Les bonnes réponses ne sont révélées que si elles ne peuvent plus servir à repasser
+    le quiz : staff, quiz déjà réussi par l'apprenant, ou tentatives épuisées (jamais
+    lorsque le nombre de tentatives est illimité), ou quiz absent de la révision suivie.
+    """
+    if user.is_staff:
+        return True
+    enrollment = attempt.enrollment
+    attempts = enrollment.quiz_attempts.filter(quiz_id=attempt.quiz_id)
+    if attempts.filter(passed=True).exists():
+        return True
+    content = enrollment.get_content()
+    quiz = content.get_quiz(attempt.quiz_id) if content is not None else None
+    if quiz is None:
+        return True
+    return quiz.max_attempts > 0 and attempts.count() >= quiz.max_attempts
+
+
 @login_required
 def quiz_attempt_detail(request, attempt_id):
     """
@@ -576,21 +595,36 @@ def quiz_attempt_detail(request, attempt_id):
     if attempt.enrollment.user_id != request.user.id and not request.user.is_staff:
         raise Http404("Tentative introuvable.")
 
+    reveal_answers = _can_reveal_quiz_answers(request.user, attempt)
     questions = []
     if attempt.attempt_snapshot:
         for q in attempt.attempt_snapshot.get('questions', []):
             selected = set(q.get('selected_option_ids', []))
-            correct = set(q.get('correct_option_ids', []))
-            options = [
-                dict(o, selected=o['id'] in selected, correct=o['id'] in correct)
-                for o in q.get('options', [])
-            ]
-            questions.append(dict(q, options=options))
+            if reveal_answers:
+                correct = set(q.get('correct_option_ids', []))
+                options = [
+                    {'option_text': o['option_text'], 'selected': o['id'] in selected, 'correct': o['id'] in correct}
+                    for o in q.get('options', [])
+                ]
+                questions.append({
+                    'question_text': q['question_text'], 'points': q['points'],
+                    'earned_points': q.get('earned_points', 0), 'is_correct': q.get('is_correct', False),
+                    'explanation': q.get('explanation', ''), 'options': options,
+                })
+            else:
+                # Aucune information de correction n'est transmise : seules les sélections
+                # de l'apprenant sont restituées tant qu'il peut encore retenter le quiz.
+                questions.append({
+                    'question_text': q['question_text'], 'points': q['points'],
+                    'options': [{'option_text': o['option_text'], 'selected': o['id'] in selected}
+                                for o in q.get('options', [])],
+                })
 
     context = {
         'attempt': attempt,
         'course': attempt.enrollment.course,
         'questions': questions,
+        'reveal_answers': reveal_answers,
         'snapshot': attempt.attempt_snapshot or {},
     }
     return render(request, 'courses/quiz_attempt_detail.html', context)

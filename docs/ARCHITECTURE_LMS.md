@@ -16,7 +16,7 @@
 | 7 | Le worker ne choisit jamais la révision | La capture est faite dans la transaction de paiement ; le worker ne traite que reçu PDF et email |
 | 8 | Droits persistants, traçables, idempotents | `AccessGrant` (un par ligne d'achat, révocation sans suppression) |
 | 9 | Anciennes tentatives fidèlement consultables | `QuizAttempt.attempt_snapshot` + trigger d'immuabilité |
-| 10 | Pas de régression | Données historiques conservées en `revision = NULL` ; 190 tests passent sur PostgreSQL |
+| 10 | Pas de régression | Données historiques conservées en `revision = NULL` ; 192 tests passent sur PostgreSQL |
 
 ## 2. Modèles
 
@@ -136,6 +136,10 @@ Sur SQLite (dev/tests rapides) ces règles sont appliquées par le code uniqueme
   la date de l'évaluation, points, règle `all_or_nothing_per_question_v1`, score, résultat.
   La notation se fait contre le quiz de la révision suivie, jamais contre la copie de travail.
 - Vue apprenant `courses:quiz_attempt_detail` (`/formations/quiz/tentative/<id>/`).
+  Les bonnes réponses, la correction par question et les explications ne sont transmises
+  que si elles ne peuvent plus servir à repasser le quiz : quiz réussi, tentatives épuisées
+  (jamais si illimitées), quiz absent de la révision suivie, ou staff. Sinon, seules les
+  sélections de l'apprenant et le score global sont affichés.
 - `LessonProgress.revision` : révision dans laquelle la leçon a été vue/terminée.
 - Données antérieures : `revision = NULL`, `attempt_snapshot = NULL` → affichées comme
   « non versionnées » (score seul) ; jamais rattachées automatiquement.

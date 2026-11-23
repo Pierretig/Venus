@@ -40,7 +40,7 @@ sont marqués `postgres_only` et n'ont de valeur que sur PostgreSQL.
 | Accès | Droit unique | `AccessAndHistoryTests.test_single_access_grant_per_order_item` |
 | Accès | Réachat | `test_repurchase_creates_new_grant_and_keeps_old` |
 | Accès | Révocation après remboursement | `test_refund_revokes_access_and_keeps_history` |
-| Historique | Consultation d'une ancienne tentative | `test_old_attempt_detail_view` |
+| Historique | Consultation d'une ancienne tentative | `test_old_attempt_detail_view` ; correction masquée tant qu'une nouvelle tentative est possible : `test_failed_attempt_does_not_reveal_answers_while_retry_possible`, `test_answers_revealed_when_attempts_exhausted` |
 | Historique | Changement des bonnes réponses | `test_old_attempt_survives_new_correct_answers` |
 | Migration | Conservation des anciennes inscriptions | `DataMigrationTests`, `test_legacy_enrollment_is_not_versioned` |
 | Migration | Aucun rattachement historique inventé | `DataMigrationTests.test_initial_revision_without_inventing_history` |
@@ -65,8 +65,8 @@ LMS) sont conservés. Adaptations (aucune suppression ni désactivation) :
 
 | Configuration | Résultat |
 |---|---|
-| PostgreSQL 17.6 local | **190 tests, OK** |
-| SQLite | 190 tests : 182 OK, 7 ignorés (PostgreSQL uniquement), 1 échec **préexistant** : `test_06_concurrent_confirmations` (test de concurrence écrit pour PostgreSQL ; échouait déjà avant ce chantier sur SQLite ; passe sur PostgreSQL) |
+| PostgreSQL 17.6 local | **192 tests, OK** |
+| SQLite | 192 tests : 184 OK, 7 ignorés (PostgreSQL uniquement), 1 échec **préexistant** : `test_06_concurrent_confirmations` (test de concurrence écrit pour PostgreSQL ; échouait déjà avant ce chantier sur SQLite ; passe sur PostgreSQL) |
 
 ## 5. Non couvert par des tests automatisés
 

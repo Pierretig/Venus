@@ -274,18 +274,53 @@ class AccessAndHistoryTests(TestCase):
     def test_old_attempt_detail_view(self):
         self._paid_order(self.alice)
         enrollment = Enrollment.objects.get(user=self.alice)
-        attempt = evaluate_quiz_submission(enrollment, self.quiz, {str(self.q.id): str(self.bad.id)})
+        attempt = evaluate_quiz_submission(enrollment, self.quiz, {str(self.q.id): str(self.good.id)})
         QuizAnswerOption.objects.filter(pk=self.good.pk).update(option_text="A modifiée")
         client = Client()
         client.force_login(self.alice)
         response = client.get(reverse('courses:quiz_attempt_detail', args=[attempt.pk]))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "(votre réponse)")
-        self.assertContains(response, "(bonne réponse)")
-        self.assertNotContains(response, "A modifiée")
+        self.assertContains(response, "(bonne réponse)")  # quiz réussi : correction visible
+        self.assertNotContains(response, "A modifiée")     # contenu figé au moment de l'évaluation
         other = User.objects.create_user("intrus", password="x")
         client.force_login(other)
         self.assertEqual(client.get(reverse('courses:quiz_attempt_detail', args=[attempt.pk])).status_code, 404)
+
+    def test_failed_attempt_does_not_reveal_answers_while_retry_possible(self):
+        self._paid_order(self.alice)
+        enrollment = Enrollment.objects.get(user=self.alice)
+        attempt = evaluate_quiz_submission(enrollment, self.quiz, {str(self.q.id): str(self.bad.id)})
+        self.assertFalse(attempt.passed)
+        client = Client()
+        client.force_login(self.alice)
+        response = client.get(reverse('courses:quiz_attempt_detail', args=[attempt.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['reveal_answers'])
+        self.assertNotContains(response, "(bonne réponse)")
+        for question in response.context['questions']:
+            self.assertNotIn('is_correct', question)
+            self.assertNotIn('earned_points', question)
+            for option in question['options']:
+                self.assertNotIn('correct', option)
+        # Réussite ultérieure : la correction de l'ancienne tentative devient consultable.
+        evaluate_quiz_submission(enrollment, self.quiz, {str(self.q.id): str(self.good.id)})
+        response = client.get(reverse('courses:quiz_attempt_detail', args=[attempt.pk]))
+        self.assertTrue(response.context['reveal_answers'])
+        self.assertContains(response, "(bonne réponse)")
+
+    def test_answers_revealed_when_attempts_exhausted(self):
+        Quiz.objects.filter(pk=self.quiz.pk).update(max_attempts=1)
+        Lesson.objects.filter(pk=self.l1.pk).update(content="v2")
+        publish_working_copy(self.course)  # nouvelle révision avec max_attempts=1
+        self._paid_order(self.alice)
+        enrollment = Enrollment.objects.get(user=self.alice)
+        attempt = evaluate_quiz_submission(enrollment, self.quiz, {str(self.q.id): str(self.bad.id)})
+        client = Client()
+        client.force_login(self.alice)
+        response = client.get(reverse('courses:quiz_attempt_detail', args=[attempt.pk]))
+        self.assertTrue(response.context['reveal_answers'])
+        self.assertContains(response, "(votre réponse)")
+        self.assertContains(response, "(bonne réponse)")
 
     def test_progress_records_revision(self):
         self._paid_order(self.alice)

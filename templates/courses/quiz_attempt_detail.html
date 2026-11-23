@@ -36,13 +36,17 @@
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <h2 class="h6 fw-bold mb-0">Q{{ forloop.counter }}. {{ question.question_text }}</h2>
+                {% if reveal_answers %}
                 <span class="badge {% if question.is_correct %}bg-success{% else %}bg-danger{% endif %}">
                     {{ question.earned_points }} / {{ question.points }} pt
                 </span>
+                {% else %}
+                <span class="badge bg-secondary">{{ question.points }} pt</span>
+                {% endif %}
             </div>
             <ul class="list-unstyled mb-0">
                 {% for option in question.options %}
-                <li class="py-1 small {% if option.correct %}text-success fw-semibold{% elif option.selected %}text-danger{% else %}text-secondary{% endif %}">
+                <li class="py-1 small {% if option.correct %}text-success fw-semibold{% elif option.selected and reveal_answers %}text-danger{% elif option.selected %}fw-semibold{% else %}text-secondary{% endif %}">
                     {% if option.selected %}<i class="fas fa-dot-circle me-1"></i>{% else %}<i class="far fa-circle me-1"></i>{% endif %}
                     {{ option.option_text }}
                     {% if option.correct %}<span class="ms-1">(bonne réponse)</span>{% endif %}
@@ -56,7 +60,11 @@
         </div>
     </div>
     {% endfor %}
+    {% if reveal_answers %}
     <p class="small text-muted">Bonnes réponses telles que définies au moment de votre évaluation.</p>
+    {% else %}
+    <p class="small text-muted">La correction détaillée sera disponible une fois le quiz réussi ou vos tentatives épuisées.</p>
+    {% endif %}
     {% endif %}
 </div>
 {% endblock %}

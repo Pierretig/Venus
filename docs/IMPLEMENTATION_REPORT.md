@@ -3,7 +3,7 @@
 Date : 2026-11-23 · Mode : développement local uniquement · Aucun commit, push, déploiement
 ni migration de production n'a été effectué.
 
-**Verdict : READY_FOR_TESTING** — implémentation terminée et testée (190/190 sur PostgreSQL
+**Verdict : READY_FOR_TESTING** — implémentation terminée et testée (192/192 sur PostgreSQL
 local), mais validation fonctionnelle, intégration CashPay réelle, revue de code et décisions de
 déploiement restent nécessaires (§6).
 
@@ -34,7 +34,7 @@ déploiement restent nécessaires (§6).
 | Outbox | production atomique (reçu, email), dispatch post-commit, worker `process_outbox` (SKIP LOCKED, lease, retry, backoff, FAILED) |
 | Admin | révisions (boutons de workflow, comparaison, contenu figé, historique), droits d'accès (révocation), réconciliations (capture différée, résolution), outbox (remise en file), `paid_at` |
 | Reprise | révision n°1 publiée pour l'existant ; aucune donnée historique inventée |
-| Tests | 46 nouveaux tests ; configuration `settings_pg_test` (PostgreSQL local) |
+| Tests | 48 nouveaux tests ; configuration `settings_pg_test` (PostgreSQL local) |
 
 ## 3. Fichiers
 
@@ -65,8 +65,8 @@ Modèles ajoutés : `CourseRevision`, `CourseRevisionEvent`, `AccessGrant`, `Pay
 
 | Configuration | Résultat |
 |---|---|
-| PostgreSQL 17.6 local | 190 tests — **OK** |
-| SQLite | 182 OK, 7 ignorés (PostgreSQL uniquement), 1 échec préexistant (`test_06`, passe sur PostgreSQL) |
+| PostgreSQL 17.6 local | 192 tests — **OK** |
+| SQLite | 184 OK, 7 ignorés (PostgreSQL uniquement), 1 échec préexistant (`test_06`, passe sur PostgreSQL) |
 | Migrations SQLite (copie de la base locale) | aller / retour / aller OK, données et progression identiques |
 | Migrations PostgreSQL (`venus_luna_localtest`) | aller / retour / aller OK, triggers et contraintes présents puis retirés |
 | Parcours HTTP sur données réelles migrées | catalogue, fiche, lecteur, tableau de bord, aperçu brouillon, pages admin : 200 ; workflow admin complet OK |
