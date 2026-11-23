@@ -3,6 +3,7 @@ from django.dispatch import receiver
 from django.core.files.base import ContentFile
 from django.db.models import F
 from django.db import transaction
+from django.utils import timezone
 from .models import Order
 from .utils import generate_order_pdf
 from apps.products.models import StockMovement
@@ -45,6 +46,10 @@ def handle_order_automation(sender, instance, created, **kwargs):
                     from .payment_processing import process_order_stock_and_fulfillment
                     process_order_stock_and_fulfillment(locked_order)
                     update_fields = ['stock_updated']
+                    if locked_order.paid_at is None:
+                        # Confirmation interne par l'administration (statut passé à « payé »).
+                        locked_order.paid_at = timezone.now()
+                        update_fields.append('paid_at')
                     if locked_order.receipt:
                         update_fields.append('receipt')
                     # Nettoyer ou clore la note d'échec si présente
@@ -96,18 +101,13 @@ def handle_order_automation(sender, instance, created, **kwargs):
         except Exception as e:
             logger.error(f"ERROR: Echec du retour de stock pour #{instance.id}: {e}")
 
-    # 3. LOGIQUE : ANNULATION / REMBOURSEMENT — Désactivation des accès aux formations
-    #    (indépendante du stock_updated car les formations numériques n'ont pas de stock physique)
-    if instance.status in ('cancelled', 'refunded') and instance.user:
-        try:
-            from apps.courses.models import Enrollment
-            for item in instance.items.all():
-                if item.course:
-                    Enrollment.objects.filter(
-                        user=instance.user,
-                        course=item.course,
-                        order=instance,
-                    ).update(status=Enrollment.Status.CANCELLED)
-                    logger.info(f"Inscription désactivée suite à annulation/remboursement pour {instance.user.username} sur {item.course.title}")
-        except Exception as enroll_cancel_err:
-            logger.error(f"Erreur lors de la désactivation de formation #{instance.id}: {enroll_cancel_err}")
+    # 3. LOGIQUE : ANNULATION / REMBOURSEMENT — Révocation des accès aux formations
+    #    (indépendante du stock_updated car les formations numériques n'ont pas de stock physique).
+    #    Les droits sont révoqués avec date et motif, jamais supprimés. Aucune erreur n'est
+    #    absorbée : un échec de révocation ne doit pas passer inaperçu.
+    if instance.status in ('cancelled', 'refunded') and instance.user_id:
+        from apps.courses.access import revoke_order_access
+        reason = "Commande remboursée" if instance.status == 'refunded' else "Commande annulée"
+        revoked = revoke_order_access(instance, reason=f"{reason} (#{instance.id})")
+        if revoked:
+            logger.info("Commande #%s %s : %s accès révoqué(s).", instance.id, instance.status, revoked)

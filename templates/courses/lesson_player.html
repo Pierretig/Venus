@@ -131,6 +131,11 @@
 </style>
 
 <div class="container py-2">
+    {% if is_working_copy_preview %}
+    <div class="alert alert-warning rounded-4 small mb-3">
+        <i class="fas fa-eye me-1"></i> Aperçu de la <strong>copie de travail</strong> (non publiée). Les apprenants voient la révision publiée.
+    </div>
+    {% endif %}
     <!-- En-tête fil d'ariane & progression -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3 pb-3 border-bottom">
         <div>
@@ -292,6 +297,9 @@
                             </h5>
                             <div class="small">Dernier résultat : <strong>{{ quiz_attempt.score }}%</strong> (Tentative
                                 #{{ quiz_attempt.attempt_number }})</div>
+                            {% if quiz_attempt.is_detail_available %}
+                            <a href="{% url 'courses:quiz_attempt_detail' attempt_id=quiz_attempt.id %}" class="small fw-semibold">Voir le détail de cette tentative</a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

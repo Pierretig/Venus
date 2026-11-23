@@ -1,0 +1,32 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Accueil</a> &rsaquo;
+    <a href="{% url 'admin:courses_courserevision_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a> &rsaquo;
+    <a href="{% url 'admin:courses_courserevision_change' revision.pk %}">{{ revision }}</a> &rsaquo;
+    {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <p><strong>{{ revision }}</strong></p>
+    {% if action == 'submit' %}
+    <p>Le contenu actuel de la copie de travail (modules et leçons publiés) sera figé dans cette révision. Il ne pourra plus être modifié.</p>
+    {% elif action == 'publish' %}
+    <p>Cette révision deviendra la version servie aux nouveaux apprenants et aux futurs achats. Les apprenants rattachés à une révision antérieure la conservent.</p>
+    {% elif action == 'reject' %}
+    <p>Le formateur verra le motif du rejet. Une nouvelle révision brouillon devra être créée pour corriger le contenu.</p>
+    {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        <p>
+            <label for="id_note">{% if note_required %}Motif du rejet (obligatoire){% else %}Note (facultative){% endif %}</label><br>
+            <textarea name="note" id="id_note" rows="4" cols="80" {% if note_required %}required{% endif %}></textarea>
+        </p>
+        <input type="submit" class="default" value="Confirmer">
+        <a href="{% url 'admin:courses_courserevision_change' revision.pk %}" class="button cancel-link">Annuler</a>
+    </form>
+</div>
+{% endblock %}

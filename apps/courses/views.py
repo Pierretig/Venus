@@ -23,10 +23,15 @@ from .models import (
     Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt,
     Certificate,
 )
+from .access import AccessGrantError
+from .content import ItemList
 from .services import (
     can_user_access_lesson,
     enroll_student_in_course,
+    get_active_enrollment,
+    is_privileged,
     record_lesson_progress,
+    resolve_content,
     evaluate_quiz_submission,
     issue_certificate_for_enrollment,
 )
@@ -41,7 +46,10 @@ logger = logging.getLogger(__name__)
 def course_list(request):
     """Catalogue public des formations disponibles sur Venus Luna."""
     categories = CourseCategory.objects.all().order_by('order', 'name')
-    courses = Course.objects.filter(status=Course.Status.PUBLISHED).select_related('category', 'instructor')
+    courses = Course.objects.filter(
+        status=Course.Status.PUBLISHED,
+        published_revision__isnull=False,
+    ).select_related('category', 'instructor', 'published_revision')
 
     # Filtre par catégorie
     cat_slug = request.GET.get('category')
@@ -85,34 +93,28 @@ def course_list(request):
 def course_detail(request, slug):
     """Présentation détaillée d'une formation, objectifs, modules et accès."""
     course = get_object_or_404(
-        Course.objects.select_related('category', 'instructor').prefetch_related(
-            'modules__lessons'
-        ),
+        Course.objects.select_related('category', 'instructor', 'published_revision'),
         slug=slug
     )
 
-    # Si la formation n'est pas publiée, seuls les administrateurs et le formateur y accèdent
-    if course.status != Course.Status.PUBLISHED:
-        if not (request.user.is_authenticated and (request.user.is_staff or course.instructor_id == request.user.id)):
-            raise Http404("Cette formation n'est pas disponible pour le moment.")
+    # Formation non disponible (non publiée ou sans révision publiée) : staff et formateur uniquement
+    privileged = is_privileged(request.user, course)
+    user_enrollment = get_active_enrollment(request.user, course)
+    if not course.is_available_for_learners and not privileged and user_enrollment is None:
+        raise Http404("Cette formation n'est pas disponible pour le moment.")
 
-    # Vérification de l'inscription existante
-    user_enrollment = None
-    if request.user.is_authenticated:
-        user_enrollment = Enrollment.objects.filter(
-            user=request.user,
-            course=course,
-            status__in=[Enrollment.Status.ACTIVE, Enrollment.Status.COMPLETED],
-        ).first()
-
-    modules = course.modules.filter(is_published=True).prefetch_related('lessons')
+    preview = privileged and request.GET.get('apercu') == 'brouillon'
+    content = resolve_content(request.user, course, enrollment=user_enrollment, preview=preview)
+    modules = content.modules if content is not None else ItemList()
 
     context = {
         'course': course,
         'modules': modules,
+        'content': content,
+        'is_working_copy_preview': content is not None and content.is_preview,
         'user_enrollment': user_enrollment,
-        'total_lessons': course.total_lessons_count,
-        'total_duration': course.total_duration_minutes,
+        'total_lessons': content.total_lessons if content is not None else 0,
+        'total_duration': content.total_duration_minutes if content is not None else 0,
         'objectives_list': course.get_objectives_list(),
         'prerequisites_list': course.get_prerequisites_list(),
     }
@@ -148,6 +150,11 @@ def buy_course(request, slug):
     # Si la formation est gratuite, basculer sur l'inscription gratuite
     if course.is_free or course.price == 0:
         return redirect('courses:enroll_free', slug=course.slug)
+
+    # Décision R3 : aucune vente sans version pédagogique identifiable.
+    if course.published_revision_id is None:
+        messages.error(request, "Cette formation n'est pas encore disponible à l'achat.")
+        return redirect('courses:course_detail', slug=course.slug)
 
     try:
         # Création de la commande numérique
@@ -249,7 +256,11 @@ def enroll_free_course(request, slug):
         messages.error(request, "Cette formation est payante et requiert un règlement.")
         return redirect('courses:buy_course', slug=course.slug)
 
-    enrollment, created = enroll_student_in_course(request.user, course, source=Enrollment.Source.FREE)
+    try:
+        enrollment, created = enroll_student_in_course(request.user, course, source=Enrollment.Source.FREE)
+    except AccessGrantError:
+        messages.error(request, "Cette formation n'est pas encore disponible.")
+        return redirect('courses:course_detail', slug=course.slug)
     if created:
         messages.success(request, f"Félicitations ! Vous êtes inscrit(e) à la formation « {course.title} ».")
     else:
@@ -276,7 +287,7 @@ def student_dashboard(request):
     """
     enrollments = (
         Enrollment.objects.filter(user=request.user)
-        .select_related('course', 'last_accessed_lesson', 'certificate')
+        .select_related('course', 'course__published_revision', 'revision', 'last_accessed_lesson', 'certificate')
         .prefetch_related('progresses')
         .order_by('-last_activity_at')
     )
@@ -312,14 +323,17 @@ def student_dashboard(request):
 @login_required
 def lesson_view(request, course_slug, lesson_id):
     """
-    Interface de visionnage immersive d'une leçon :
-    - Lecteur vidéo sécurisé ou contenu interactif.
-    - Arborescence complète des modules et leçons avec statut de complétion.
-    - Navigation Précédente / Suivante.
-    - Quiz d'évaluation associé.
+    Interface de visionnage immersive d'une leçon, servie depuis la révision figée
+    suivie par l'apprenant (ou, pour le formateur / staff, depuis la révision publiée ou
+    la copie de travail avec ?apercu=brouillon).
     """
-    course = get_object_or_404(Course, slug=course_slug)
-    lesson = get_object_or_404(Lesson.objects.select_related('module__course'), id=lesson_id, module__course=course)
+    course = get_object_or_404(Course.objects.select_related('published_revision'), slug=course_slug)
+    enrollment = get_active_enrollment(request.user, course)
+    preview = is_privileged(request.user, course) and request.GET.get('apercu') == 'brouillon'
+    content = resolve_content(request.user, course, enrollment=enrollment, preview=preview)
+    lesson = content.get_lesson(lesson_id) if content is not None else None
+    if lesson is None:
+        raise Http404("Leçon introuvable dans la version de la formation qui vous est attribuée.")
 
     # Contrôle d'accès strict
     if not can_user_access_lesson(request.user, lesson):
@@ -329,51 +343,40 @@ def lesson_view(request, course_slug, lesson_id):
         )
         return redirect('courses:course_detail', slug=course.slug)
 
-    # Récupérer l'inscription active pour enregistrer la consultation
-    enrollment = Enrollment.objects.filter(
-        user=request.user,
-        course=course,
-        status__in=[Enrollment.Status.ACTIVE, Enrollment.Status.COMPLETED]
-    ).first()
-
     lesson_progress = None
-    if enrollment:
+    completed_lesson_ids = set()
+    if enrollment and not content.is_preview and Lesson.objects.filter(pk=lesson.id).exists():
         lesson_progress, _ = LessonProgress.objects.get_or_create(
             enrollment=enrollment,
-            lesson=lesson,
+            lesson_id=lesson.id,
+            defaults={'revision': content.revision},
         )
         # Mémoriser la dernière leçon consultée
-        enrollment.last_accessed_lesson = lesson
+        enrollment.last_accessed_lesson_id = lesson.id
         enrollment.last_activity_at = timezone.now()
         enrollment.save(update_fields=['last_accessed_lesson', 'last_activity_at'])
-
-    modules = course.modules.filter(is_published=True).prefetch_related('lessons')
-
-    # Liste des IDs de leçons terminées par l'apprenant
-    completed_lesson_ids = set()
     if enrollment:
         completed_lesson_ids = set(
-            enrollment.progresses.filter(is_completed=True).values_list('lesson_id', flat=True)
+            enrollment.progresses.filter(is_completed=True, lesson_id__in=content.lesson_ids)
+            .values_list('lesson_id', flat=True)
         )
 
-    # Vérification d'un quiz associé à la leçon
-    quiz = getattr(lesson, 'quiz', None)
+    quiz = lesson.quiz
     quiz_attempt = None
     if quiz and enrollment:
-        quiz_attempt = enrollment.quiz_attempts.filter(quiz=quiz).order_by('-submitted_at').first()
-
-    previous_lesson = lesson.get_previous_lesson()
-    next_lesson = lesson.get_next_lesson()
+        quiz_attempt = enrollment.quiz_attempts.filter(quiz_id=quiz.id).order_by('-submitted_at').first()
 
     context = {
         'course': course,
         'lesson': lesson,
-        'modules': modules,
+        'modules': content.modules,
+        'content': content,
+        'is_working_copy_preview': content.is_preview,
         'enrollment': enrollment,
         'lesson_progress': lesson_progress,
         'completed_lesson_ids': completed_lesson_ids,
-        'previous_lesson': previous_lesson,
-        'next_lesson': next_lesson,
+        'previous_lesson': lesson.get_previous_lesson(),
+        'next_lesson': lesson.get_next_lesson(),
         'quiz': quiz,
         'quiz_attempt': quiz_attempt,
         'progress_percentage': enrollment.get_progress_percentage() if enrollment else 0,
@@ -391,6 +394,8 @@ def mark_lesson_completed(request, lesson_id):
         progress, _ = record_lesson_progress(request.user, lesson, is_completed=True)
         enrollment = progress.enrollment
         pct = enrollment.get_progress_percentage()
+        content = enrollment.get_content()
+        lesson = content.get_lesson(lesson.id) or lesson
 
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
@@ -406,8 +411,8 @@ def mark_lesson_completed(request, lesson_id):
             return redirect(next_lesson.get_absolute_url())
         return redirect('courses:student_dashboard')
 
-    except Exception as e:
-        logger.error(f"Erreur validation leçon {lesson_id} pour {request.user.username}: {e}")
+    except (PermissionError, AccessGrantError, ValueError) as e:
+        logger.warning(f"Validation leçon {lesson_id} refusée pour {request.user.username}: {e}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
         messages.error(request, "Une erreur est survenue lors de l'enregistrement de votre progression.")
@@ -427,60 +432,58 @@ def submit_quiz(request, quiz_id):
     - Validation CSRF automatique Django.
     - Évaluation et notation 100% côté serveur.
     """
-    quiz = get_object_or_404(Quiz.objects.select_related('lesson__module__course'), id=quiz_id)
-    course = quiz.lesson.module.course
+    live_quiz = get_object_or_404(Quiz.objects.select_related('lesson__module__course'), id=quiz_id)
+    course = live_quiz.lesson.module.course
 
     # Recherche d'une inscription active ou complétée
-    enrollment = Enrollment.objects.filter(
-        user=request.user,
-        course=course,
-        status__in=[Enrollment.Status.ACTIVE, Enrollment.Status.COMPLETED]
-    ).first()
+    enrollment = get_active_enrollment(request.user, course)
 
     # Gestion des utilisateurs non encore inscrits
     if not enrollment:
-        # 1. Formation gratuite : inscription automatique directe et sécurisée
-        if course.is_free or course.price == 0:
-            enrollment, _ = enroll_student_in_course(
-                request.user,
-                course,
-                source=Enrollment.Source.FREE
-            )
-            logger.info(
-                f"Inscription gratuite créée lors de la soumission du quiz pour {request.user.username} sur « {course.title} »"
-            )
+        try:
+            # 1. Formation gratuite : inscription automatique directe et sécurisée
+            if course.is_free or course.price == 0:
+                enrollment, _ = enroll_student_in_course(request.user, course, source=Enrollment.Source.FREE)
+                logger.info(
+                    f"Inscription gratuite créée lors de la soumission du quiz pour {request.user.username} sur « {course.title} »"
+                )
+            # 2. Staff / Superuser ou formateur du cours : inscription administrative de test
+            elif request.user.is_staff or request.user.is_superuser or course.instructor_id == request.user.id:
+                enrollment, _ = enroll_student_in_course(request.user, course, source=Enrollment.Source.MANUAL_ADMIN)
+                logger.info(
+                    f"Inscription administrative de test créée pour {request.user.username} sur « {course.title} »"
+                )
+            # 3. Utilisateur non inscrit sur formation payante : refus sécurisé et redirection
+            else:
+                messages.warning(
+                    request,
+                    f"Vous devez acquérir la formation « {course.title} » pour pouvoir participer à ce quiz d'évaluation."
+                )
+                return redirect('courses:buy_course', slug=course.slug)
+        except AccessGrantError:
+            messages.error(request, "Cette formation n'est pas encore disponible.")
+            return redirect('courses:course_detail', slug=course.slug)
+        enrollment = get_active_enrollment(request.user, course)
 
-        # 2. Staff / Superuser ou formateur du cours : inscription administrative de test
-        elif request.user.is_staff or request.user.is_superuser or course.instructor_id == request.user.id:
-            enrollment, _ = enroll_student_in_course(
-                request.user,
-                course,
-                source=Enrollment.Source.MANUAL_ADMIN
-            )
-            logger.info(
-                f"Inscription administrative de test créée pour {request.user.username} sur « {course.title} »"
-            )
+    # Le quiz évalué est celui de la révision suivie, jamais celui de la copie de travail.
+    content = enrollment.get_content()
+    quiz = content.get_quiz(live_quiz.id) if content is not None else None
+    if quiz is None:
+        messages.error(request, "Ce quiz ne fait pas partie de la version de la formation qui vous est attribuée.")
+        return redirect('courses:course_detail', slug=course.slug)
 
-        # 3. Utilisateur non inscrit sur formation payante : refus sécurisé et redirection
-        else:
-            messages.warning(
-                request,
-                f"Vous devez acquérir la formation « {course.title} » pour pouvoir participer à ce quiz d'évaluation."
-            )
-            return redirect('courses:buy_course', slug=course.slug)
-
-    # Vérification de la limite de tentatives si configurée
+    # Vérification de la limite de tentatives si configurée (règle de la révision suivie)
     if quiz.max_attempts > 0:
-        past_attempts = enrollment.quiz_attempts.filter(quiz=quiz).count()
+        past_attempts = enrollment.quiz_attempts.filter(quiz_id=quiz.id).count()
         if past_attempts >= quiz.max_attempts:
             messages.error(request, f"Vous avez atteint la limite maximale de {quiz.max_attempts} tentative(s) pour ce quiz.")
             return redirect(quiz.lesson.get_absolute_url())
 
     # Extraction des réponses du formulaire POST
     user_answers = {}
-    for question in quiz.questions.all():
+    for question in quiz.questions:
         field_name = f"question_{question.id}"
-        if question.question_type == question.QuestionType.SINGLE:
+        if question.question_type == 'single':
             val = request.POST.get(field_name)
             if val:
                 user_answers[str(question.id)] = val
@@ -557,3 +560,37 @@ def verify_certificate(request, code):
     }
     return render(request, 'courses/verify_certificate.html', context)
 
+
+
+@login_required
+def quiz_attempt_detail(request, attempt_id):
+    """
+    Consultation d'une tentative passée, restituée depuis son contexte figé :
+    questions présentées, réponses choisies, bonnes réponses au moment de l'évaluation.
+    Les tentatives historiques (antérieures au versionnement) n'affichent que le score.
+    """
+    attempt = get_object_or_404(
+        QuizAttempt.objects.select_related('enrollment__user', 'enrollment__course', 'quiz', 'revision'),
+        id=attempt_id,
+    )
+    if attempt.enrollment.user_id != request.user.id and not request.user.is_staff:
+        raise Http404("Tentative introuvable.")
+
+    questions = []
+    if attempt.attempt_snapshot:
+        for q in attempt.attempt_snapshot.get('questions', []):
+            selected = set(q.get('selected_option_ids', []))
+            correct = set(q.get('correct_option_ids', []))
+            options = [
+                dict(o, selected=o['id'] in selected, correct=o['id'] in correct)
+                for o in q.get('options', [])
+            ]
+            questions.append(dict(q, options=options))
+
+    context = {
+        'attempt': attempt,
+        'course': attempt.enrollment.course,
+        'questions': questions,
+        'snapshot': attempt.attempt_snapshot or {},
+    }
+    return render(request, 'courses/quiz_attempt_detail.html', context)

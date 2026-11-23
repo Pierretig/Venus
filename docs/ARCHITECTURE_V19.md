@@ -1,3 +1,5 @@
+> **Document remplacé (2026-11-23)** — contient des affirmations non vérifiées ou contraires au code. Références à jour : `docs/ARCHITECTURE_LMS.md`, `docs/PAYMENT_AND_OUTBOX.md`, `docs/DATABASE_MIGRATION_PLAN.md`, `docs/TESTING_STRATEGY.md`, `docs/IMPLEMENTATION_REPORT.md`.
+
 # ARCHITECTURE_V19.md – Architecture cible consolidée (Venus Luna)
 
 ---

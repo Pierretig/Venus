@@ -451,7 +451,8 @@ class CashpayPaymentStatusEndpointTests(TestCase):
         url = reverse('orders:cashpay_payment_status', kwargs={'order_id': self.order_pending.id}) + f"?token={token}"
         
         with patch('apps.orders.cashpay_service.CashPayService.get_order_status') as mock_status:
-            mock_status.return_value = {'state': 'Paid'}
+            # Réponse GET /orders/{reference} (doc CashPay V3.1) : billed_amount = total, amount = reste dû.
+            mock_status.return_value = {'state': 'Paid', 'billed_amount': 4500, 'amount': 0, 'currency': 'XOF'}
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
             data = response.json()
@@ -620,6 +621,9 @@ class CashPayAtomicPaymentTests(TransactionTestCase):
             title='Formation Énergétique Test',
             description='Formation complète en ligne',
         )
+        # Versionnement : une formation n'est vendable qu'avec une révision publiée.
+        from apps.courses.testing import publish_working_copy
+        self.course_revision = publish_working_copy(self.course)
 
     def _create_order(self, products_with_qty=None, course=None):
         from apps.orders.models import OrderItem

@@ -2,7 +2,7 @@ import json
 import logging
 import hmac
 import hashlib
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -438,6 +438,74 @@ def cashpay_payment_page(request, order_id):
     })
 
 
+
+# =====================================================
+# VÉRIFICATION DES PAIEMENTS PRESTATAIRE (CASHPAY)
+# =====================================================
+
+def _int_or_none(value):
+    if value is None or value == '':
+        return None
+    try:
+        return Decimal(str(value).strip())
+    except Exception:
+        return None
+
+
+def _verify_paid_with_cashpay_api(order, cashpay_order_ref, channel):
+    """
+    Interroge GET /orders/{reference} (source faisant autorité) et vérifie l'état « Paid »,
+    le montant facturé (``billed_amount`` = total ; ``amount`` = reste dû sur cet endpoint,
+    cf. documentation CashPay V3.1) et la devise. Retourne (statut, montant, devise) où
+    statut ∈ {'paid', 'pending', 'failed', 'expired', 'provider_state', 'unverified'}.
+    """
+    from .cashpay_service import CashPayService
+    from .payment_processing import record_reconciliation
+    from .models import PaymentReconciliation
+
+    api_data = CashPayService().get_order_status(cashpay_order_ref)
+    api_state = api_data.get('state', '')
+    logger.info("CashPay API (%s) commande #%s : état=%s", channel, order.id, api_state)
+
+    if api_state in ('Canceled', 'Error'):
+        return 'failed', None, None
+    if api_state == 'Expired':
+        return 'expired', None, None
+    if api_state in ('Partial', 'Excess', 'Reviewed', 'Refunded', 'Partial Refunded', 'Excess Refunded'):
+        record_reconciliation(order.id, PaymentReconciliation.Kind.PROVIDER_STATE,
+                              provider_reference=cashpay_order_ref,
+                              details={'channel': channel, 'state': api_state})
+        return 'provider_state', None, None
+    if api_state != 'Paid':
+        return 'pending', None, None
+
+    billed = _int_or_none(api_data.get('billed_amount'))
+    remaining = _int_or_none(api_data.get('amount'))
+    currency = api_data.get('currency') or 'XOF'
+    if billed is None or (remaining is not None and remaining != 0):
+        record_reconciliation(order.id, PaymentReconciliation.Kind.AMOUNT_UNVERIFIED,
+                              provider_reference=cashpay_order_ref,
+                              details={'channel': channel, 'billed_amount': str(billed), 'remaining': str(remaining)})
+        return 'unverified', None, None
+    return 'paid', billed, currency
+
+
+def _cashpay_fallback_check(order, cashpay_order_ref, channel):
+    """Repli par interrogation de l'API lorsque le webhook n'est pas encore arrivé."""
+    from .payment_processing import confirm_provider_payment
+
+    status, billed, currency = _verify_paid_with_cashpay_api(order, cashpay_order_ref, channel)
+    if status == 'paid':
+        ok, _reason = confirm_provider_payment(
+            order.id, provider_reference=cashpay_order_ref, amount=billed, currency=currency, channel=channel,
+        )
+        return 'paid' if ok else 'pending'
+    if status == 'failed':
+        # Mise à jour conditionnelle : n'écrase jamais une commande confirmée entre-temps.
+        Order.objects.filter(pk=order.pk, status='pending', payment_status=False).update(status='cancelled')
+    return status
+
+
 def cashpay_payment_status(request, order_id):
     """
     Endpoint JSON de statut de commande pour le polling frontend Venus Luna.
@@ -476,31 +544,17 @@ def cashpay_payment_status(request, order_id):
         cashpay_order_ref = request.session.get('cashpay_order_ref', '') or order.paygate_tx_id or ''
         if cashpay_order_ref:
             try:
-                from .cashpay_service import CashPayService
-                cashpay = CashPayService()
-                api_data = cashpay.get_order_status(cashpay_order_ref)
-                api_state = api_data.get('state', '')
-                logger.info(
-                    f"CashPay API status check pour commande #{order.id} "
-                    f"(ref={cashpay_order_ref}) : état={api_state}"
-                )
-                if api_state == 'Paid':
-                    from .payment_processing import confirm_order_payment
-                    confirm_order_payment(
-                        order_id=order.id,
-                        transaction_ref=cashpay_order_ref,
-                    )
-                    return JsonResponse({
-                        'status': 'paid',
-                        'redirect_url': return_url
-                    })
-                elif api_state in ('Canceled', 'Error'):
-                    order.status = 'cancelled'
-                    order.save(update_fields=['status'])
+                result = _cashpay_fallback_check(order, cashpay_order_ref, channel='status_polling')
+                if result == 'paid':
+                    return JsonResponse({'status': 'paid', 'redirect_url': return_url})
+                if result == 'failed':
                     return JsonResponse({'status': 'failed'})
-                elif api_state == 'Expired':
+                if result == 'expired':
                     return JsonResponse({'status': 'expired'})
             except Exception as e:
+                # Erreur réseau / API : la commande reste en attente, le webhook ou le
+                # polling suivant prendra le relais ; un échec de confirmation interne
+                # a déjà été consigné en réconciliation par confirm_provider_payment.
                 logger.warning(f"CashPay API status check échoué pour #{order.id} : {e}")
 
     # 3. Rechargement BDD après éventuel fallback
@@ -555,27 +609,9 @@ def cashpay_return(request, order_id):
         cashpay_order_ref = request.session.get('cashpay_order_ref', '') or order.paygate_tx_id or ''
         if cashpay_order_ref:
             try:
-                from .cashpay_service import CashPayService
-                cashpay = CashPayService()
-                api_data = cashpay.get_order_status(cashpay_order_ref)
-                api_state = api_data.get('state', '')
-                logger.info(
-                    f"CashPay API fallback pour commande #{order.id} "
-                    f"(ref={cashpay_order_ref}) : état={api_state}"
-                )
-                # Si l'API confirme le paiement, on confirme via le service centralisé
-                # (le webhook devrait arriver aussi, mais on ne l'attend pas)
-                if api_state == 'Paid':
-                    from .payment_processing import confirm_order_payment
-                    confirm_order_payment(
-                        order_id=order.id,
-                        transaction_ref=cashpay_order_ref,
-                    )
-                    logger.info(
-                        f"Commande #{order.id} confirmée via API CashPay fallback (ref={cashpay_order_ref})"
-                    )
+                _cashpay_fallback_check(order, cashpay_order_ref, channel='return_page')
             except Exception as api_err:
-                # Le fallback API a échoué (réseau, auth, etc.) : on continue sans planter
+                # Le fallback API a échoué (réseau, auth, etc.) : la page d'attente reste affichée.
                 logger.warning(f"CashPay API fallback échoué pour #{order.id} : {api_err}")
 
     # Rechargement depuis la BDD après le fallback éventuel
@@ -633,8 +669,7 @@ def cashpay_webhook(request):
         token = data.get('token') or data.get('Token') or data.get('jwt')
         if not token:
             logger.error(
-                f"CashPay webhook: token manquant. Payload keys={list(data.keys()) if isinstance(data, dict) else type(data)} "
-                f"payload={payload[:500] if payload else b''}"
+                f"CashPay webhook: token manquant. Payload keys={list(data.keys()) if isinstance(data, dict) else type(data)}"
             )
             return HttpResponse(status=400)
 
@@ -655,64 +690,59 @@ def cashpay_webhook(request):
         merchant_reference = decoded_payload.get('merchant_reference')
         state = decoded_payload.get('state')
 
-        # Tentative de récupération de l'Order via merchant_reference (qui on a mis = order.id)
+        # merchant_reference = identifiant de commande Venus Luna (fixé à la création du lien).
+        # À défaut, la référence CashPay enregistrée à la création (paygate_tx_id).
         order = None
-        order_id = None
-        for candidate in (merchant_reference, order_reference):
-            if candidate is None:
-                continue
-            # candidate peut être string/num
-            s = str(candidate)
-            if s.isdigit():
-                order_id = int(s)
-                break
-
-        if order_id is not None:
-            try:
-                order = Order.objects.get(id=order_id)
-            except Order.DoesNotExist:
-                order = None
-
+        if merchant_reference is not None and str(merchant_reference).strip().isdigit():
+            order = Order.objects.filter(id=int(str(merchant_reference).strip())).first()
+        elif order_reference:
+            order = Order.objects.filter(paygate_tx_id=str(order_reference).strip()[:100]).first()
         if not order:
             return HttpResponse(status=404)
 
-        # Vérification du montant payé si transmis dans le payload
-        payload_amount = decoded_payload.get('amount')
-        currency = decoded_payload.get('currency')
-        if payload_amount is not None:
-            try:
-                parsed_amount = Decimal(str(payload_amount).strip())
-                if parsed_amount < order.total:
-                    logger.error(
-                        f"CashPay webhook: Montant insuffisant pour la commande #{order.id}. "
-                        f"Reçu: {payload_amount}, Attendu: {order.total}"
-                    )
-                    return HttpResponse("Montant incohérent", status=400)
-            except Exception as amount_err:
-                logger.warning(f"CashPay webhook: Erreur lors de la comparaison de montant : {amount_err}")
-                return HttpResponse("Format de montant invalide", status=400)
+        from .payment_processing import confirm_provider_payment, record_reconciliation
+        from .models import PaymentReconciliation
+
+        if state in ('Partial', 'Excess'):
+            record_reconciliation(order.id, PaymentReconciliation.Kind.PROVIDER_STATE,
+                                  provider_reference=order_reference or '',
+                                  details={'channel': 'webhook', 'state': state})
+            return JsonResponse({'received': True})
 
         # CashPay bill states: Paid / Partial / Excess / Pending...
         if state == 'Paid':
-            from .payment_processing import (
-                confirm_order_payment, InvalidPaymentAmountError, PaymentProcessingError
+            currency = decoded_payload.get('currency')
+            billed = _int_or_none(decoded_payload.get('billed_amount'))
+            amount = _int_or_none(decoded_payload.get('amount'))
+            if billed is None and amount is not None and amount == order.total:
+                billed = amount
+            if billed is None:
+                # Montant absent ou de sémantique ambiguë (``amount`` = reste dû sur certains
+                # endpoints) : vérification auprès de l'API CashPay avant toute confirmation.
+                ref = order_reference or order.paygate_tx_id
+                api_status = None
+                if ref:
+                    try:
+                        api_status, billed, api_currency = _verify_paid_with_cashpay_api(order, ref, 'webhook')
+                        currency = currency or api_currency
+                    except Exception as api_err:
+                        logger.warning(f"CashPay webhook #{order.id}: vérification API impossible : {api_err}")
+                if api_status != 'paid' or billed is None:
+                    record_reconciliation(order.id, PaymentReconciliation.Kind.AMOUNT_UNVERIFIED,
+                                          provider_reference=order_reference or '',
+                                          details={'channel': 'webhook', 'amount': str(amount),
+                                                   'api_status': api_status})
+                    return HttpResponse("Montant non vérifiable", status=400)
+
+            ok, reason = confirm_provider_payment(
+                order.id,
+                provider_reference=order_reference or merchant_reference,
+                amount=billed,
+                currency=currency,
+                channel='webhook',
             )
-            try:
-                confirm_order_payment(
-                    order_id=order.id,
-                    transaction_ref=order_reference or merchant_reference,
-                    amount_received=payload_amount,
-                    currency=currency,
-                )
-            except InvalidPaymentAmountError as err:
-                logger.error(f"CashPay webhook rejeté pour #{order.id}: {err}")
+            if not ok and reason == 'amount_mismatch':
                 return HttpResponse("Montant incohérent", status=400)
-            except PaymentProcessingError as err:
-                logger.error(f"CashPay webhook rejeté pour #{order.id}: {err}")
-                return HttpResponse(f"Erreur de traitement: {err}", status=400)
-            except ValueError as err:
-                logger.error(f"CashPay webhook rejeté pour #{order.id}: {err}")
-                return HttpResponse("Données de paiement invalides", status=400)
 
         return JsonResponse({'received': True})
 

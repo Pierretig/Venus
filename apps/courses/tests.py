@@ -122,6 +122,11 @@ class LMSTestCase(TestCase):
         self.opt_1_wrong = QuizAnswerOption.objects.create(question=self.q1, option_text="Obsidienne noire", is_correct=False, order=0)
         self.opt_1_correct = QuizAnswerOption.objects.create(question=self.q1, option_text="Quartz rose", is_correct=True, order=1)
 
+        # Versionnement : les apprenants ne voient que la révision publiée.
+        from apps.courses.testing import publish_working_copy
+        self.paid_revision = publish_working_copy(self.paid_course)
+        self.free_revision = publish_working_copy(self.free_course)
+
     # 1. Création et publication d'une formation
     def test_course_creation_and_properties(self):
         self.assertEqual(self.paid_course.total_lessons_count, 3)

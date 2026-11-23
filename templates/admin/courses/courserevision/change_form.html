@@ -1,0 +1,10 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools-items %}
+{{ block.super }}
+{% for action, label in workflow_buttons %}
+<li>
+    <a href="{% url 'admin:courses_courserevision_workflow' original.pk action %}" class="historylink">{{ label }}</a>
+</li>
+{% endfor %}
+{% endblock %}

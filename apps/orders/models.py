@@ -39,6 +39,9 @@ class Order(models.Model):
     
     receipt = models.FileField("Reçu PDF", upload_to='receipts/%Y/%m/%d/', blank=True, null=True)
     stock_updated = models.BooleanField("Stock mis à jour", default=False, editable=False)
+    # Date de la première confirmation interne valide du paiement. Renseignée une seule
+    # fois (jamais auto_now) ; NULL pour les commandes antérieures (date inconnue, non inventée).
+    paid_at = models.DateTimeField("Payée le", null=True, blank=True, editable=False)
 
     class Meta:
         verbose_name = "Commande"
@@ -136,6 +139,8 @@ class OutboxEvent(models.Model):
     course = models.ForeignKey('courses.Course', null=True, blank=True, on_delete=models.SET_NULL)
     payload = models.JSONField(default=dict, blank=True)
     idempotency_key = models.CharField(max_length=255)
+    # Jeton de lease : seul le worker qui détient ce jeton peut clore l'événement.
+    lease_token = models.UUIDField(null=True, blank=True, editable=False)
 
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
     attempts = models.PositiveIntegerField(default=0)
@@ -160,3 +165,97 @@ class OutboxEvent(models.Model):
     def __str__(self):
         return f"OutboxEvent {self.id} – {self.get_event_type_display()} ({self.status})"
 
+
+
+# -----------------------------------------------------------------------------
+# Capture de la révision achetée et réconciliation des paiements
+# -----------------------------------------------------------------------------
+
+class PaymentRevisionLink(models.Model):
+    """
+    Révision pédagogique exacte capturée pour une ligne de formation achetée, lue dans
+    Course.published_revision sous verrou au moment de la première confirmation valide.
+    Une ligne d'achat ne peut être liée qu'à une seule révision (OneToOne).
+    """
+
+    class Source(models.TextChoices):
+        PAYMENT_CONFIRMATION = 'payment_confirmation', 'Confirmation du paiement'
+        ADMIN_FULFILLMENT = 'admin_fulfillment', 'Traitement administratif de la commande'
+        RECONCILIATION = 'reconciliation', 'Réconciliation manuelle'
+
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name='revision_links', verbose_name="Commande")
+    order_item = models.OneToOneField(OrderItem, on_delete=models.PROTECT, related_name='revision_link', verbose_name="Ligne de commande")
+    # Copie figée de la formation : OrderItem.course est SET_NULL et modifiable, le lien ne l'est pas.
+    course = models.ForeignKey('courses.Course', on_delete=models.PROTECT, related_name='payment_revision_links', verbose_name="Formation")
+    course_revision = models.ForeignKey('courses.CourseRevision', on_delete=models.PROTECT, related_name='payment_links', verbose_name="Révision achetée")
+    source = models.CharField("Provenance", max_length=30, choices=Source.choices)
+    captured_at = models.DateTimeField("Capturée le", default=timezone.now)
+    captured_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name="Capturée par",
+    )
+
+    class Meta:
+        verbose_name = "Révision achetée"
+        verbose_name_plural = "Révisions achetées"
+        ordering = ['-captured_at']
+
+    def __str__(self):
+        return f"Commande #{self.order_id} · ligne #{self.order_item_id} → révision #{self.course_revision_id}"
+
+
+class PaymentReconciliation(models.Model):
+    """
+    Incident de paiement nécessitant une intervention : le prestataire a (peut-être)
+    encaissé, mais la confirmation interne n'a pas pu être menée à son terme.
+    Un rollback SQL n'annule jamais un paiement externe : ces enregistrements sont créés
+    hors de la transaction qui a échoué.
+    """
+
+    class Kind(models.TextChoices):
+        CONFIRMATION_FAILED = 'confirmation_failed', 'Paiement externe accepté, confirmation interne échouée'
+        AMOUNT_MISMATCH = 'amount_mismatch', 'Montant ou devise incohérents'
+        AMOUNT_UNVERIFIED = 'amount_unverified', 'Montant non vérifiable'
+        PROVIDER_STATE = 'provider_state', 'État prestataire à traiter (Partial, Excess…)'
+        PAID_ON_CLOSED_ORDER = 'paid_on_closed_order', 'Paiement reçu sur une commande annulée/remboursée'
+        NO_PUBLISHED_REVISION = 'no_published_revision', 'Formation achetée sans révision publiée'
+        DUPLICATE_PURCHASE = 'duplicate_purchase', "Formation achetée alors qu'un accès actif existait"
+
+    class Status(models.TextChoices):
+        OPEN = 'open', 'À traiter'
+        RESOLVED = 'resolved', 'Résolu'
+
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name='reconciliations', verbose_name="Commande")
+    order_item = models.ForeignKey(
+        OrderItem, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='reconciliations', verbose_name="Ligne de commande",
+    )
+    kind = models.CharField("Type", max_length=30, choices=Kind.choices)
+    status = models.CharField("Statut", max_length=10, choices=Status.choices, default=Status.OPEN)
+    # Clé de déduplication : une notification répétée ne crée pas de doublon tant que l'incident est ouvert.
+    dedup_key = models.CharField(max_length=120, editable=False)
+    provider_reference = models.CharField("Référence prestataire", max_length=100, blank=True)
+    details = models.JSONField("Détails techniques", default=dict, blank=True)
+    occurrences = models.PositiveIntegerField("Occurrences", default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(default=timezone.now)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name="Résolu par",
+    )
+    resolution_note = models.TextField("Note de résolution", blank=True)
+
+    class Meta:
+        verbose_name = "Réconciliation de paiement"
+        verbose_name_plural = "Réconciliations de paiement"
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['dedup_key'], condition=models.Q(status='open'),
+                name='uniq_reconciliation_open_dedup',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} — commande #{self.order_id} ({self.get_status_display()})"
