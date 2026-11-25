@@ -8,14 +8,13 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse, Http404
+from django.db import transaction
 from django.db.models import Count, Q, Avg
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from django.core import signing
 
 from apps.core.ratelimit import ratelimit
 from apps.orders.models import Order, OrderItem, ShippingAddress
-from apps.orders.cashpay_service import CashPayService
 
 from .models import (
     CourseCategory, Course, CourseModule, Lesson,
@@ -157,93 +156,65 @@ def buy_course(request, slug):
         return redirect('courses:course_detail', slug=course.slug)
 
     try:
-        # Création de la commande numérique
-        order = Order.objects.create(
-            user=request.user,
-            email=request.user.email or f"{request.user.username}@client.venus-luna.com",
-            status='pending',
-            payment_status=False,
-            shipping_price=Decimal("0"),
-            notes=f"Achat formation numérique : {course.title}",
-        )
-
-        OrderItem.objects.create(
-            order=order,
-            course=course,
-            product=None,
-            name=f"Formation : {course.title}",
-            price=course.price,
-            quantity=1,
-        )
-
-        order.recalc_total()
-
-        # Adresse virtuelle pour compatibilité du modèle de commande
+        # Création locale atomique de la commande numérique (aucun appel réseau dans la transaction)
         user_phone = getattr(request.user.profile, 'phone', '') if hasattr(request.user, 'profile') else ''
-        ShippingAddress.objects.create(
-            order=order,
-            full_name=request.user.get_full_name() or request.user.username,
-            phone=user_phone,
-            address="Accès numérique en ligne",
-            city="Lomé",
-            country="Togo",
-        )
+        with transaction.atomic():
+            order = Order.objects.create(
+                user=request.user,
+                email=request.user.email or f"{request.user.username}@client.venus-luna.com",
+                status='pending',
+                payment_status=False,
+                shipping_price=Decimal("0"),
+                notes=f"Achat formation numérique : {course.title}",
+            )
+
+            OrderItem.objects.create(
+                order=order,
+                course=course,
+                product=None,
+                name=f"Formation : {course.title}",
+                price=course.price,
+                quantity=1,
+            )
+
+            order.recalc_total()
+
+            # Adresse virtuelle pour compatibilité du modèle de commande
+            ShippingAddress.objects.create(
+                order=order,
+                full_name=request.user.get_full_name() or request.user.username,
+                phone=user_phone,
+                address="Accès numérique en ligne",
+                city="Lomé",
+                country="Togo",
+            )
 
         request.session['last_order_id'] = order.id
-
-        # Initialisation CashPay
-        cashpay = CashPayService()
-        if not cashpay.is_configured():
-            logger.error("CashPay non configuré lors de l'achat d'une formation.")
-            messages.error(request, "Le service de paiement est temporairement indisponible. Veuillez réessayer plus tard.")
-            order.delete()
-            return redirect('courses:course_detail', slug=course.slug)
-
-        callback_url = getattr(settings, 'CASHPAY_WEBHOOK_URL', None) or request.build_absolute_uri(reverse('orders:cashpay_webhook'))
-        token = signing.dumps(order.id, salt='cashpay-return')
-        redirect_url = request.build_absolute_uri(
-            reverse('orders:cashpay_return', kwargs={'order_id': order.id})
-        ) + f"?token={token}"
-
-        raw_phone = user_phone.strip() if user_phone else ''
-        if raw_phone and not raw_phone.startswith('+'):
-            raw_phone = f"+{raw_phone}"
-
-        resp = cashpay.create_link2pay_order(
-            amount=order.total,
-            currency='XOF',
-            merchant_reference=str(order.id),
-            description=f"Formation Venus Luna : {course.title[:40]}",
-            callback_url=callback_url,
-            phone=raw_phone or "+22890000000",
-            type_notif=["SMS", "MAIL"],
-            redirect_url=redirect_url,
-        )
-
-        payment_url = resp.get('bill_url') or resp.get('payment_url')
-        cashpay_order_ref = resp.get('order_reference', '')
-
-        if not payment_url:
-            raise RuntimeError("CashPay n'a pas retourné d'URL de facture (bill_url).")
-
-        Order.objects.filter(id=order.id).update(
-            payment_url=payment_url,
-            paygate_tx_id=cashpay_order_ref or None
-        )
-
-        request.session['cashpay_bill_url'] = payment_url
-        request.session['cashpay_order_ref'] = cashpay_order_ref
-
-        # Redirection vers la page de paiement relais Venus Luna
-        return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order.id}))
-
     except Exception as e:
-        logger.error(f"Erreur initialisation paiement formation {course.id} : {e}", exc_info=True)
+        logger.error(f"Erreur création commande formation {course.id} : {e}", exc_info=True)
         messages.error(
             request,
-            "Une erreur est survenue lors de l'initialisation du paiement. Veuillez réessayer dans quelques instants."
+            "Une erreur est survenue lors de l'enregistrement de votre commande. Veuillez réessayer dans quelques instants."
         )
         return redirect('courses:course_detail', slug=course.slug)
+
+    # Initialisation CashPay hors transaction DB (harmonisée avec orders.views._initialize_cashpay_for_order)
+    from apps.orders.views import _initialize_cashpay_for_order
+    try:
+        _initialize_cashpay_for_order(
+            request,
+            order,
+            description=f"Formation Venus Luna : {course.title[:40]}",
+        )
+    except Exception as e:
+        logger.error(f"Erreur initialisation paiement formation {course.id} (commande #{order.id}) : {e}", exc_info=True)
+        messages.warning(
+            request,
+            "Votre commande a bien été enregistrée, mais la connexion à CashPay a échoué temporairement. "
+            "Vous pouvez suivre ou finaliser le paiement ci-dessous."
+        )
+
+    return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order.id}))
 
 
 @login_required

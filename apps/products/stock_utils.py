@@ -109,7 +109,8 @@ def sync_reservations_from_cart(session_key, cart_items):
     current_product_ids = set()
 
     with transaction.atomic():
-        for item in cart_items:
+        # Verrouillage déterministe par product_id croissant pour éviter les deadlocks
+        for item in sorted(cart_items, key=lambda it: it['product'].pk):
             product = item['product']
             qty = max(1, int(item['quantity']))
             current_product_ids.add(product.pk)

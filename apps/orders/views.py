@@ -27,6 +27,7 @@ from apps.products.stock_utils import (
     get_available_stock, reserve_stock, release_reservation_session,
     sync_reservations_from_cart, is_cart_available,
 )
+from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -251,6 +252,103 @@ def _get_checkout_initial(user):
     return initial
 
 
+class _CashPayNotConfiguredError(RuntimeError):
+    """Levée lorsque CashPay n'est pas configuré (aucune requête réseau émise)."""
+    pass
+
+
+def _initialize_cashpay_for_order(request, order, description=None):
+    """
+    Initialise le lien de paiement CashPay pour une commande en attente.
+    Ne doit jamais être appelée à l'intérieur d'une transaction DB ouverte,
+    ni écraser une référence existante ou modifier une commande déjà payée.
+    """
+    if order.payment_status or order.status != 'pending':
+        return order.payment_url or ''
+
+    if order.paygate_tx_id:
+        return order.payment_url or ''
+
+    callback_url = getattr(settings, 'CASHPAY_WEBHOOK_URL', None) or request.build_absolute_uri(
+        reverse('orders:cashpay_webhook')
+    )
+
+    # Token signé pour authentifier le retour CashPay de manière infaillible
+    from django.core import signing
+    token = signing.dumps(order.id, salt='cashpay-return')
+    redirect_url = request.build_absolute_uri(
+        reverse('orders:cashpay_return', kwargs={'order_id': order.id})
+    ) + f"?token={token}"
+
+    from .cashpay_service import CashPayService
+    from .payment_processing import record_reconciliation
+    from .models import PaymentReconciliation
+
+    cashpay = CashPayService()
+    if not cashpay.is_configured():
+        raise _CashPayNotConfiguredError("CashPay n'est pas configuré (CASHPAY_* manquantes).")
+
+    # S'assurer que le numéro de téléphone commence par '+'
+    raw_phone = (order.shipping_address.phone if hasattr(order, 'shipping_address') else '') or ''
+    phone_formatted = raw_phone.strip()
+    if phone_formatted and not phone_formatted.startswith('+'):
+        phone_formatted = f"+{phone_formatted}"
+
+    try:
+        resp = cashpay.create_link2pay_order(
+            amount=order.total,
+            currency='XOF',
+            merchant_reference=str(order.id),
+            description=description or f"Commande #{order.id} Venus Luna",
+            callback_url=callback_url,
+            phone=phone_formatted or "+22890000000",
+            type_notif=["SMS", "MAIL"],
+            redirect_url=redirect_url,
+        )
+    except Exception as exc:
+        # Un timeout ou une erreur réseau ne prouve pas que CashPay n'a pas créé la transaction.
+        record_reconciliation(
+            order.id,
+            PaymentReconciliation.Kind.PROVIDER_STATE,
+            provider_reference=order.paygate_tx_id or '',
+            details={'channel': 'cashpay_init', 'uncertain': True, 'error': str(exc)},
+        )
+        raise
+
+    # bill_url : URL de la facture CashPay
+    # order_reference : référence interne CashPay (pour le polling API fallback)
+    payment_url = resp.get('bill_url') or resp.get('payment_url')
+    cashpay_order_ref = resp.get('order_reference', '') or None
+
+    if not payment_url:
+        if cashpay_order_ref:
+            Order.objects.filter(
+                id=order.id, payment_status=False, status='pending', paygate_tx_id__isnull=True
+            ).update(paygate_tx_id=cashpay_order_ref)
+        record_reconciliation(
+            order.id,
+            PaymentReconciliation.Kind.PROVIDER_STATE,
+            provider_reference=cashpay_order_ref or '',
+            details={'channel': 'cashpay_init', 'uncertain': True, 'error': 'bill_url manquant'},
+        )
+        raise RuntimeError("CashPay n'a pas retourné de bill_url dans la réponse.")
+
+    if cashpay_order_ref:
+        Order.objects.filter(
+            id=order.id, payment_status=False, status='pending', paygate_tx_id__isnull=True
+        ).update(payment_url=payment_url, paygate_tx_id=cashpay_order_ref)
+    Order.objects.filter(
+        id=order.id, payment_status=False, status='pending', payment_url__isnull=True
+    ).update(payment_url=payment_url)
+
+    send_order_pending_payment_email(order, payment_url)
+
+    # Mémoriser en session pour la page relay
+    request.session['cashpay_bill_url'] = payment_url
+    request.session['cashpay_order_ref'] = cashpay_order_ref or ''
+    return payment_url
+
+
 @ratelimit(rate='10/m', key='ip', block=True, redirect_url='orders:cart_detail', error_message="Trop de tentatives de commande. Veuillez patienter une minute.")
 def checkout(request):
     items, total = get_cart_data(request)
@@ -272,114 +370,94 @@ def checkout(request):
     if request.method == 'POST':
         form = CheckoutForm(request.POST)
         if form.is_valid():
+            zone_id = request.POST.get('shipping_zone')
+            shipping_price = Decimal("0")
+            if zone_id:
+                try:
+                    zone = ShippingZone.objects.get(pk=zone_id)
+                    shipping_price = zone.price
+                except (ShippingZone.DoesNotExist, ValueError):
+                    shipping_price = Decimal("0")
+
+            expected_total = total + shipping_price
+            if expected_total < 200:
+                messages.error(request, f"Le montant ({expected_total} F) est trop bas.")
+                return redirect('orders:cart_detail')
+
+            order = None
             try:
-                zone_id = request.POST.get('shipping_zone')
-                shipping_price = Decimal("0")
-                if zone_id:
-                    try:
-                        zone = ShippingZone.objects.get(pk=zone_id)
-                        shipping_price = zone.price
-                    except (ShippingZone.DoesNotExist, ValueError):
-                        shipping_price = Decimal("0")
+                # Écritures locales atomiques uniquement (aucun appel réseau dans la transaction)
+                with transaction.atomic():
+                    if request.session.session_key:
+                        if not sync_reservations_from_cart(request.session.session_key, items):
+                            raise ValueError("stock_unavailable")
 
-                order = Order.objects.create(
-                    user=request.user if request.user.is_authenticated else None,
-                    email=form.cleaned_data['email'],
-                    shipping_price=shipping_price,
-                    status='pending',
-                    payment_status=False
-                )
-
-                for item in items:
-                    OrderItem.objects.create(
-                        order=order,
-                        product=item['product'],
-                        name=item['product'].name,
-                        price=item['product'].price,
-                        quantity=item['quantity']
+                    order = Order.objects.create(
+                        user=request.user if request.user.is_authenticated else None,
+                        email=form.cleaned_data['email'],
+                        shipping_price=shipping_price,
+                        status='pending',
+                        payment_status=False
                     )
 
-                order.recalc_total()
-                total_final = order.total
+                    for item in items:
+                        OrderItem.objects.create(
+                            order=order,
+                            product=item['product'],
+                            name=item['product'].name,
+                            price=item['product'].price,
+                            quantity=item['quantity']
+                        )
 
-                ShippingAddress.objects.create(
-                    order=order,
-                    full_name=form.cleaned_data['full_name'],
-                    address=form.cleaned_data['address'],
-                    phone=form.cleaned_data.get('phone', ''),
-                    city=form.cleaned_data.get('city', 'Lomé'),
-                    country=form.cleaned_data.get('country', 'Togo')
-                )
+                    order.recalc_total()
+                    if order.total < 200:
+                        raise ValueError("amount_too_low")
 
-                # Mémoriser l'ID de la commande en session pour permettre l'accès légitime aux invités
-                request.session['last_order_id'] = order.id
-
-                if total_final < 200:
-                    messages.error(request, f"Le montant ({total_final} F) est trop bas.")
-                    order.delete()
-                    return redirect('orders:cart_detail')
-
-                callback_url = getattr(settings, 'CASHPAY_WEBHOOK_URL', None) or request.build_absolute_uri(reverse('orders:cashpay_webhook'))
-
-                # Token signé pour authentifier le retour CashPay de manière infaillible
-                from django.core import signing
-                token = signing.dumps(order.id, salt='cashpay-return')
-                redirect_url = request.build_absolute_uri(
-                    reverse('orders:cashpay_return', kwargs={'order_id': order.id})
-                ) + f"?token={token}"
-
-                # --- CashPay: Link2Pay ---
-                from .cashpay_service import CashPayService
-
-                cashpay = CashPayService()
-                if not cashpay.is_configured():
-                    raise RuntimeError("CashPay n'est pas configuré (CASHPAY_* manquantes).")
-
-                # S'assurer que le numéro de téléphone commence par '+'
-                raw_phone = (order.shipping_address.phone if hasattr(order, 'shipping_address') else '') or ''
-                phone_formatted = raw_phone.strip()
-                if phone_formatted and not phone_formatted.startswith('+'):
-                    phone_formatted = f"+{phone_formatted}"
-
-                resp = cashpay.create_link2pay_order(
-                    amount=order.total,
-                    currency='XOF',
-                    merchant_reference=str(order.id),
-                    description=f"Commande #{order.id} Venus Luna",
-                    callback_url=callback_url,
-                    phone=phone_formatted,
-                    type_notif=["SMS", "MAIL"],
-                    redirect_url=redirect_url,
-                )
-
-                # bill_url : URL de la facture CashPay
-                # order_reference : référence interne CashPay (pour le polling API fallback)
-                payment_url = resp.get('bill_url') or resp.get('payment_url')
-                cashpay_order_ref = resp.get('order_reference', '')
-
-                if not payment_url:
-                    raise RuntimeError("CashPay n'a pas retourné de bill_url dans la réponse.")
-
-                Order.objects.filter(id=order.id).update(
-                    payment_url=payment_url,
-                    paygate_tx_id=cashpay_order_ref or None
-                )
-                send_order_pending_payment_email(order, payment_url)
-
-                # Mémoriser en session pour la page relay
-                request.session['cashpay_bill_url'] = payment_url
-                request.session['cashpay_order_ref'] = cashpay_order_ref
-
-                # Redirection vers la page de paiement Venus Luna (l'onglet principal restant ouvert)
-                return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order.id}))
-
+                    ShippingAddress.objects.create(
+                        order=order,
+                        full_name=form.cleaned_data['full_name'],
+                        address=form.cleaned_data['address'],
+                        phone=form.cleaned_data.get('phone', ''),
+                        city=form.cleaned_data.get('city', 'Lomé'),
+                        country=form.cleaned_data.get('country', 'Togo')
+                    )
+            except ValueError as val_err:
+                if str(val_err) == "stock_unavailable":
+                    messages.error(
+                        request,
+                        "Certains produits de votre panier ne sont plus disponibles en quantité suffisante. Veuillez ajuster votre panier.",
+                    )
+                else:
+                    messages.error(request, f"Le montant ({expected_total} F) est trop bas.")
+                return redirect('orders:cart_detail')
             except Exception as e:
-                logger.error(f"Erreur checkout : {e}", exc_info=True)
+                logger.error(f"Erreur création locale commande checkout : {e}", exc_info=True)
                 messages.error(
                     request,
-                    "Un problème est survenu lors de l'initialisation du paiement. "
-                    "Veuillez réessayer dans quelques instants ou contacter notre service client."
+                    "Un problème est survenu lors de l'enregistrement de votre commande. "
+                    "Veuillez réessayer dans quelques instants."
                 )
+                return render(request, 'orders/checkout.html', {
+                    'form': form, 'cart_items': items, 'total': total, 'zones': zones
+                })
+
+            # Mémoriser l'ID de la commande en session pour permettre l'accès légitime aux invités
+            request.session['last_order_id'] = order.id
+
+            # --- Appel réseau CashPay HORS transaction DB ---
+            # En cas d'échec réseau / timeout / réponse invalide, la commande reste
+            # conservée en base (pending) et l'utilisateur peut réessayer sans doublon.
+            try:
+                _initialize_cashpay_for_order(request, order)
+            except Exception as e:
+                logger.error(f"Erreur initialisation CashPay commande #{order.id} : {e}", exc_info=True)
+                messages.warning(
+                    request,
+                    "Votre commande a bien été enregistrée, mais la connexion à CashPay a échoué temporairement. "
+                    "Vous pouvez réessayer de générer le lien de paiement ci-dessous."
+                )
+
+            return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order.id}))
     else:
         initial = _get_checkout_initial(request.user)
         form = CheckoutForm(initial=initial) if initial else CheckoutForm()
@@ -429,7 +507,87 @@ def cashpay_payment_page(request, order_id):
             reverse('orders:cashpay_return', kwargs={'order_id': order_id}) + f"?token={token}"
         )
 
-    bill_url = request.session.get('cashpay_bill_url') or order.payment_url or ''
+    # Nouvelle tentative de génération du lien CashPay sur la même commande (sans doublon)
+    if request.method == 'POST' and order.status == 'pending' and not order.payment_url:
+        from django.db import connection
+        lock_acquired = True
+        use_pg_lock = connection.vendor == 'postgresql'
+        if use_pg_lock:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_try_advisory_lock(%s)", [int(order.id)])
+                lock_acquired = bool(cursor.fetchone()[0])
+
+        if not lock_acquired:
+            messages.warning(
+                request,
+                "Une initialisation ou vérification du paiement est déjà en cours pour cette commande."
+            )
+            return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order_id}))
+
+        try:
+            order.refresh_from_db()
+            if order.payment_status:
+                return redirect(
+                    reverse('orders:cashpay_return', kwargs={'order_id': order_id}) + f"?token={token}"
+                )
+            if order.status != 'pending':
+                return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order_id}))
+
+            if order.paygate_tx_id:
+                # Une référence existe déjà : vérifier son statut sans jamais créer une 2e transaction.
+                try:
+                    status_res = _cashpay_fallback_check(order, order.paygate_tx_id, channel='retry_check')
+                    if status_res == 'paid':
+                        return redirect(
+                            reverse('orders:cashpay_return', kwargs={'order_id': order_id}) + f"?token={token}"
+                        )
+                    from .cashpay_service import CashPayService
+                    api_data = CashPayService().get_order_status(order.paygate_tx_id)
+                    recovered_url = api_data.get('bill_url') or api_data.get('payment_url')
+                    if recovered_url:
+                        Order.objects.filter(
+                            id=order.id, payment_status=False, status='pending', payment_url__isnull=True
+                        ).update(payment_url=recovered_url)
+                        request.session['cashpay_bill_url'] = recovered_url
+                        return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order_id}))
+                except Exception as e:
+                    logger.warning(f"Vérification référence CashPay existante #{order.id} échouée : {e}")
+                messages.warning(
+                    request,
+                    "Une transaction CashPay existe déjà pour cette commande et est en cours de vérification."
+                )
+                return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order_id}))
+
+            from .models import PaymentReconciliation
+            has_uncertain_init = PaymentReconciliation.objects.filter(
+                order=order,
+                kind=PaymentReconciliation.Kind.PROVIDER_STATE,
+                status=PaymentReconciliation.Status.OPEN,
+                details__uncertain=True,
+            ).exists()
+            if has_uncertain_init:
+                messages.warning(
+                    request,
+                    "Une tentative précédente est en attente de vérification auprès de CashPay. "
+                    "Veuillez patienter ou contacter le support si le problème persiste."
+                )
+                return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order_id}))
+
+            try:
+                _initialize_cashpay_for_order(request, order)
+                return redirect(reverse('orders:cashpay_payment_page', kwargs={'order_id': order_id}))
+            except Exception as e:
+                logger.error(f"Erreur réessai CashPay commande #{order.id} : {e}", exc_info=True)
+                messages.error(
+                    request,
+                    "Impossible de contacter CashPay pour le moment. Veuillez réessayer dans quelques instants."
+                )
+        finally:
+            if use_pg_lock:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT pg_advisory_unlock(%s)", [int(order.id)])
+
+    bill_url = order.payment_url or request.session.get('cashpay_bill_url') or ''
 
     return render(request, 'orders/cashpay_payment_page.html', {
         'order': order,

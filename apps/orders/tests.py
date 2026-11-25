@@ -1036,3 +1036,249 @@ class CashPayAtomicPaymentTests(TransactionTestCase):
         self.assertTrue(order.stock_updated)
         self.assertEqual(prod_empty.stock, 8)
         self.assertIn("[STOCK RÉGULARISÉ AVEC SUCCÈS]", order.notes)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class CartRoutesHttpTests(TestCase):
+    """Vérifie que les routes du panier répondent sans redirection 301."""
+
+    def setUp(self):
+        from apps.products.models import Product
+        self.client = Client()
+        self.product = Product.objects.create(name="Encens Test", price=Decimal("1500"), stock=10)
+
+    def test_cart_routes_no_301(self):
+        # /orders/cart/count/
+        r_count = self.client.get(reverse('orders:cart_count_api'))
+        self.assertEqual(r_count.status_code, 200)
+        self.assertEqual(r_count.json(), {'count': 0})
+
+        # /orders/cart/add/<id>/
+        r_add = self.client.post(reverse('orders:cart_add', args=[self.product.id]), {'quantity': 2})
+        self.assertEqual(r_add.status_code, 302)
+
+        # /orders/cart/update/<id>/
+        r_update = self.client.post(reverse('orders:cart_update', args=[self.product.id]), {'quantity': 3})
+        self.assertEqual(r_update.status_code, 302)
+        self.assertEqual(self.client.get(reverse('orders:cart_count_api')).json()['count'], 3)
+
+        # /orders/cart/remove/<id>/
+        r_remove = self.client.post(reverse('orders:cart_remove', args=[self.product.id]))
+        self.assertEqual(r_remove.status_code, 302)
+        self.assertEqual(self.client.get(reverse('orders:cart_count_api')).json()['count'], 0)
+
+
+@override_settings(
+    SECURE_SSL_REDIRECT=False,
+    CASHPAY_CLIENT_ID='test_id',
+    CASHPAY_CLIENT_SECRET='test_secret',
+    CASHPAY_USERNAME='test_user',
+    CASHPAY_PASSWORD='test_password',
+)
+class CheckoutAtomicityAndFailureTests(TransactionTestCase):
+    """Tests d'atomicité locale du checkout et de résilience aux échecs CashPay."""
+
+    def setUp(self):
+        from apps.products.models import Product
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='checkout_user', email='checkout@test.com', password='TestPassword123!'
+        )
+        self.product = Product.objects.create(name="Bougie Rituelle", price=Decimal("2500"), stock=10)
+        self.cheap_product = Product.objects.create(name="Mini Encens", price=Decimal("100"), stock=10)
+        self.valid_post = {
+            'full_name': 'Afi Mensah',
+            'email': 'afi@example.com',
+            'phone': '+22890010203',
+            'address': 'Rue de la Paix',
+            'city': 'Lomé',
+            'country': 'Togo',
+        }
+
+    def _put_in_cart(self, product, qty=1):
+        self.client.post(reverse('orders:cart_add', args=[product.id]), {'quantity': qty})
+
+    def test_checkout_amount_below_minimum_creates_no_order(self):
+        from apps.orders.models import OrderItem
+        self._put_in_cart(self.cheap_product, 1)
+        resp = self.client.post(reverse('orders:checkout'), self.valid_post)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Order.objects.count(), 0)
+        self.assertEqual(OrderItem.objects.count(), 0)
+        self.assertEqual(ShippingAddress.objects.count(), 0)
+
+    def test_checkout_atomic_rollback_on_order_item_failure(self):
+        from unittest.mock import patch
+        from apps.orders.models import OrderItem
+        self._put_in_cart(self.product, 1)
+        with patch('apps.orders.views.OrderItem.objects.create', side_effect=RuntimeError("DB item error")):
+            resp = self.client.post(reverse('orders:checkout'), self.valid_post)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Order.objects.count(), 0)
+        self.assertEqual(OrderItem.objects.count(), 0)
+        self.assertEqual(ShippingAddress.objects.count(), 0)
+
+    def test_checkout_atomic_rollback_on_shipping_address_failure(self):
+        from unittest.mock import patch
+        from apps.orders.models import OrderItem
+        self._put_in_cart(self.product, 1)
+        with patch('apps.orders.views.ShippingAddress.objects.create', side_effect=RuntimeError("DB addr error")):
+            resp = self.client.post(reverse('orders:checkout'), self.valid_post)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Order.objects.count(), 0)
+        self.assertEqual(OrderItem.objects.count(), 0)
+        self.assertEqual(ShippingAddress.objects.count(), 0)
+
+    def test_checkout_cashpay_timeout_preserves_order_and_blocks_blind_retry(self):
+        from unittest.mock import patch
+        from apps.orders.models import PaymentReconciliation
+        self._put_in_cart(self.product, 2)
+        with patch('apps.orders.cashpay_service.CashPayService.create_link2pay_order', side_effect=RuntimeError("Timeout")):
+            resp = self.client.post(reverse('orders:checkout'), self.valid_post)
+
+        self.assertEqual(Order.objects.count(), 1)
+        order = Order.objects.first()
+        self.assertEqual(order.status, 'pending')
+        self.assertFalse(order.payment_status)
+        self.assertIsNone(order.payment_url)
+        self.assertEqual(order.total, Decimal('5000'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse('orders:cashpay_payment_page', args=[order.id]), resp.url)
+
+        # Un incident de réconciliation incertain doit être consigné
+        rec = PaymentReconciliation.objects.get(order=order, kind=PaymentReconciliation.Kind.PROVIDER_STATE)
+        self.assertTrue(rec.details.get('uncertain'))
+
+        # Le GET de la page relais s'affiche sans TemplateSyntaxError
+        page_resp = self.client.get(reverse('orders:cashpay_payment_page', args=[order.id]))
+        self.assertEqual(page_resp.status_code, 200)
+        self.assertIn('order', page_resp.context)
+        self.assertEqual(page_resp.context['order'].id, order.id)
+
+        # Une tentative aveugle après timeout ne doit PAS créer une 2e transaction CashPay
+        with patch('apps.orders.cashpay_service.CashPayService.create_link2pay_order') as mock_cp:
+            retry_resp = self.client.post(reverse('orders:cashpay_payment_page', args=[order.id]))
+        mock_cp.assert_not_called()
+        self.assertEqual(retry_resp.status_code, 302)
+        self.assertEqual(Order.objects.count(), 1)
+
+    @override_settings(CASHPAY_CLIENT_ID='')
+    def test_checkout_not_configured_then_retry_succeeds_on_same_order(self):
+        from unittest.mock import patch
+        self._put_in_cart(self.product, 2)
+        resp = self.client.post(reverse('orders:checkout'), self.valid_post)
+        self.assertEqual(Order.objects.count(), 1)
+        order = Order.objects.first()
+        self.assertEqual(resp.status_code, 302)
+
+        # Une fois configuré, la reprise génère le lien sur la même commande (aucune requête précédente émise)
+        with override_settings(
+            CASHPAY_CLIENT_ID='test_id',
+            CASHPAY_CLIENT_SECRET='test_secret',
+            CASHPAY_USERNAME='test_user',
+            CASHPAY_PASSWORD='test_password',
+        ), patch('apps.orders.cashpay_service.CashPayService.create_link2pay_order') as mock_cp:
+            mock_cp.return_value = {
+                'status': 'success',
+                'bill_url': 'https://cashpay.example/bill/123',
+                'order_reference': 'CP-RETRY-123',
+            }
+            retry_resp = self.client.post(reverse('orders:cashpay_payment_page', args=[order.id]))
+        self.assertEqual(retry_resp.status_code, 302)
+        self.assertEqual(Order.objects.count(), 1)
+        order.refresh_from_db()
+        self.assertEqual(order.payment_url, 'https://cashpay.example/bill/123')
+        self.assertEqual(order.paygate_tx_id, 'CP-RETRY-123')
+
+        # Le GET de la page relais rend le bouton CashPay et le JS avec order.id sans erreur
+        get_resp = self.client.get(reverse('orders:cashpay_payment_page', args=[order.id]))
+        self.assertEqual(get_resp.status_code, 200)
+        self.assertContains(get_resp, 'https://cashpay.example/bill/123')
+
+    def test_retry_with_existing_paygate_tx_id_checks_status_without_overwriting(self):
+        from unittest.mock import patch
+        self._put_in_cart(self.product, 1)
+        with patch('apps.orders.cashpay_service.CashPayService.create_link2pay_order') as mock_cp:
+            mock_cp.return_value = {'status': 'success', 'order_reference': 'CP-ORIG-1'}  # bill_url absent
+            self.client.post(reverse('orders:checkout'), self.valid_post)
+        order = Order.objects.first()
+        self.assertEqual(order.paygate_tx_id, 'CP-ORIG-1')
+
+        with patch('apps.orders.cashpay_service.CashPayService.create_link2pay_order') as mock_create, \
+             patch('apps.orders.cashpay_service.CashPayService.get_order_status') as mock_status:
+            mock_status.return_value = {'state': 'Pending', 'bill_url': 'https://cashpay.example/bill/recovered'}
+            retry_resp = self.client.post(reverse('orders:cashpay_payment_page', args=[order.id]))
+        mock_create.assert_not_called()
+        self.assertEqual(retry_resp.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.paygate_tx_id, 'CP-ORIG-1')
+        self.assertEqual(order.payment_url, 'https://cashpay.example/bill/recovered')
+
+    def test_checkout_cashpay_invalid_response_preserves_order(self):
+        from unittest.mock import patch
+        self._put_in_cart(self.product, 1)
+        with patch('apps.orders.cashpay_service.CashPayService.create_link2pay_order', return_value={'status': 'success'}):
+            resp = self.client.post(reverse('orders:checkout'), self.valid_post)
+        self.assertEqual(Order.objects.count(), 1)
+        order = Order.objects.first()
+        self.assertEqual(order.status, 'pending')
+        self.assertFalse(order.payment_status)
+        self.assertIsNone(order.payment_url)
+        self.assertEqual(resp.status_code, 302)
+
+    def test_retry_never_modifies_already_paid_order(self):
+        from unittest.mock import patch
+        self._put_in_cart(self.product, 1)
+        with patch('apps.orders.cashpay_service.CashPayService.create_link2pay_order', side_effect=RuntimeError("Timeout")):
+            self.client.post(reverse('orders:checkout'), self.valid_post)
+        order = Order.objects.first()
+        Order.objects.filter(pk=order.pk).update(status='paid', payment_status=True, paygate_tx_id='CP-PAID-99')
+
+        with patch('apps.orders.cashpay_service.CashPayService.create_link2pay_order') as mock_cp:
+            resp = self.client.post(reverse('orders:cashpay_payment_page', args=[order.id]))
+            get_resp = self.client.get(reverse('orders:cashpay_payment_page', args=[order.id]))
+        mock_cp.assert_not_called()
+        order.refresh_from_db()
+        self.assertEqual(order.paygate_tx_id, 'CP-PAID-99')
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(get_resp.status_code, 302)
+        self.assertIn(reverse('orders:cashpay_return', args=[order.id]), get_resp.url)
+
+    def test_cashpay_payment_page_get_with_and_without_bill_url_and_paid(self):
+        from apps.orders.models import OrderItem
+        order = Order.objects.create(
+            email='client@example.com',
+            status='pending',
+            payment_status=False,
+            subtotal=Decimal('5000'),
+            total=Decimal('5000'),
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            name=self.product.name,
+            price=Decimal('2500'),
+            quantity=2,
+        )
+        session = self.client.session
+        session['last_order_id'] = order.id
+        session.save()
+
+        # 1. GET sans bill_url : rend le formulaire de réessai sans TemplateSyntaxError
+        resp_no_url = self.client.get(reverse('orders:cashpay_payment_page', args=[order.id]))
+        self.assertEqual(resp_no_url.status_code, 200)
+        self.assertContains(resp_no_url, 'Réessayer le paiement avec CashPay')
+        self.assertContains(resp_no_url, f'{self.product.name} × 2')
+
+        # 2. GET avec bill_url : rend le bouton de paiement CashPay
+        Order.objects.filter(pk=order.pk).update(payment_url='https://cashpay.example/bill/get-test')
+        resp_with_url = self.client.get(reverse('orders:cashpay_payment_page', args=[order.id]))
+        self.assertEqual(resp_with_url.status_code, 200)
+        self.assertContains(resp_with_url, 'https://cashpay.example/bill/get-test')
+        self.assertContains(resp_with_url, f'var orderId = {order.id};')
+
+        # 3. GET commande déjà payée : redirige vers cashpay_return
+        Order.objects.filter(pk=order.pk).update(status='paid', payment_status=True)
+        resp_paid = self.client.get(reverse('orders:cashpay_payment_page', args=[order.id]))
+        self.assertEqual(resp_paid.status_code, 302)
+        self.assertIn(reverse('orders:cashpay_return', args=[order.id]), resp_paid.url)

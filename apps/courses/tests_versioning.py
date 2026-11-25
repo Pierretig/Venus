@@ -271,6 +271,38 @@ class AccessAndHistoryTests(TestCase):
         bob_attempt = evaluate_quiz_submission(bob_enrollment, self.quiz, {str(self.q.id): str(self.good.id)})
         self.assertFalse(bob_attempt.passed)
 
+    def test_buy_course_timeout_records_uncertain_reconciliation_and_blocks_blind_retry(self):
+        from unittest.mock import patch
+        from apps.orders.models import Order, PaymentReconciliation
+
+        buyer = User.objects.create_user("buyer_timeout", email="buyer_timeout@test.invalid", password="x")
+        client = Client()
+        client.force_login(buyer)
+
+        with patch('apps.orders.cashpay_service.CashPayService.create_link2pay_order', side_effect=RuntimeError("Timeout")):
+            resp = client.get(reverse('courses:buy_course', args=[self.course.slug]))
+
+        self.assertEqual(Order.objects.count(), 1)
+        order = Order.objects.first()
+        self.assertEqual(order.status, 'pending')
+        self.assertFalse(order.payment_status)
+        self.assertIsNone(order.payment_url)
+        self.assertFalse(AccessGrant.objects.filter(user=buyer).exists())
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse('orders:cashpay_payment_page', args=[order.id]), resp.url)
+
+        rec = PaymentReconciliation.objects.get(order=order, kind=PaymentReconciliation.Kind.PROVIDER_STATE)
+        self.assertTrue(rec.details.get('uncertain'))
+
+        page_resp = client.get(reverse('orders:cashpay_payment_page', args=[order.id]))
+        self.assertEqual(page_resp.status_code, 200)
+
+        with patch('apps.orders.cashpay_service.CashPayService.create_link2pay_order') as mock_cp:
+            retry_resp = client.post(reverse('orders:cashpay_payment_page', args=[order.id]))
+        mock_cp.assert_not_called()
+        self.assertEqual(retry_resp.status_code, 302)
+        self.assertFalse(AccessGrant.objects.filter(user=buyer).exists())
+
     def test_old_attempt_detail_view(self):
         self._paid_order(self.alice)
         enrollment = Enrollment.objects.get(user=self.alice)

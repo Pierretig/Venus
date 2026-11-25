@@ -404,3 +404,26 @@ class PostgresConcurrencyTests(TransactionTestCase):
         self.assertFalse(set(claimed[1]) & set(claimed[2]))
         self.assertEqual(len(claimed[1]) + len(claimed[2]), 30)
         self.assertEqual(OutboxEvent.objects.filter(attempts=1, status='PROCESSING').count(), 30)
+
+    def test_concurrent_stock_reservations_never_oversell(self):
+        from django.db.models import Sum
+        from apps.products.models import StockReservation
+        from apps.products.stock_utils import reserve_stock
+
+        product = Product.objects.create(name="Stock Limité", price=Decimal("1000"), stock=5)
+        results = []
+        barrier = threading.Barrier(2)
+
+        def reserver(session_key):
+            def run():
+                try:
+                    barrier.wait(5)
+                    results.append(reserve_stock(product, session_key, 3))
+                finally:
+                    connections.close_all()
+            return run
+
+        _run_threads(reserver("sess-1"), reserver("sess-2"))
+        self.assertEqual(sorted(results), [False, True])
+        total_reserved = StockReservation.objects.filter(product=product).aggregate(Sum('quantity'))['quantity__sum'] or 0
+        self.assertLessEqual(total_reserved, 5)
